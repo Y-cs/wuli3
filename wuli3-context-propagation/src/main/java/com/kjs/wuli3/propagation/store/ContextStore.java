@@ -14,7 +14,7 @@ import java.util.Optional;
  * @author GuoYang create on 2026/8/17 11:53
  */
 public final class ContextStore implements ContextReader, ContextWriter {
-
+    @SuppressWarnings("ThreadLocalUsage")
     private final ThreadLocal<ContextContainer> holder = new ThreadLocal<>();
 
     /**
