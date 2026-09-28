@@ -7,7 +7,7 @@ plugins {
 }
 
 group = "com.kjs.wuli3"
-version = "0.1.0-SNAPSHOT"
+version = "0.1.1-SNAPSHOT"
 
 subprojects {
     group = rootProject.group

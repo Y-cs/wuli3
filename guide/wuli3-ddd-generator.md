@@ -24,7 +24,7 @@ pluginManagement {
 ```kotlin
 // build.gradle.kts
 plugins {
-    id("com.kjs.wuli3.ddd-generator") version "0.1.0-SNAPSHOT"
+    id("com.kjs.wuli3.ddd-generator") version "0.1.1-SNAPSHOT"
 }
 ```
 
@@ -70,8 +70,8 @@ java -cp wuli3-ddd-generator.jar com.kjs.wuli3.generator.DddGenerator generate \
 | `--domain` | 是 | 领域名，可包含数字和连字符。 |
 | `--persistence` | 否 | `none`（默认）或 `mysql`。 |
 | `--messaging` | 否 | `none`（默认）、`rocketmq` 或 `rabbitmq`。 |
-| `--wuli3-version` | 否 | Wuli3 BOM 和 starter 版本，默认 `0.1.0-SNAPSHOT`。 |
-| `--build-logic-version` | 否 | Wuli3 约定插件版本，默认 `0.1.0-SNAPSHOT`。 |
+| `--wuli3-version` | 否 | Wuli3 BOM 和 starter 版本，默认 `0.1.1-SNAPSHOT`。 |
+| `--build-logic-version` | 否 | Wuli3 约定插件版本，默认 `0.1.1-SNAPSHOT`。 |
 | `--output` | 否 | 生成父目录，默认当前目录。 |
 
 Gradle 任务使用 `--base-package`，其余参数与 CLI 一致。

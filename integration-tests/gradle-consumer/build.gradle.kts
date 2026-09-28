@@ -3,7 +3,7 @@ plugins {
 }
 
 dependencies {
-    implementation(platform("com.kjs.wuli3:wuli3-dependencies:0.1.0-SNAPSHOT"))
+    implementation(platform("com.kjs.wuli3:wuli3-dependencies:0.1.1-SNAPSHOT"))
     implementation("com.kjs.wuli3:wuli3-core")
     implementation("com.kjs.wuli3:wuli3-json")
     implementation("com.kjs.wuli3:wuli3-event-core")

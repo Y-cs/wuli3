@@ -25,7 +25,7 @@
 当前项目根构建统一设置了 group 和 version，因此发布坐标为：
 
 ```text
-com.kjs.wuli3:wuli3-dependencies:0.1.0-SNAPSHOT
+com.kjs.wuli3:wuli3-dependencies:0.1.1-SNAPSHOT
 ```
 
 如果根项目版本变化，BOM 版本也会一起变化。
@@ -132,7 +132,7 @@ repositories {
 }
 
 dependencies {
-    implementation(platform("com.kjs.wuli3:wuli3-dependencies:0.1.0-SNAPSHOT"))
+    implementation(platform("com.kjs.wuli3:wuli3-dependencies:0.1.1-SNAPSHOT"))
 
     implementation("com.google.guava:guava")
     implementation("it.unimi.dsi:fastutil")
@@ -145,8 +145,8 @@ dependencies {
 
 ```kotlin
 dependencies {
-    implementation(platform("com.kjs.wuli3:wuli3-dependencies:0.1.0-SNAPSHOT"))
-    annotationProcessor(platform("com.kjs.wuli3:wuli3-dependencies:0.1.0-SNAPSHOT"))
+    implementation(platform("com.kjs.wuli3:wuli3-dependencies:0.1.1-SNAPSHOT"))
+    annotationProcessor(platform("com.kjs.wuli3:wuli3-dependencies:0.1.1-SNAPSHOT"))
 
     compileOnly("org.projectlombok:lombok")
     annotationProcessor("org.projectlombok:lombok")
@@ -168,14 +168,14 @@ repositories {
 
 ```kotlin
 plugins {
-    id("com.kjs.wuli3.java-conventions") version "0.1.0-SNAPSHOT"
+    id("com.kjs.wuli3.java-conventions") version "0.1.1-SNAPSHOT"
 }
 ```
 
 则默认会自动导入：
 
 ```text
-com.kjs.wuli3:wuli3-dependencies:0.1.0-SNAPSHOT
+com.kjs.wuli3:wuli3-dependencies:0.1.1-SNAPSHOT
 ```
 
 业务服务只需要声明无版本依赖：
@@ -232,7 +232,7 @@ Maven 项目在 `dependencyManagement` 中导入 BOM：
     <dependency>
       <groupId>com.kjs.wuli3</groupId>
       <artifactId>wuli3-dependencies</artifactId>
-      <version>0.1.0-SNAPSHOT</version>
+      <version>0.1.1-SNAPSHOT</version>
       <type>pom</type>
       <scope>import</scope>
     </dependency>
