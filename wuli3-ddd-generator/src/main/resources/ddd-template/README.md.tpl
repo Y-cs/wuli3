@@ -4,8 +4,12 @@
 
 开发者与 AI/Agent 的构建、编码、测试、提交、Git 和注释规范见根目录 [AGENTS.md](AGENTS.md)。
 
-根工程统一应用 `com.kjs.wuli3.java-conventions`，各模块无需重复配置 Java、测试和质量门禁；
+根工程统一应用 Kotlin 约定插件：纯模块使用 `com.kjs.wuli3.kotlin-conventions`，Spring 模块使用
+`com.kjs.wuli3.kotlin-spring-conventions`。各模块无需重复配置 Java/Kotlin、测试和质量门禁；
 `bootstrap` 额外应用 Spring Boot 插件生成可执行应用。
+
+Kotlin 源码放在 `src/main/kotlin` 和 `src/test/kotlin`，Java 源码仍可放在对应的 `java` 目录中混编。
+运行 `./gradlew spotlessKotlinCheck` 检查格式，使用 `./gradlew spotlessKotlinApply` 自动格式化。
 
 ## 模块边界
 

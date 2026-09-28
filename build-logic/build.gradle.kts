@@ -8,11 +8,24 @@ plugins {
 group = "com.kjs.wuli3"
 version = providers.gradleProperty("wuli3.build-logic.version").get()
 
+val kotlinVersion = "2.4.20"
+
 dependencies {
+    implementation("org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion")
+    implementation("org.jetbrains.kotlin:kotlin-lombok:$kotlinVersion")
+    implementation("org.jetbrains.kotlin:kotlin-allopen:$kotlinVersion")
     implementation("com.github.spotbugs.snom:spotbugs-gradle-plugin:6.5.8")
     implementation("com.diffplug.spotless:com.diffplug.spotless.gradle.plugin:8.9.0")
     implementation("de.thetaphi:forbiddenapis:3.10")
     implementation("net.ltgt.gradle:gradle-errorprone-plugin:5.1.0")
+    testImplementation(gradleTestKit())
+    testImplementation("org.junit.jupiter:junit-jupiter:6.0.1")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher:6.0.1")
+    testImplementation("org.assertj:assertj-core:3.27.6")
+}
+
+tasks.test {
+    useJUnitPlatform()
 }
 
 repositories {
@@ -33,6 +46,14 @@ gradlePlugin {
         register("springConventions") {
             id = "com.kjs.wuli3.spring-conventions"
             implementationClass = "com.kjs.wuli3.SpringConventionsPlugin"
+        }
+        register("kotlinConventions") {
+            id = "com.kjs.wuli3.kotlin-conventions"
+            implementationClass = "com.kjs.wuli3.KotlinConventionsPlugin"
+        }
+        register("kotlinSpringConventions") {
+            id = "com.kjs.wuli3.kotlin-spring-conventions"
+            implementationClass = "com.kjs.wuli3.KotlinSpringConventionsPlugin"
         }
         register("publishingConventions") {
             id = "com.kjs.wuli3.publishing-conventions"

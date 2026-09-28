@@ -72,14 +72,17 @@ final class DddGeneratorTest {
                 .exists();
         assertThat(Files.readString(root.resolve("build.gradle.kts")))
                 .contains(
-                        "java-conventions\") version \"4.5.6\"",
-                        "pluginManager.apply(\"com.kjs.wuli3.java-conventions\")")
+                        "kotlin-conventions\") version \"4.5.6\"",
+                        "com.kjs.wuli3.kotlin-spring-conventions",
+                        "com.kjs.wuli3.kotlin-conventions")
                 .doesNotContain("JavaPluginExtension", "JavaLanguageVersion", "tasks.withType<JavaCompile>");
         assertThat(Files.readString(root.resolve("gradle.properties")))
                 .contains(
                         "wuli3.version=1.2.3",
                         "wuli3.conventions.bom-coordinates=com.kjs.wuli3:wuli3-dependencies:1.2.3",
                         "wuli3.conventions.jacoco.verification.enabled=false");
+        assertThat(Files.readString(root.resolve("README.md")))
+                .contains("src/main/kotlin", "spotlessKotlinCheck", "kotlin-spring-conventions");
         assertThat(Files.readString(root.resolve("domain/build.gradle.kts")))
                 .contains("api(project(\":shared-kernel\"))")
                 .doesNotContain("plugins", "java-library");

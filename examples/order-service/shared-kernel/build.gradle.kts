@@ -3,19 +3,20 @@ dependencies {
     testImplementation("com.tngtech.archunit:archunit-junit5:1.5.0")
 }
 
-// Java 约定会注入通用生产依赖；Shared Kernel 只保留边界内允许的 wuli3-core。
+// Kotlin 约定会注入 Kotlin 标准库；Shared Kernel 只保留边界内允许的依赖。
 configurations.matching {
     it.name in setOf("api", "implementation", "compileOnly", "compileOnlyApi", "runtimeOnly", "annotationProcessor")
 }.configureEach {
     withDependencies {
-        removeIf { "${it.group}:${it.name}" != "com.kjs.wuli3:wuli3-core" }
+        removeIf {
+            "${it.group}:${it.name}" !in setOf("com.kjs.wuli3:wuli3-core", "org.jetbrains.kotlin:kotlin-stdlib")
+        }
     }
 }
 
 val sharedKernelProductionConfigurations =
     listOf("api", "implementation", "compileOnly", "compileOnlyApi", "runtimeOnly", "annotationProcessor")
-val allowedSharedKernelDependencies =
-    setOf("com.kjs.wuli3:wuli3-core")
+val allowedSharedKernelDependencies = setOf("com.kjs.wuli3:wuli3-core", "org.jetbrains.kotlin:kotlin-stdlib")
 
 val verifySharedKernelDependencies = tasks.register("verifySharedKernelDependencies") {
     group = "verification"

@@ -33,6 +33,8 @@ final class InfraArchitectureTest {
                     "javax..",
                     "jakarta..",
                     "org.jspecify..",
+                    "org.jetbrains.kotlin..",
+                    "org.jetbrains.annotations..",
                     "org.slf4j..",
                     "org.springframework..",
                     "org.apache.ibatis..",

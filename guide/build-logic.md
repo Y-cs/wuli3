@@ -15,6 +15,8 @@ included build 名称只用于本仓库识别；业务模块不需要直接引�
 提供约定插件：
 
 - `com.kjs.wuli3.java-conventions`：JDK 21、测试、基础依赖约定。
+- `com.kjs.wuli3.kotlin-conventions`：Kotlin/JVM 2.4.20、JDK 21、Java/Kotlin 混编与 Lombok 约定。
+- `com.kjs.wuli3.kotlin-spring-conventions`：在 Kotlin 约定上启用 Spring `all-open` 与 `kotlin-reflect`。
 - `com.kjs.wuli3.quality-conventions`：Spotless、Palantir Java Format、Checkstyle、SpotBugs、Forbidden APIs、Error Prone、NullAway。
 - `com.kjs.wuli3.spring-conventions`：Spring Boot starter 模块约定。
 - `com.kjs.wuli3.publishing-conventions`：统一 Maven Publication 和临时发布仓库约定。
@@ -34,6 +36,16 @@ plugins {
     id("com.kjs.wuli3.spring-conventions")
 }
 ```
+
+Kotlin 模块使用：
+
+```kotlin
+plugins {
+    id("com.kjs.wuli3.kotlin-conventions")
+}
+```
+
+需要 Spring 注解开放能力的 Kotlin 模块使用 `com.kjs.wuli3.kotlin-spring-conventions`。同一模块内的 Kotlin 编译任务先于 Java 编译任务，模块之间仍由 Gradle 项目依赖决定顺序。Kotlin 源码放在 `src/main/kotlin` 和 `src/test/kotlin`，格式化使用 Spotless + ktfmt，执行 `spotlessKotlinCheck` 或 `spotlessKotlinApply`。
 
 业务模块只应用约定插件，不重复配置质量规则。
 
@@ -57,7 +69,7 @@ plugins {
 }
 ```
 
-默认会导入 `com.kjs.wuli3:wuli3-dependencies:0.1.1-SNAPSHOT` 作为 BOM，并启用 Spotless、Palantir Java Format、Checkstyle、SpotBugs、Forbidden APIs、Error Prone、NullAway 和 JaCoCo 覆盖率门禁。
+默认会导入 `com.kjs.wuli3:wuli3-dependencies:0.1.1-SNAPSHOT` 作为 BOM，并启用 Spotless、Palantir Java Format、ktfmt、Checkstyle、SpotBugs、Forbidden APIs、Error Prone、NullAway 和 JaCoCo 覆盖率门禁。
 业务项目可在 `gradle.properties` 覆盖默认值：
 
 ```properties

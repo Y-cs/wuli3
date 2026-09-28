@@ -5,7 +5,7 @@
 ## 项目结构与模块边界
 
 本项目是 JDK 21 + Gradle Wrapper 的单体多模块 DDD 服务，Java 基础包名为 `{{basePackage}}`，初始领域为 `{{domain}}`。
-根目录 `settings.gradle.kts` 声明模块，源码位于各模块 `src/main/java`，测试位于 `src/test/java`，资源位于 `src/main/resources`。
+根目录 `settings.gradle.kts` 声明模块，源码位于各模块 `src/main/java` 或 `src/main/kotlin`，测试位于 `src/test/java` 或 `src/test/kotlin`，资源位于 `src/main/resources`。
 
 - `shared-kernel`：共享稳定的标识、状态和领域类型，生产依赖只允许 `wuli3-core`。
 - `domain`：聚合、实体和值对象，只依赖 `shared-kernel`，不引入 Spring 或基础设施实现。
@@ -31,7 +31,8 @@
 
 - `test` 运行 JUnit 测试；`check` 执行测试、格式与 Checkstyle 检查、Forbidden APIs、Error Prone、NullAway 及架构门禁。
 - 修改后先运行受影响模块的针对性测试，再运行相关模块 `check`；提交前执行 `./gradlew clean check`。
-- 根工程统一应用 `com.kjs.wuli3.java-conventions`，模块只声明业务依赖；`bootstrap` 额外应用 Spring Boot 插件。
+- 根工程统一应用 Kotlin 约定插件：纯模块使用 `com.kjs.wuli3.kotlin-conventions`，Spring 模块使用 `com.kjs.wuli3.kotlin-spring-conventions`；模块只声明业务依赖，`bootstrap` 额外应用 Spring Boot 插件。
+- Java 与 Kotlin 可以混编；Kotlin 编译任务先于 Java 编译任务。使用 `./gradlew spotlessKotlinCheck` 检查格式，使用 `./gradlew spotlessKotlinApply` 自动格式化。
 - 不在模块中重复配置 Java 版本、测试框架或公共质量规则，不通过关闭门禁解决检查失败。
 - 依赖仓库统一配置在 `settings.gradle.kts`，依赖版本优先使用 Wuli3 BOM；BOM 坐标与版本通过根目录 `gradle.properties` 管理，约定插件版本在根构建文件管理。
 - 新增依赖需说明必要性，优先复用项目已有能力；不要在各模块散落重复版本声明。

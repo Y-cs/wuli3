@@ -6,6 +6,7 @@ internal object ConventionProperties {
     const val DEFAULT_BOM_COORDINATES = "com.kjs.wuli3:wuli3-dependencies:0.1.1-SNAPSHOT"
     const val DEFAULT_JACOCO_LINE_MINIMUM = "0.45"
     const val DEFAULT_JAVA_VERSION = 21
+    const val DEFAULT_KOTLIN_VERSION = "2.4.20"
     const val DEFAULT_NULL_AWAY_ANNOTATED_PACKAGES = "com.kjs.wuli3"
     const val DEFAULT_PALANTIR_JAVA_FORMAT_VERSION = "2.97.0"
     const val DEFAULT_PROJECT_BOM_PATH = ":wuli3-dependencies"

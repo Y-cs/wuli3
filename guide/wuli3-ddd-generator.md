@@ -99,10 +99,12 @@ shared-kernel -> domain / api -> app -> infra
 - `adapter` 依赖 `api` 和 `app`，负责 HTTP 等入站协议。
 - `bootstrap` 依赖 `infra` 和 `adapter`，只负责 Spring Boot 启动和组装。
 
-根工程统一向子模块应用 `com.kjs.wuli3.java-conventions`，由该约定提供 Java 21、Wuli3 BOM、
-测试依赖、JaCoCo 和静态质量门禁。各模块构建文件只声明自己的业务依赖；`bootstrap` 再额外应用
-`org.springframework.boot`。`com.kjs.wuli3.spring-conventions` 面向 Spring Boot Starter 和自动配置模块，
-不会应用到 `domain`、`api` 或 `shared-kernel`。
+根工程统一向子模块应用 Kotlin 约定插件：`domain`、`api`、`shared-kernel` 使用
+`com.kjs.wuli3.kotlin-conventions`，`app`、`infra`、`adapter`、`bootstrap` 使用
+`com.kjs.wuli3.kotlin-spring-conventions`。约定提供 Java/Kotlin 21、Wuli3 BOM、测试依赖、JaCoCo、
+Spotless + ktfmt 和静态质量门禁；Spring 约定额外配置 Kotlin Spring all-open 和 reflect。各模块构建文件只声明自己的业务依赖；
+`bootstrap` 再额外应用 `org.springframework.boot`。Java 与 Kotlin 可在 `src/main/{java,kotlin}` 和
+`src/test/{java,kotlin}` 中混编，Kotlin 编译先于 Java 编译。
 
 ## 架构门禁
 
@@ -126,6 +128,8 @@ shared-kernel -> domain / api -> app -> infra
 
 ```bash
 ./gradlew check
+./gradlew spotlessKotlinCheck
+./gradlew spotlessKotlinApply
 ./gradlew :bootstrap:bootRun
 ```
 

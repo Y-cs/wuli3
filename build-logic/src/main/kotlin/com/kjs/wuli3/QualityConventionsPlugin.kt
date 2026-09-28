@@ -63,6 +63,12 @@ class QualityConventionsPlugin : Plugin<Project> {
                     trimTrailingWhitespace()
                     endWithNewline()
                 }
+                kotlin {
+                    target("src/*/kotlin/**/*.kt")
+                    ktfmt("0.54").kotlinlangStyle()
+                    trimTrailingWhitespace()
+                    endWithNewline()
+                }
             }
 
             dependencies {
