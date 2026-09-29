@@ -1,6 +1,7 @@
 package com.kjs.wuli3.propagation.accessor;
 
-import com.kjs.wuli3.propagation.context.InvocationContext;
+import com.kjs.wuli3.propagation.context.ContextKey;
+import com.kjs.wuli3.propagation.internal.InvocationContext;
 import com.kjs.wuli3.propagation.store.ContextReader;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -20,7 +21,7 @@ public class InvocationContextAccessor {
      * @return 当前请求上下文；未设置时为空
      */
     public Optional<InvocationContext> current() {
-        return this.contextReader.get(InvocationContext.class);
+        return this.contextReader.get(ContextKey.of(InvocationContext.class));
     }
 
     /**

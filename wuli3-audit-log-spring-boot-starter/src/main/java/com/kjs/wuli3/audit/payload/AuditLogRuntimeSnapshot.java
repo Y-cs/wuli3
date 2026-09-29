@@ -1,7 +1,7 @@
 package com.kjs.wuli3.audit.payload;
 
 import com.kjs.wuli3.core.assertion.Asserts;
-import com.kjs.wuli3.propagation.context.PrincipalType;
+import com.kjs.wuli3.propagation.internal.PrincipalType;
 import java.util.Objects;
 import org.jspecify.annotations.Nullable;
 

@@ -3,7 +3,7 @@ package com.kjs.wuli3
 import org.gradle.api.Project
 
 internal object ConventionProperties {
-    const val DEFAULT_BOM_COORDINATES = "com.kjs.wuli3:wuli3-dependencies:0.1.1-SNAPSHOT"
+    const val DEFAULT_BOM_COORDINATES = "com.kjs.wuli3:wuli3-dependencies:0.1.3-SNAPSHOT"
     const val DEFAULT_JACOCO_LINE_MINIMUM = "0.45"
     const val DEFAULT_JAVA_VERSION = 21
     const val DEFAULT_KOTLIN_VERSION = "2.4.20"

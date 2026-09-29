@@ -1,5 +1,7 @@
 package com.kjs.wuli3.propagation.context;
 
+import com.kjs.wuli3.propagation.codec.ContextCodec;
+
 /**
  * 可跨调用边界传播的固定上下文类型集合。
  *
@@ -15,5 +17,8 @@ public interface PropagationContext extends Context {
      * @return 当前上下文的具体类型
      */
     @Override
-    Class<? extends PropagationContext> type();
+    ContextKey<? extends PropagationContext> contentKey();
+
+    ContextCodec<? extends PropagationContext> contentCodec();
+
 }

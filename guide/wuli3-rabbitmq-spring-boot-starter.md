@@ -54,17 +54,15 @@ eventPublisher.publish(options, envelope);
 
 若边界只允许传播调用标识，可显式覆盖 `ContextPropagator` Bean。同一个 `ContextPropagator` Bean 同时决定出站字段和入站可恢复字段。
 
-消费适配器需要先得到已解码的 `ContextProxy`，再显式恢复作用域：
+消费适配器通过回调显式建立恢复作用域：
 
 ```java
-final ContextProxy contextProxy =
-        rabbitContextSupport.restoreFrom(message.getMessageProperties().getHeaders());
-try (ContextScope ignored = contextProxy.restore(contextProxy.capture())) {
+rabbitContextSupport.runInScope(message.getMessageProperties().getHeaders(), () -> {
     listener.handle(message);
-}
+});
 ```
 
-`restoreFrom` 不会自动注册或包装 RabbitMQ Listener。实际 Listener 仍应根据消息来源、线程模型、重试和死信策略决定调用时机。
+`runInScope` 不会自动注册或包装 RabbitMQ Listener。实际 Listener 仍应根据消息来源、线程模型、重试和死信策略决定调用时机。
 
 ## 验证
 

@@ -1,5 +1,6 @@
 package com.kjs.wuli3.propagation.codec;
 
+import com.kjs.wuli3.propagation.context.ContextKey;
 import com.kjs.wuli3.propagation.context.PropagationContext;
 import java.util.Optional;
 import java.util.Set;
@@ -11,15 +12,9 @@ import org.jspecify.annotations.Nullable;
  *
  * @author GuoYang create on 2026/8/17 11:53
  */
-public interface ContextFieldCodec<C extends PropagationContext> {
+public interface ContextCodec<C extends PropagationContext>{
 
-    /**
-     * 返回该编码器处理的上下文类型。
-     *
-     * @return 上下文类型
-     */
-    Class<C> contextType();
-
+    ContextKey<C> contentKey();
     /**
      * 返回该编码器管理的协议字段名。
      *

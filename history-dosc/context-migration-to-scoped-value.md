@@ -1,3 +1,7 @@
+> 历史草案，已被 [当前作用域契约](../guide/wuli3-context-propagation.md) 替代，请勿据此实现。
+> 更正：ThreadLocal 可以通过 try/finally 实现回调作用域；普通 ThreadLocal 不会自动继承到虚拟线程；性能优劣需实测。
+> ScopedValue 在 JDK 25 正式定稿，其绑定对象不会自动变为不可变；StructuredTaskScope 会继承全部绑定，不能自动过滤本地 Context。
+
 # Context 传播层迁移至 ScopedValue 方案（阶段三）
 
 ## 文档信息
@@ -13,7 +17,7 @@
 
 ### 现状
 
-项目使用 ThreadLocal 实现跨调用链的上下文传播（`ContextStore`），支持：
+项目使用 ThreadLocal 实现跨调用链的上下文传播（`ThreadLocalContextStore`），支持：
 - Web 请求上下文（`InvocationContext`）
 - 认证上下文（`AuthContext`）
 - 跨 Dubbo/HTTP/RabbitMQ/RocketMQ 协议边界的自动传播
@@ -43,7 +47,7 @@
 
 | 模块 | 影响 | 改动量 |
 |------|------|--------|
-| `wuli3-context-propagation` 核心层 | `ContextWriter`/`ContextProxy`/`ContextStore` API 重构 | 高 |
+| `wuli3-context-propagation` 核心层 | `ContextWriter`/`ContextProxy`/`ThreadLocalContextStore` API 重构 | 高 |
 | `wuli3-dubbo-spring-boot-starter` | `DubboContextProviderFilter` 重写 | 中 |
 | `wuli3-web-spring-boot-starter` | `ContextPropagationInterceptor` 保持不变 | 低 |
 | `wuli3-rabbitmq-spring-boot-starter` | `RabbitContextSupport` 重写 | 中 |
@@ -144,7 +148,7 @@ public interface ContextProxy {
 
 ### 2. 核心实现
 
-#### 2.1 `ContextStore` 重写
+#### 2.1 `ThreadLocalContextStore` 重写
 
 **文件**: `../wuli3-context-propagation/src/main/java/com/kjs/wuli3/propagation/store/ContextStore.java`
 
@@ -228,8 +232,8 @@ public final class DefaultContextProxy implements ContextProxy {
     private final ContextReader contextReader;
     private final ContextWriter contextWriter;
 
-    public DefaultContextProxy(final ContextStore contextStore) {
-        this(contextStore, contextStore);
+    public DefaultContextProxy(final ContextStore threadLocalContextStore) {
+        this(threadLocalContextStore, threadLocalContextStore);
     }
 
     public DefaultContextProxy(final ContextReader contextReader, final ContextWriter contextWriter) {
@@ -306,8 +310,8 @@ public Result invoke(final Invoker<?> invoker, final Invocation invocation) thro
 **变更前**:
 ```java
 public RabbitContextProxy restoreFrom(final Map<String, ?> headers) {
-    final ContextSnapshot contextSnapshot = this.contextPropagator.extract(fieldReader);
-    return new RabbitContextProxy(this.contextWriter, contextSnapshot);
+    final ContextSnapshot contextCarrier = this.contextPropagator.extract(fieldReader);
+    return new RabbitContextProxy(this.contextWriter, contextCarrier);
 }
 
 // 调用方使用:
@@ -437,7 +441,7 @@ executor.submit(task);
 ### 阶段 1: 核心层改造（1-2 周）
 
 1. 修改 `ContextWriter`/`ContextProxy` 接口
-2. 重写 `ContextStore` 实现（ScopedValue）
+2. 重写 `ThreadLocalContextStore` 实现（ScopedValue）
 3. 更新 `DefaultContextProxy`
 4. 删除 `ContextScope` 接口
 5. 单元测试全部通过
@@ -485,7 +489,7 @@ executor.submit(task);
 
 如果迁移后发现问题（性能回退/稳定性问题），回退路径：
 1. 恢复 `ContextScope` 接口定义
-2. 恢复 `ContextStore` 的 ThreadLocal 实现
+2. 恢复 `ThreadLocalContextStore` 的 ThreadLocal 实现
 3. 恢复 `ContextWriter.restore()` 方法
 4. 恢复集成层的 try-with-resources 用法
 

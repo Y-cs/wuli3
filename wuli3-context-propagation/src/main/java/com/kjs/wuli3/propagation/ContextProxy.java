@@ -1,85 +1,65 @@
 package com.kjs.wuli3.propagation;
 
-import com.kjs.wuli3.propagation.snapshot.ContextSnapshot;
+import com.kjs.wuli3.propagation.context.ContextState;
+import com.kjs.wuli3.propagation.store.ContextBinder;
 import java.util.Objects;
 import java.util.concurrent.Callable;
 import java.util.function.Supplier;
 
-/** 捕获当前调用上下文，并在后续执行中临时恢复它。
+/**
+ * 持有确定状态，并在每次任务执行期间绑定该状态的不可变代理。
  *
- * @author GuoYang create on 2026/8/17 11:53
+ * <p>包装任务不会再次捕获上下文；代理绑定完整状态，跨边界传播应先由管理入口捕获快照。
+ *
+ * @author GuoYang create on 2026/9/28 15:00
  */
-public interface ContextProxy {
+public final class ContextProxy {
+    private final ContextState state;
+    private final ContextBinder binder;
 
-    /**
-     * 捕获当前调用上下文的独立快照。
-     *
-     * @return 可在后续恢复的上下文快照
-     */
-    ContextSnapshot capture();
-
-    /**
-     * 将指定快照恢复到当前调用，并返回用于结束恢复作用域的句柄。
-     *
-     * <p>调用方应通过 try-with-resources 关闭返回的作用域，以恢复先前上下文。
-     *
-     * @param snapshot 待恢复的上下文快照
-     * @return 用于恢复先前上下文的作用域
-     */
-    ContextScope restore(ContextSnapshot snapshot);
-
-    /**
-     * 捕获当前上下文，并返回执行时自动恢复该上下文的任务包装器。
-     *
-     * @param task 原始任务
-     * @return 绑定捕获快照的任务包装器
-     * @throws NullPointerException 当 {@code task} 为 {@code null} 时
-     */
-    @SuppressWarnings("try")
-    default Runnable wrap(final Runnable task) {
-        Objects.requireNonNull(task, "task");
-        final ContextSnapshot snapshot = this.capture();
-        return () -> {
-            try (ContextScope scope = this.restore(snapshot)) {
-                task.run();
-            }
-        };
+    /** 创建持有指定状态及绑定能力的代理，不改变当前执行状态。 */
+    public ContextProxy(final ContextState state, final ContextBinder binder) {
+        this.state = Objects.requireNonNull(state, "state");
+        this.binder = Objects.requireNonNull(binder, "binder");
     }
 
-    /**
-     * 捕获当前上下文，并返回执行时自动恢复该上下文的可调用任务包装器。
-     *
-     * @param task 原始可调用任务
-     * @param <T> 任务返回值类型
-     * @return 绑定捕获快照的可调用任务包装器
-     * @throws NullPointerException 当 {@code task} 为 {@code null} 时
-     */
-    @SuppressWarnings("try")
-    default <T> Callable<T> wrap(final Callable<T> task) {
-        Objects.requireNonNull(task, "task");
-        final ContextSnapshot snapshot = this.capture();
-        return () -> {
-            try (ContextScope scope = this.restore(snapshot)) {
-                return task.call();
-            }
-        };
+    /** 返回代理准备执行的状态，可能不同于当前生效状态。 */
+    public ContextState state() {
+        return this.state;
     }
 
-    /**
-     * 捕获当前上下文，并返回执行时自动恢复该上下文的供应器包装器。
-     *
-     * @param supplier 原始供应器
-     * @param <T> 供应结果类型
-     * @return 绑定捕获快照的供应器包装器
-     * @throws NullPointerException 当 {@code supplier} 为 {@code null} 时
-     */
-    @SuppressWarnings("try")
-    default <T> Supplier<T> wrapSupplier(final Supplier<T> supplier) {
-        Objects.requireNonNull(supplier, "supplier");
-        final ContextSnapshot snapshot = this.capture();
+    /** 在代理状态中执行任务，结束或失败后恢复外层状态。 */
+    public void run(final Runnable task) {
+        this.binder.run(this.state, Objects.requireNonNull(task, "task"));
+    }
+
+    /** 在代理状态中计算结果，结束或失败后恢复外层状态。 */
+    public <T> T call(final Callable<T> task) throws Exception {
+        return this.binder.call(this.state, Objects.requireNonNull(task, "task"));
+    }
+
+    /** 包装任务，使其每次执行时使用代理持有的状态。 */
+    public Runnable wrap(final Runnable task) {
+        Objects.requireNonNull(task, "task");
+        return () -> this.run(task);
+    }
+
+    /** 包装可调用任务，使其每次执行时使用代理持有的状态。 */
+    public <T> Callable<T> wrap(final Callable<T> task) {
+        Objects.requireNonNull(task, "task");
+        return () -> this.call(task);
+    }
+
+    /** 包装供应器，使其每次执行时使用代理持有的状态。 */
+    public <T> Supplier<T> wrapSupplier(final Supplier<T> task) {
+        Objects.requireNonNull(task, "task");
         return () -> {
-            try (ContextScope scope = this.restore(snapshot)) {
-                return supplier.get();
+            try {
+                return this.call(task::get);
+            } catch (final RuntimeException exception) {
+                throw exception;
+            } catch (final Exception exception) {
+                throw new IllegalStateException(exception);
             }
         };
     }

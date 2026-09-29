@@ -1,9 +1,10 @@
 package com.kjs.wuli3.dubbo.autoconfigure;
 
-import com.kjs.wuli3.propagation.ContextProxy;
-import com.kjs.wuli3.propagation.DefaultContextProxy;
+import com.kjs.wuli3.propagation.ContextManager;
 import com.kjs.wuli3.propagation.codec.ContextPropagator;
-import com.kjs.wuli3.propagation.store.ContextStore;
+import com.kjs.wuli3.propagation.store.ThreadLocalContextBackend;
+import com.kjs.wuli3.propagation.store.ContextBinder;
+import com.kjs.wuli3.propagation.store.ContextReader;
 import org.apache.dubbo.rpc.Filter;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -22,18 +23,18 @@ import org.springframework.context.annotation.Bean;
 @ConditionalOnClass(Filter.class)
 @EnableConfigurationProperties(DubboProperties.class)
 public class DubboAutoConfiguration {
-    /** 创建 Dubbo 调用链默认使用的线程上下文存储。 */
+    /** 创建同时提供读取与作用域绑定能力的默认线程后端。 */
     @Bean
-    @ConditionalOnMissingBean
-    ContextStore dubboContextStore() {
-        return new ContextStore();
+    @ConditionalOnMissingBean({ContextReader.class, ContextBinder.class})
+    ThreadLocalContextBackend dubboContextBinder() {
+        return new ThreadLocalContextBackend();
     }
 
-    /** 创建负责恢复并关闭 Dubbo provider 调用上下文的传播器。 */
+    /** 使用同一后端的读取和绑定接口创建上下文管理器。 */
     @Bean
     @ConditionalOnMissingBean
-    ContextProxy dubboContextPropagator(final ContextStore contextStore) {
-        return new DefaultContextProxy(contextStore);
+    ContextManager dubboContextManager(final ContextReader reader, final ContextBinder binder) {
+        return new ContextManager(reader, binder);
     }
 
     /** 创建读写 Dubbo attachments 的标准上下文字段编码器。 */

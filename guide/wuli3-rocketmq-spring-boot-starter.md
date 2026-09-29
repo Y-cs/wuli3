@@ -105,16 +105,15 @@ ContextPropagator rocketMqContextEncoder() {
 
 同一个 `ContextPropagator` Bean 同时决定 `RocketMessageWrapperEncoder` 的出站字段和 `RocketContextSupport` 的入站字段。缩小白名单后，入站恢复也只会接受对应字段。
 
-消费适配器需要先得到已解码的 `ContextProxy`，再显式恢复作用域：
+消费适配器通过回调显式建立恢复作用域：
 
 ```java
-final ContextProxy contextProxy = rocketMqContextSupport.restoreFrom(messageExt.getProperties());
-try (ContextScope ignored = contextProxy.restore(contextProxy.capture())) {
+rocketMqContextSupport.runInScope(messageExt.getProperties(), () -> {
     listener.handle(envelope);
-}
+});
 ```
 
-`restoreFrom` 只解码字段编码器识别出的上下文并返回 `ContextProxy`，不会自动注册或包裹 RocketMQ Listener。实际 Listener 仍应根据消息来源、线程模型、重试和死信策略决定调用时机。非法认证字段由 `AuthContextCodec` 忽略，避免消费适配器承担解析细节。
+`runInScope` 只解码字段编码器识别出的上下文并执行回调，不会自动注册或包裹 RocketMQ Listener。实际 Listener 仍应根据消息来源、线程模型、重试和死信策略决定调用时机。非法认证字段由 `AuthContextCodec` 忽略，避免消费适配器承担解析细节。
 
 ## 投递边界
 

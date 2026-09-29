@@ -2,8 +2,8 @@ package com.kjs.wuli3.web.context;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.kjs.wuli3.propagation.context.AuthContext;
-import com.kjs.wuli3.propagation.context.InvocationContext;
+import com.kjs.wuli3.propagation.internal.AuthContext;
+import com.kjs.wuli3.propagation.internal.InvocationContext;
 import com.kjs.wuli3.web.error.ErrorAlertContext;
 import java.lang.reflect.RecordComponent;
 import org.junit.jupiter.api.Test;

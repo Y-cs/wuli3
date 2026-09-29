@@ -1,5 +1,6 @@
 package com.kjs.wuli3.dubbo.context;
 
+import com.kjs.wuli3.propagation.context.ContextSnapshot;
 import com.kjs.wuli3.dubbo.autoconfigure.DubboProperties;
 import com.kjs.wuli3.propagation.codec.ContextPropagator;
 import com.kjs.wuli3.propagation.store.ContextReader;
@@ -48,7 +49,7 @@ public final class DubboContextConsumerFilter implements Filter {
         if (properties == null || !properties.getContext().isEnabled() || encoder == null || reader == null) {
             return invoker.invoke(invocation);
         }
-        encoder.inject(reader.capture(), invocation::setAttachment);
+        encoder.inject(ContextSnapshot.from(reader.state()), invocation::setAttachment);
         return invoker.invoke(invocation);
     }
 }

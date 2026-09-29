@@ -6,7 +6,7 @@ import static org.mockito.Mockito.mock;
 import com.kjs.wuli3.event.PublishOptions;
 import com.kjs.wuli3.event.remote.RemoteEventTransport;
 import com.kjs.wuli3.propagation.codec.ContextPropagator;
-import com.kjs.wuli3.propagation.store.ContextStore;
+import com.kjs.wuli3.propagation.store.ThreadLocalContextBackend;
 import com.kjs.wuli3.rabbit.internal.RabbitContextSupport;
 import com.kjs.wuli3.rabbit.internal.RabbitMessageEncoder;
 import com.kjs.wuli3.rabbit.internal.RabbitPublishOptions;
@@ -49,7 +49,7 @@ class RabbitAutoConfigurationTest {
     @Test
     void registersInboundContextSupportWhenAWriterIsAvailable() {
         this.contextRunner
-                .withBean(ContextStore.class, ContextStore::new)
+                .withBean(ThreadLocalContextBackend.class, ThreadLocalContextBackend::new)
                 .run(context -> assertThat(context).hasSingleBean(RabbitContextSupport.class));
     }
 

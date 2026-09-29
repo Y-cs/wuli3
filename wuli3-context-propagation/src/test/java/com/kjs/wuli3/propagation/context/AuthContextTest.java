@@ -3,6 +3,8 @@ package com.kjs.wuli3.propagation.context;
 import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.kjs.wuli3.propagation.internal.AuthContext;
+import com.kjs.wuli3.propagation.internal.PrincipalType;
 import org.junit.jupiter.api.Test;
 
 class AuthContextTest {

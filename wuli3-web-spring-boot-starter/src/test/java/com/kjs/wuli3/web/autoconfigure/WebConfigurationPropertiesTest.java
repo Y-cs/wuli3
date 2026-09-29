@@ -12,8 +12,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.kjs.wuli3.core.error.ErrorCodeException;
 import com.kjs.wuli3.core.error.builtin.CommonErrors;
 import com.kjs.wuli3.propagation.accessor.InvocationContextAccessor;
-import com.kjs.wuli3.propagation.context.AuthContext;
-import com.kjs.wuli3.propagation.context.PrincipalType;
+import com.kjs.wuli3.propagation.internal.AuthContext;
+import com.kjs.wuli3.propagation.internal.PrincipalType;
 import com.kjs.wuli3.web.auth.AuthContextResolver;
 import com.kjs.wuli3.web.context.RequestIds;
 import com.kjs.wuli3.web.error.WebErrorStatusResolver;

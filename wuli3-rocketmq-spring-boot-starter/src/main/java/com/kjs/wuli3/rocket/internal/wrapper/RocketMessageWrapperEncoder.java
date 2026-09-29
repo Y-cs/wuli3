@@ -5,7 +5,7 @@ import com.kjs.wuli3.core.error.builtin.CommonErrors;
 import com.kjs.wuli3.event.envelope.EventEnvelope;
 import com.kjs.wuli3.json.core.Jsons;
 import com.kjs.wuli3.propagation.codec.ContextPropagator;
-import com.kjs.wuli3.propagation.snapshot.ContextSnapshot;
+import com.kjs.wuli3.propagation.context.ContextSnapshot;
 import com.kjs.wuli3.propagation.store.ContextReader;
 import com.kjs.wuli3.rocket.internal.RocketPublishOptions;
 import java.nio.charset.StandardCharsets;
@@ -75,7 +75,7 @@ public final class RocketMessageWrapperEncoder {
             return headers;
         }
         // 获取当前上下文并添加传播头
-        final ContextSnapshot snapshot = this.contextReader.capture();
+        final ContextSnapshot snapshot = ContextSnapshot.from(this.contextReader.state());
         this.contextPropagator.inject(snapshot, headers::put);
         return headers;
     }

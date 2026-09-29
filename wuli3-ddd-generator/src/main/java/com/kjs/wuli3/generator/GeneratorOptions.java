@@ -23,8 +23,8 @@ record GeneratorOptions(
         String domainType) {
     static final String DEFAULT_PERSISTENCE = "none";
     static final String DEFAULT_MESSAGING = "none";
-    static final String DEFAULT_WULI3_VERSION = "0.1.1-SNAPSHOT";
-    static final String DEFAULT_BUILD_LOGIC_VERSION = "0.1.1-SNAPSHOT";
+    static final String DEFAULT_WULI3_VERSION = "0.1.3-SNAPSHOT";
+    static final String DEFAULT_BUILD_LOGIC_VERSION = "0.1.3-SNAPSHOT";
     private static final List<String> KEYS = List.of(
             "service",
             "package",

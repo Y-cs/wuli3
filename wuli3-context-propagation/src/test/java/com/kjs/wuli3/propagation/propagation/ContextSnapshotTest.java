@@ -1,11 +1,13 @@
-package com.kjs.wuli3.propagation.snapshot;
+package com.kjs.wuli3.propagation.propagation;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.kjs.wuli3.propagation.context.AuthContext;
-import com.kjs.wuli3.propagation.context.InvocationContext;
-import com.kjs.wuli3.propagation.context.PrincipalType;
+import com.kjs.wuli3.propagation.context.ContextKey;
+import com.kjs.wuli3.propagation.context.ContextSnapshot;
+import com.kjs.wuli3.propagation.internal.AuthContext;
+import com.kjs.wuli3.propagation.internal.InvocationContext;
+import com.kjs.wuli3.propagation.internal.PrincipalType;
 import org.junit.jupiter.api.Test;
 
 class ContextSnapshotTest {
@@ -14,7 +16,7 @@ class ContextSnapshotTest {
     void getReturnsEmptyWhenTypeIsAbsent() {
         final ContextSnapshot snapshot = ContextSnapshot.of(new AuthContext(PrincipalType.CUSTOMER, "7", "alice"));
 
-        assertThat(snapshot.get(InvocationContext.class)).isEmpty();
+        assertThat(snapshot.get(ContextKey.of(InvocationContext.class))).isEmpty();
     }
 
     @Test
@@ -23,7 +25,7 @@ class ContextSnapshotTest {
                 new AuthContext(PrincipalType.CUSTOMER, "7", "alice"),
                 new AuthContext(PrincipalType.ADMIN, "8", "bob"));
 
-        assertThat(snapshot.get(AuthContext.class)).contains(new AuthContext(PrincipalType.ADMIN, "8", "bob"));
+        assertThat(snapshot.get(ContextKey.of(AuthContext.class))).contains(new AuthContext(PrincipalType.ADMIN, "8", "bob"));
         assertThatThrownBy(snapshot.values()::clear).isInstanceOf(UnsupportedOperationException.class);
     }
 }

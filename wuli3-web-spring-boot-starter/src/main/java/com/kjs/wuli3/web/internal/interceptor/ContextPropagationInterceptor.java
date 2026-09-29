@@ -1,5 +1,6 @@
 package com.kjs.wuli3.web.internal.interceptor;
 
+import com.kjs.wuli3.propagation.context.ContextSnapshot;
 import com.kjs.wuli3.propagation.codec.ContextPropagator;
 import com.kjs.wuli3.propagation.store.ContextReader;
 import java.io.IOException;
@@ -33,7 +34,7 @@ public final class ContextPropagationInterceptor implements ClientHttpRequestInt
             throws IOException {
         final HttpHeaders headers = request.getHeaders();
         this.contextPropagator.reservedFieldNames().forEach(headers::remove);
-        this.contextPropagator.inject(this.contextReader.capture(), headers::set);
+        this.contextPropagator.inject(ContextSnapshot.from(this.contextReader.state()), headers::set);
         return execution.execute(request, body);
     }
 }

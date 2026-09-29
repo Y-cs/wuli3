@@ -1,7 +1,6 @@
 package com.kjs.wuli3.web.internal.auth;
 
-import com.kjs.wuli3.propagation.codec.AuthContextCodec;
-import com.kjs.wuli3.propagation.context.AuthContext;
+import com.kjs.wuli3.propagation.internal.AuthContext;
 import com.kjs.wuli3.web.auth.AuthContextResolver;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.Objects;
@@ -17,7 +16,7 @@ import java.util.Optional;
  */
 public final class TrustedHttpAuthContextResolver implements AuthContextResolver {
 
-    private final AuthContextCodec authContextCodec = new AuthContextCodec();
+    private final AuthContext.Codec authContextCodec = new AuthContext.Codec();
 
     @Override
     public Optional<AuthContext> resolve(final HttpServletRequest request) {

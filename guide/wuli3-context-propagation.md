@@ -1,103 +1,77 @@
-# wuli3-context-propagation 使用指南
+# wuli3-context-propagation
 
-固定上下文模型、当前线程存储和异步快照能力的核心模块。
+上下文数据、当前执行存储、固定状态执行代理和协议转换分别管理。当前运行于 JDK 21，不启用预览 API。
 
-本模块不提供协议无关的 carrier 或全局入站恢复框架。它只定义固定上下文的字段读写契约，并由真实协议适配器决定哪些上下文可跨越该边界，避免把信任策略隐藏在通用传输组件中。
+## 包与职责
 
-## 引入
+| 包 | 类型 | 职责 |
+|---|---|---|
+| `com.kjs.wuli3.propagation` | `ContextManager` | 读取当前状态、捕获传播快照、创建代理 |
+| 同上 | `ContextProxy` | 持有确定的 State，通过 run/call/wrap 执行任务 |
+| `.context` | `Context`、`ContextKey` | 不可变上下文值及类型安全的键 |
+| `.context` | `ContextState` | 完整不可变集合；只管理数据 |
+| `.context` | `ContextSnapshot`、`PropagationContext` | 跨边界传播的数据集合和传播资格 |
+| `.store` | `ContextReader` | 读取当前生效的 State |
+| `.store` | `ContextBinder`、`ThreadLocalContextBackend` | 回调期间建立绑定，结束后恢复；默认实现同时提供读取能力 |
+| `.codec` | `ContextCodec`、`ContextPropagator` | Snapshot 与协议字段双向转换 |
+| `.accessor` | 专用 accessor | 业务只读访问入口 |
+| `.internal` | 内置身份、请求上下文及 Codec | 内置模型与字段契约 |
 
-```kotlin
-dependencies {
-    implementation("com.kjs.wuli3:wuli3-context-propagation")
-}
-```
+State 和 Snapshot 保存不可变值的引用，不做深拷贝。State 支持 with/without 创建新集合，不改变当前绑定。Snapshot.from(state) 仅保留 PropagationContext；Snapshot.toState() 只还原快照内容。
 
-## 核心边界
-
-- `Context`：当前执行中可存储的上下文，不默认跨边界传递。
-- `PropagationContext`：允许进入快照、跨异步任务和协议边界传递的上下文。
-- `ContextContainer`：当前线程的可变上下文存储，保存全部 `Context`。
-- `ContextSnapshot`：只包含 `PropagationContext` 的不可变快照，是异步和出站协议共同使用的传递值。
-- `ContextStore`：基于当前线程保存完整上下文，并实现读取、修改、捕获和恢复能力。
-- `ContextReader` / `ContextWriter`：分别暴露读取与修改当前上下文的能力，依赖方只注入所需一侧。
-- `ContextProxy`：在快照操作能力之上包装异步任务。
-- `InvocationContext`：请求标识和来源地址。
-- `AuthContext`：可信内部链路可传播的认证主体快照，由 `principalType`、`principalId` 和 `principalName` 组成。
-- `ContextFieldCodec`：一个固定 `PropagationContext` 与协议字段之间的双向映射。
-- `ContextPropagator`：按显式白名单组合多个 `ContextFieldCodec`，统一读取、写入和保留字段计算。
-
-上下文不提供任意 key/value 扩展袋。出现租户、区域或灰度等真实需求时，应新增受控的值对象和明确的传播契约。
-
-普通 `Context` 不会进入 `ContextSnapshot`，因此不会随异步任务或远程协议迁移。无传播上下文时使用 `ContextSnapshot.empty()` 表示，而不是复用可变 `ContextContainer` 的空实例。
-
-## 协议字段编码
-
-两个固定 codec 定义稳定字段契约：
-
-- `InvocationContextCodec` 写入 `X-Request-Id` 和 `X-Origin-Ip`。
-- `AuthContextCodec` 写入 `X-Principal-Type`、`X-Principal-Id` 和 `X-Principal-Name`。
-
-认证主体的三个字段必须同时存在且非空白，`X-Principal-Type` 必须是 `CUSTOMER`、`ADMIN` 或 `SYSTEM`。
-解码遇到缺失或非法字段时会整体拒绝该认证上下文，不会恢复部分身份信息。
-
-`ContextPropagator.standardContextEncoder()` 当前返回上述两个 codec，因此会同时读写调用标识和认证信息。协议适配器若只允许传播调用标识，应显式构造白名单：
+## 本地执行
 
 ```java
-final ContextPropagator invocationOnly =
-        new ContextPropagator(List.of(new InvocationContextCodec()));
+final ThreadLocalContextBackend backend = new ThreadLocalContextBackend();
+final ContextManager contexts = new ContextManager(backend, backend);
+final ContextState state = ContextState.of(invocationContext, authContext);
+final ContextProxy proxy = contexts.with(state);
+
+proxy.run(() -> service.handle());
+final Result result = proxy.call(() -> service.query());
 ```
 
-协议适配器使用 `ContextPropagator` 声明白名单，而不是逐一判断上下文类型：
+创建 Proxy 不改变当前线程状态。Proxy 持有创建时确定的完整 State，可重复使用；每次 run/call 都建立独立作用域，正常或异常退出均恢复外层状态。业务读取由 ContextReader 或 accessor 完成。
+
+显式派生当前状态：`contexts.with(contexts.state().with(otherAuth)).run(task)`。Proxy 不提供另一套可变数据 API；`proxy.state()` 读取准备执行的数据，`contexts.state()` 读取当前生效的数据。
+
+## 异步传播
 
 ```java
-final ContextPropagator propagator =
-        new ContextPropagator(ContextPropagator.standardContextEncoder());
-propagator.reservedFieldNames().forEach(headers::remove);
-propagator.inject(contextReader.capture(), headers::set);
+final ContextSnapshot snapshot = contexts.capture();
+final ContextProxy proxy = contexts.from(snapshot);
+executor.execute(proxy.wrap(task));
 ```
 
-`reservedFieldNames()` 只包含当前实例所配置编码器管理的字段，不会自动加入未配置编码器的字段。
+capture 固定传播内容，from 创建仅含快照数据的代理。执行时不合并目标线程已有数据，包括普通本地上下文和旧身份；退出后恢复目标线程原状态。空快照建立空作用域。
 
-## 基本使用
+`contexts.with(fullState).wrap(task)` 则显式携带整个 State，适合调用方明确指定完整执行环境的情况。需要传播过滤时必须先 capture/from。
 
-创建一个当前线程内的上下文存储：
+## 协议传播
+
+出站：`当前 State → Snapshot → 协议字段`。
 
 ```java
-final ContextStore contextStore = new ContextStore();
-contextStore.put(new InvocationContext("10.0.0.1", "rid-1"));
-contextStore.put(new AuthContext(PrincipalType.CUSTOMER, "42", "alice"));
+propagator.inject(contexts.capture(), headers::set);
 ```
 
-业务代码不要直接依赖 `ContextStore`，优先使用 accessor：
+入站：`协议字段 → Snapshot → Proxy → handler`。
 
 ```java
-final InvocationContextAccessor invocationAccessor = new InvocationContextAccessor(contextStore);
-final AuthContextAccessor authAccessor = new AuthContextAccessor(contextStore);
-
-final String requestId = invocationAccessor.requestId()
-        .orElse("");
-final String principalId = authAccessor.principalId()
-        .orElse("");
+final ContextSnapshot snapshot = propagator.extract(headers::get);
+contexts.from(snapshot).run(handler);
 ```
 
-在异步任务中传播当前上下文：
+ContextPropagator 不读取 Store、不绑定线程、不执行 handler。协议适配器负责组合流程并确定来源信任策略，Codec 负责字段校验与转换。入站需补充本地信息时，显式使用 `snapshot.toState().with(localContext)` 再创建 Proxy。
 
-```java
-final ContextProxy contextProxy = new DefaultContextProxy(contextStore);
+## 底层绑定与 ScopedValue
 
-executor.execute(contextProxy.wrap(() -> {
-    // 这里可以读取提交任务时捕获到的上下文。
-}));
-```
+ThreadLocalContextBackend 直接持有 ThreadLocal，在回调前绑定状态，在 finally 中恢复。状态替换是后端的私有方法，不再设置独立 Store 或 ContextWriter 接口。
 
-需要手动控制生命周期时，可以捕获快照并恢复：
+对外接入契约只有 ContextReader 与 ContextBinder。默认 ThreadLocalContextBackend 同时实现两者，确保读取与绑定使用同一份存储；ContextManager 和业务组件仍按接口依赖。Spring 默认注册一个后端 Bean。自定义后端必须同时提供匹配的 Reader 和 Binder；只覆盖其中一个接口不是完整替换。
 
-```java
-final ContextSnapshot snapshot = contextProxy.capture();
-final ContextScope scope = contextProxy.restore(snapshot);
-try {
-    // 当前线程临时使用 snapshot 中的上下文。
-} finally {
-    scope.close();
-}
-```
+ScopedValueContextBackend 使用相同的 ContextReader、ContextBinder 接口，直接持有 ScopedValue，依赖 JDK 管理绑定与恢复。配套的 [JDK 21 ScopedValue 示例](../wuli3-context-propagation/examples/scoped-value/README.md) 使用 where(...).run/call，主模块不启用预览特性。
+
+StructuredTaskScope 会继承 ScopedValue 全部绑定。需要过滤本地 Context 时，应先 capture/from，并在过滤后的作用域内创建结构化任务作用域；不能把自动继承视为快照过滤。
+
+作用域只覆盖同步回调，不延长到回调返回的 Future 完成时。线程池与普通虚拟线程使用显式包装传播。

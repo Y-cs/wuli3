@@ -2,9 +2,9 @@ package com.kjs.wuli3.rocket.autoconfigure;
 
 import com.kjs.wuli3.event.autoconfigure.ConditionalOnMissingRoutingEventTransport;
 import com.kjs.wuli3.event.autoconfigure.EventAutoConfiguration;
+import com.kjs.wuli3.propagation.ContextManager;
 import com.kjs.wuli3.propagation.codec.ContextPropagator;
 import com.kjs.wuli3.propagation.store.ContextReader;
-import com.kjs.wuli3.propagation.store.ContextWriter;
 import com.kjs.wuli3.rocket.internal.RocketContextSupport;
 import com.kjs.wuli3.rocket.internal.RocketPublishOptions;
 import com.kjs.wuli3.rocket.internal.RocketRemoteEventTransport;
@@ -49,16 +49,16 @@ public class RocketAutoConfiguration {
     /**
      * 创建消费端上下文解码支持；消费适配器自行决定何时恢复和关闭上下文作用域。
      *
-     * @param contextWriter  上下文写入器
+     * @param contextManager  上下文作用域代理器
      * @param contextPropagator 上下文字段编码器
      * @return RocketMQ 上下文支持
      */
     @Bean
     @ConditionalOnMissingBean
-    @ConditionalOnBean(ContextWriter.class)
+    @ConditionalOnBean(ContextManager.class)
     RocketContextSupport rocketMqContextSupport(
-            final ContextWriter contextWriter, final ContextPropagator contextPropagator) {
-        return new RocketContextSupport(contextWriter, contextPropagator);
+            final ContextManager contextManager, final ContextPropagator contextPropagator) {
+        return new RocketContextSupport(contextManager, contextPropagator);
     }
 
     /**

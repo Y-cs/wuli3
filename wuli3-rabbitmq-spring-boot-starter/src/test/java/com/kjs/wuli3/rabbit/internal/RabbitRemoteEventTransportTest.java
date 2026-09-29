@@ -1,5 +1,7 @@
 package com.kjs.wuli3.rabbit.internal;
 
+import com.kjs.wuli3.propagation.ContextManager;
+import com.kjs.wuli3.propagation.store.ThreadLocalContextBackend;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -12,8 +14,8 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import com.kjs.wuli3.event.envelope.EventEnvelope;
 import com.kjs.wuli3.event.error.SendFailedException;
 import com.kjs.wuli3.propagation.codec.ContextPropagator;
-import com.kjs.wuli3.propagation.context.InvocationContext;
-import com.kjs.wuli3.propagation.store.ContextStore;
+import com.kjs.wuli3.propagation.internal.InvocationContext;
+import com.kjs.wuli3.propagation.context.ContextState;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -57,16 +59,16 @@ class RabbitRemoteEventTransportTest {
     void encodesBeforeSchedulingAnAsynchronousSend() {
         final RabbitTemplate template = mock(RabbitTemplate.class);
         final QueuingTaskExecutor executor = new QueuingTaskExecutor();
-        final ContextStore contextStore = new ContextStore();
-        contextStore.put(new InvocationContext("10.0.0.8", "request-42"));
+        final ThreadLocalContextBackend threadLocalContextStore = new ThreadLocalContextBackend();
+        final ContextState initial = ContextState.of(new InvocationContext("10.0.0.8", "request-42"));
         final RabbitRemoteEventTransport transport = new RabbitRemoteEventTransport(
                 template,
                 new RabbitMessageEncoder(
-                        contextStore, new ContextPropagator(ContextPropagator.standardContextEncoder())),
+                        threadLocalContextStore, new ContextPropagator(ContextPropagator.standardContextEncoder())),
                 executor);
 
-        transport.send(new RabbitPublishOptions().withAsync(), RabbitRemoteEventTransportTest.envelope());
-        contextStore.put(new InvocationContext("10.0.0.9", "request-43"));
+        new ContextManager(threadLocalContextStore, threadLocalContextStore).with(initial).run(() -> transport.send(
+                        new RabbitPublishOptions().withAsync(), RabbitRemoteEventTransportTest.envelope()));
 
         verifyNoInteractions(template);
         executor.runAll();

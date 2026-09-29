@@ -1,5 +1,6 @@
 package com.kjs.wuli3.audit.internal;
 
+import com.kjs.wuli3.propagation.context.ContextKey;
 import com.kjs.wuli3.audit.AuditLogReceipt;
 import com.kjs.wuli3.audit.AuditLogRecorder;
 import com.kjs.wuli3.audit.payload.AuditLog;
@@ -13,9 +14,9 @@ import com.kjs.wuli3.event.envelope.EventEnvelope;
 import com.kjs.wuli3.event.envelope.EventEnvelopeTemplate;
 import com.kjs.wuli3.opentelemetry.trace.TraceContext;
 import com.kjs.wuli3.opentelemetry.trace.TraceContextAccessor;
-import com.kjs.wuli3.propagation.context.AuthContext;
+import com.kjs.wuli3.propagation.internal.AuthContext;
 import com.kjs.wuli3.propagation.context.Context;
-import com.kjs.wuli3.propagation.context.InvocationContext;
+import com.kjs.wuli3.propagation.internal.InvocationContext;
 import com.kjs.wuli3.propagation.store.ContextReader;
 import java.util.Objects;
 import java.util.Optional;
@@ -72,8 +73,8 @@ public final class DefaultAuditLogRecorder implements AuditLogRecorder {
     }
 
     private AuditLogRuntimeSnapshot captureRuntimeSnapshot() {
-        final Optional<AuthContext> authContext = this.context(AuthContext.class);
-        final Optional<InvocationContext> invocationContext = this.context(InvocationContext.class);
+        final Optional<AuthContext> authContext = this.context(ContextKey.of(AuthContext.class));
+        final Optional<InvocationContext> invocationContext = this.context(ContextKey.of(InvocationContext.class));
         final Optional<TraceContext> traceContext = this.traceContext();
         return new AuditLogRuntimeSnapshot(
                 this.application,
@@ -82,8 +83,8 @@ public final class DefaultAuditLogRecorder implements AuditLogRecorder {
                 invocationContext.map(DefaultAuditLogRecorder::invocation).orElse(null));
     }
 
-    private <T extends Context> Optional<T> context(final Class<T> type) {
-        return this.contextReader == null ? Optional.empty() : this.contextReader.get(type);
+    private <T extends Context> Optional<T> context(final ContextKey<T> key) {
+        return this.contextReader == null ? Optional.empty() : this.contextReader.get(key);
     }
 
     private Optional<TraceContext> traceContext() {

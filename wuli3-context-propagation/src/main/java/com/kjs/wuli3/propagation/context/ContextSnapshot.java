@@ -1,9 +1,9 @@
-package com.kjs.wuli3.propagation.snapshot;
+package com.kjs.wuli3.propagation.context;
 
-import com.kjs.wuli3.propagation.context.Context;
-import com.kjs.wuli3.propagation.context.PropagationContext;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -11,7 +11,7 @@ import java.util.Optional;
 /**
  * 可跨异步任务和协议边界传递的不可变上下文快照。
  *
- * <p>快照保存 {@link Context}。
+ * <p>快照仅保存不可变的 {@link PropagationContext} 实例。
  *
  * @author GuoYang create on 2026/8/17 11:53
  */
@@ -19,9 +19,9 @@ public final class ContextSnapshot {
 
     private static final ContextSnapshot EMPTY = new ContextSnapshot(Map.of());
 
-    private final Map<Class<? extends Context>, Context> contexts;
+    private final Map<ContextKey<? extends Context>, Context> contexts;
 
-    private ContextSnapshot(final Map<Class<? extends Context>, Context> contexts) {
+    private ContextSnapshot(final Map<ContextKey<? extends Context>, Context> contexts) {
         this.contexts = Map.copyOf(contexts);
     }
 
@@ -41,37 +41,34 @@ public final class ContextSnapshot {
      * @return 独立且不可变的上下文快照
      * @throws NullPointerException 当上下文数组或任一上下文为 {@code null} 时
      */
-    public static ContextSnapshot of(final Context... contexts) {
+    public static ContextSnapshot of(final PropagationContext... contexts) {
         Objects.requireNonNull(contexts, "contexts");
         if (contexts.length == 0) {
             return ContextSnapshot.empty();
         }
-        final Map<Class<? extends Context>, Context> snapshotContexts = new HashMap<>();
+        final Map<ContextKey<? extends Context>, Context> snapshotContexts = new HashMap<>();
         for (final Context context : contexts) {
             final Context actualContext = Objects.requireNonNull(context, "context");
-            final Class<? extends Context> type = Objects.requireNonNull(actualContext.type(), "context.type()");
+            final ContextKey<? extends Context> type = Objects.requireNonNull(actualContext.contentKey(), "context.contentKey()");
             snapshotContexts.put(type, actualContext);
         }
         return new ContextSnapshot(snapshotContexts);
     }
 
-    /**
-     * 由容器内部映射直接构建快照，仅保留可传播上下文；单次遍历完成过滤与拷贝。
-     *
-     * @param rawContexts 容器内部的完整上下文映射
-     * @return 仅包含 {@link PropagationContext} 的独立快照
-     */
-    public static ContextSnapshot ofPropagationOnly(final Map<Class<? extends Context>, Context> rawContexts) {
-        if (rawContexts.isEmpty()) {
-            return ContextSnapshot.EMPTY;
-        }
-        final Map<Class<? extends Context>, Context> filtered = new HashMap<>(rawContexts.size());
-        for (final Map.Entry<Class<? extends Context>, Context> entry : rawContexts.entrySet()) {
-            if (entry.getValue() instanceof PropagationContext) {
-                filtered.put(entry.getKey(), entry.getValue());
+    /** 从完整状态中捕获可传播上下文；普通本地上下文不会进入快照。 */
+    public static ContextSnapshot from(final ContextState state) {
+        final List<PropagationContext> values = new ArrayList<>();
+        for (final Context context : Objects.requireNonNull(state, "state").values()) {
+            if (context instanceof PropagationContext propagationContext) {
+                values.add(propagationContext);
             }
         }
-        return filtered.isEmpty() ? ContextSnapshot.EMPTY : new ContextSnapshot(filtered);
+        return ContextSnapshot.of(values.toArray(PropagationContext[]::new));
+    }
+
+    /** 将传播项还原成独立完整状态，不合并执行线程已有上下文。 */
+    public ContextState toState() {
+        return ContextState.of(this.contexts.values().toArray(Context[]::new));
     }
 
     /**
@@ -82,9 +79,10 @@ public final class ContextSnapshot {
      * @return 对应上下文；快照中不存在时为空
      * @throws NullPointerException 当 {@code type} 为 {@code null} 时
      */
-    public <T extends Context> Optional<T> get(final Class<T> type) {
-        final Class<T> actualType = Objects.requireNonNull(type, "type");
-        return Optional.ofNullable(actualType.cast(this.contexts.get(actualType)));
+    public <T extends Context> Optional<T> get(final ContextKey<T> type) {
+        final ContextKey<T> actualType = Objects.requireNonNull(type, "type");
+        final Context value = this.contexts.get(actualType);
+        return value == null ? Optional.empty() : Optional.of(actualType.cast(value));
     }
 
     /**

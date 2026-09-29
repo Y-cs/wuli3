@@ -6,7 +6,7 @@ import static org.mockito.Mockito.mock;
 import com.kjs.wuli3.event.PublishOptions;
 import com.kjs.wuli3.event.remote.RemoteEventTransport;
 import com.kjs.wuli3.propagation.codec.ContextPropagator;
-import com.kjs.wuli3.propagation.store.ContextStore;
+import com.kjs.wuli3.propagation.store.ThreadLocalContextBackend;
 import com.kjs.wuli3.rocket.internal.RocketContextSupport;
 import com.kjs.wuli3.rocket.internal.RocketPublishOptions;
 import com.kjs.wuli3.rocket.internal.RocketRemoteEventTransport;
@@ -41,7 +41,7 @@ class RocketAutoConfigurationTest {
     void registersInboundContextSupportWhenAWriterIsAvailable() {
         this.contextRunner
                 .withBean(RocketMQTemplate.class, () -> mock(RocketMQTemplate.class))
-                .withBean(ContextStore.class, ContextStore::new)
+                .withBean(ThreadLocalContextBackend.class, ThreadLocalContextBackend::new)
                 .run(context -> {
                     assertThat(context).hasSingleBean(RocketContextSupport.class);
                 });

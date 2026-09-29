@@ -26,9 +26,9 @@ import com.kjs.wuli3.json.datatype.resource.ResourcePath;
 import com.kjs.wuli3.json.datatype.resource.ResourcePathResolver;
 import com.kjs.wuli3.propagation.accessor.AuthContextAccessor;
 import com.kjs.wuli3.propagation.accessor.InvocationContextAccessor;
-import com.kjs.wuli3.propagation.codec.InvocationContextCodec;
-import com.kjs.wuli3.propagation.context.AuthContext;
-import com.kjs.wuli3.propagation.context.PrincipalType;
+import com.kjs.wuli3.propagation.internal.InvocationContext;
+import com.kjs.wuli3.propagation.internal.AuthContext;
+import com.kjs.wuli3.propagation.internal.PrincipalType;
 import com.kjs.wuli3.web.auth.AuthContextResolver;
 import com.kjs.wuli3.web.context.RequestIds;
 import com.kjs.wuli3.web.error.ErrorAlertContext;
@@ -121,7 +121,7 @@ class WebAutoConfigurationTest {
                 .containsKey("wuli3InvocationContextRestClientCustomizer");
         assertThat(applicationContext.getBeansOfType(RestTemplateCustomizer.class))
                 .containsKey("wuli3InvocationContextRestTemplateCustomizer");
-        assertThat(RequestIds.HEADER_NAME).isEqualTo(InvocationContextCodec.REQUEST_ID);
+        assertThat(RequestIds.HEADER_NAME).isEqualTo(InvocationContext.REQUEST_ID);
     }
 
     @Test

@@ -3,7 +3,7 @@ package com.kjs.wuli3.rabbit.internal;
 import com.kjs.wuli3.event.envelope.EventEnvelope;
 import com.kjs.wuli3.json.core.Jsons;
 import com.kjs.wuli3.propagation.codec.ContextPropagator;
-import com.kjs.wuli3.propagation.snapshot.ContextSnapshot;
+import com.kjs.wuli3.propagation.context.ContextSnapshot;
 import com.kjs.wuli3.propagation.store.ContextReader;
 import java.util.Objects;
 import org.jspecify.annotations.Nullable;
@@ -51,7 +51,7 @@ public final class RabbitMessageEncoder {
         if (this.contextReader == null) {
             return;
         }
-        final ContextSnapshot snapshot = this.contextReader.capture();
+        final ContextSnapshot snapshot = ContextSnapshot.from(this.contextReader.state());
         this.contextPropagator.inject(snapshot, messageProperties::setHeader);
     }
 }

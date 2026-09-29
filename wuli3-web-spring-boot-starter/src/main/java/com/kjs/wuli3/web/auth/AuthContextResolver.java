@@ -1,6 +1,6 @@
 package com.kjs.wuli3.web.auth;
 
-import com.kjs.wuli3.propagation.context.AuthContext;
+import com.kjs.wuli3.propagation.internal.AuthContext;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.Optional;
 

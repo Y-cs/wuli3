@@ -1,8 +1,9 @@
 package com.kjs.wuli3.propagation.codec;
 
-import com.kjs.wuli3.propagation.context.Context;
+import com.kjs.wuli3.propagation.context.ContextSnapshot;
 import com.kjs.wuli3.propagation.context.PropagationContext;
-import com.kjs.wuli3.propagation.snapshot.ContextSnapshot;
+import com.kjs.wuli3.propagation.internal.AuthContext;
+import com.kjs.wuli3.propagation.internal.InvocationContext;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -20,7 +21,7 @@ import org.jspecify.annotations.Nullable;
  */
 public final class ContextPropagator {
 
-    private final List<ContextFieldCodec<? extends PropagationContext>> codecs;
+    private final List<ContextCodec<? extends PropagationContext>> codecs;
     private final Set<String> reservedFieldNames;
 
     /**
@@ -32,18 +33,18 @@ public final class ContextPropagator {
      * @param codecs 启用的上下文编码器
      * @throws NullPointerException 当编码器集合或任一编码器为 {@code null} 时
      */
-    public ContextPropagator(final Collection<? extends ContextFieldCodec<? extends PropagationContext>> codecs) {
+    public ContextPropagator(final Collection<? extends ContextCodec<? extends PropagationContext>> codecs) {
         this.codecs = List.copyOf(Objects.requireNonNull(codecs, "encoders"));
         this.reservedFieldNames = codecs.stream()
-                .map(ContextFieldCodec::fieldNames)
+                .map(ContextCodec::fieldNames)
                 .flatMap(Collection::stream)
                 .collect(Collectors.toSet());
     }
 
-    public static List<ContextFieldCodec<? extends PropagationContext>> standardContextEncoder() {
-        final List<ContextFieldCodec<? extends PropagationContext>> encoders = new ArrayList<>();
-        encoders.add(new InvocationContextCodec());
-        encoders.add(new AuthContextCodec());
+    public static List<ContextCodec<? extends PropagationContext>> standardContextEncoder() {
+        final List<ContextCodec<? extends PropagationContext>> encoders = new ArrayList<>();
+        encoders.add(new InvocationContext.Codec());
+        encoders.add(new AuthContext.Codec());
         return encoders;
     }
 
@@ -56,7 +57,7 @@ public final class ContextPropagator {
      * @return 保留字段名
      */
     public Set<String> reservedFieldNames() {
-        return reservedFieldNames;
+        return this.reservedFieldNames;
     }
 
     /**
@@ -67,10 +68,10 @@ public final class ContextPropagator {
      * @throws NullPointerException 当参数为 {@code null} 时
      */
     public void inject(final ContextSnapshot snapshot, final BiConsumer<String, String> fieldWriter) {
-        final ContextSnapshot actualSnapshot = Objects.requireNonNull(snapshot, "snapshot");
-        final BiConsumer<String, String> actualFieldWriter = Objects.requireNonNull(fieldWriter, "fieldWriter");
-        for (final ContextFieldCodec<? extends PropagationContext> encoder : this.codecs) {
-            ContextPropagator.write(encoder, actualSnapshot, actualFieldWriter);
+        Objects.requireNonNull(snapshot, "snapshot");
+        Objects.requireNonNull(fieldWriter, "fieldWriter");
+        for (final ContextCodec<? extends PropagationContext> encoder : this.codecs) {
+            ContextPropagator.write(encoder, snapshot, fieldWriter);
         }
     }
 
@@ -83,25 +84,41 @@ public final class ContextPropagator {
      */
     public ContextSnapshot extract(final Function<String, @Nullable String> fieldReader) {
         final Function<String, @Nullable String> actualFieldReader = Objects.requireNonNull(fieldReader, "fieldReader");
-        final List<Context> contexts = new ArrayList<>(this.codecs.size());
-        for (final ContextFieldCodec<? extends PropagationContext> encoder : this.codecs) {
+        final List<PropagationContext> contexts = new ArrayList<>(this.codecs.size());
+        for (final ContextCodec<? extends PropagationContext> encoder : this.codecs) {
             ContextPropagator.read(encoder, actualFieldReader, contexts);
         }
-        return ContextSnapshot.of(contexts.toArray(Context[]::new));
+        return ContextSnapshot.of(contexts.toArray(PropagationContext[]::new));
     }
 
+    /**
+     * 将已启用的上下文写入协议字段。
+     *
+     * @param encoder   编码器
+     * @param snapshot   快照
+     * @param fieldWriter 字段写入器
+     * @param <C> 上下文类型
+     */
     private static <C extends PropagationContext> void write(
-            final ContextFieldCodec<C> encoder,
+            final ContextCodec<C> encoder,
             final ContextSnapshot snapshot,
             final BiConsumer<String, String> fieldWriter) {
-        snapshot.get(encoder.contextType()).ifPresent(context -> encoder.encode(context, fieldWriter));
+        snapshot.get(encoder.contentKey()).ifPresent(context -> encoder.encode(context, fieldWriter));
     }
 
+    /**
+     * 从协议字段读取已启用的上下文。
+     *
+     * @param encoder     编码器
+     * @param fieldReader 字段读取器；字段不存在时返回 {@code null}
+     * @param contexts    上下文集合
+     * @param <C>         上下文类型
+     */
     @SuppressWarnings("NullAway")
     private static <C extends PropagationContext> void read(
-            final ContextFieldCodec<C> encoder,
+            final ContextCodec<C> encoder,
             final Function<String, @Nullable String> fieldReader,
-            final Collection<Context> contexts) {
+            final Collection<PropagationContext> contexts) {
         encoder.decode(fieldReader).ifPresent(contexts::add);
     }
 }

@@ -1,8 +1,7 @@
 package com.kjs.wuli3.dubbo.context;
 
 import com.kjs.wuli3.dubbo.autoconfigure.DubboProperties;
-import com.kjs.wuli3.propagation.ContextProxy;
-import com.kjs.wuli3.propagation.ContextScope;
+import com.kjs.wuli3.propagation.ContextManager;
 import com.kjs.wuli3.propagation.codec.ContextPropagator;
 import lombok.Setter;
 import org.apache.dubbo.common.constants.CommonConstants;
@@ -38,19 +37,23 @@ public final class DubboContextProviderFilter implements Filter {
      * -- SETTER --
      * 接收负责恢复上下文并生成线程绑定作用域的传播器。
      */
-    private @Nullable ContextProxy contextProxy;
+    private @Nullable ContextManager contextManager;
 
     /** 在服务方法调用期间恢复远程上下文，并在当前线程中可靠关闭作用域。 */
     @Override
     public Result invoke(final Invoker<?> invoker, final Invocation invocation) throws RpcException {
         final DubboProperties properties = this.dubboProperties;
         final ContextPropagator encoder = this.contextPropagator;
-        final ContextProxy propagator = this.contextProxy;
+        final ContextManager propagator = this.contextManager;
         if (properties == null || !properties.getContext().isEnabled() || encoder == null || propagator == null) {
             return invoker.invoke(invocation);
         }
-        try (ContextScope scope = propagator.restore(encoder.extract(invocation::getAttachment))) {
-            return invoker.invoke(invocation);
+        try {
+            return propagator.from(encoder.extract(invocation::getAttachment)).call(() -> invoker.invoke(invocation));
+        } catch (final RuntimeException exception) {
+            throw exception;
+        } catch (final Exception exception) {
+            throw new RpcException(exception);
         }
     }
 }

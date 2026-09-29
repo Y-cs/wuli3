@@ -1,11 +1,13 @@
 package com.kjs.wuli3.propagation.codec;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.kjs.wuli3.propagation.context.AuthContext;
-import com.kjs.wuli3.propagation.context.InvocationContext;
-import com.kjs.wuli3.propagation.context.PrincipalType;
-import com.kjs.wuli3.propagation.snapshot.ContextSnapshot;
+import com.kjs.wuli3.propagation.context.ContextKey;
+import com.kjs.wuli3.propagation.context.ContextSnapshot;
+import com.kjs.wuli3.propagation.internal.AuthContext;
+import com.kjs.wuli3.propagation.internal.InvocationContext;
+import com.kjs.wuli3.propagation.internal.PrincipalType;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -24,18 +26,18 @@ class ContextPropagatorTest {
 
         assertThat(fields)
                 .containsExactlyInAnyOrderEntriesOf(Map.of(
-                        InvocationContextCodec.REQUEST_ID, "request-42",
-                        InvocationContextCodec.ORIGIN_IP, "10.0.0.8",
-                        AuthContextCodec.PRINCIPAL_TYPE, "CUSTOMER",
-                        AuthContextCodec.PRINCIPAL_ID, "7",
-                        AuthContextCodec.PRINCIPAL_NAME, "alice"));
+                        InvocationContext.REQUEST_ID, "request-42",
+                        InvocationContext.ORIGIN_IP, "10.0.0.8",
+                        AuthContext.PRINCIPAL_TYPE, "CUSTOMER",
+                        AuthContext.PRINCIPAL_ID, "7",
+                        AuthContext.PRINCIPAL_NAME, "alice"));
         assertThat(encoder.reservedFieldNames())
                 .containsExactlyInAnyOrder(
-                        InvocationContextCodec.REQUEST_ID,
-                        InvocationContextCodec.ORIGIN_IP,
-                        AuthContextCodec.PRINCIPAL_TYPE,
-                        AuthContextCodec.PRINCIPAL_ID,
-                        AuthContextCodec.PRINCIPAL_NAME);
+                        InvocationContext.REQUEST_ID,
+                        InvocationContext.ORIGIN_IP,
+                        AuthContext.PRINCIPAL_TYPE,
+                        AuthContext.PRINCIPAL_ID,
+                        AuthContext.PRINCIPAL_NAME);
     }
 
     @Test
@@ -49,28 +51,27 @@ class ContextPropagatorTest {
         encoder.inject(source, fields::put);
         final ContextSnapshot decoded = encoder.extract(fields::get);
 
-        assertThat(decoded.get(InvocationContext.class)).contains(new InvocationContext("10.0.0.8", "request-42"));
-        assertThat(decoded.get(AuthContext.class)).contains(new AuthContext(PrincipalType.CUSTOMER, "7", "alice"));
+        assertThat(decoded.get(ContextKey.of(InvocationContext.class))).contains(new InvocationContext("10.0.0.8", "request-42"));
+        assertThat(decoded.get(ContextKey.of(AuthContext.class))).contains(new AuthContext(PrincipalType.CUSTOMER, "7", "alice"));
     }
 
     @Test
     @SuppressWarnings("NullAway")
-    void decoderSkipsIncompleteOrInvalidContexts() {
+    void decoderRejectsUnknownPrincipalType() {
         final ContextPropagator encoder = new ContextPropagator(ContextPropagator.standardContextEncoder());
         final Map<String, String> fields = Map.of(
-                InvocationContextCodec.REQUEST_ID, "request-42",
-                AuthContextCodec.PRINCIPAL_TYPE, "UNKNOWN",
-                AuthContextCodec.PRINCIPAL_ID, "7",
-                AuthContextCodec.PRINCIPAL_NAME, "alice");
+                InvocationContext.REQUEST_ID, "request-42",
+                AuthContext.PRINCIPAL_TYPE, "UNKNOWN",
+                AuthContext.PRINCIPAL_ID, "7",
+                AuthContext.PRINCIPAL_NAME, "alice");
 
-        final ContextSnapshot decoded = encoder.extract(fields::get);
-
-        assertThat(decoded.isEmpty()).isTrue();
+        assertThatThrownBy(() -> encoder.extract(fields::get))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
     void customEncoderOnlyReadsWritesAndReservesConfiguredFields() {
-        final ContextPropagator encoder = new ContextPropagator(List.of(new InvocationContextCodec()));
+        final ContextPropagator encoder = new ContextPropagator(List.of(new InvocationContext.Codec()));
         final ContextSnapshot source = ContextSnapshot.of(
                 new InvocationContext("10.0.0.8", "request-42"), new AuthContext(PrincipalType.CUSTOMER, "7", "alice"));
         final Map<String, String> fields = new LinkedHashMap<>();
@@ -79,9 +80,9 @@ class ContextPropagatorTest {
 
         assertThat(fields)
                 .containsExactlyInAnyOrderEntriesOf(Map.of(
-                        InvocationContextCodec.REQUEST_ID, "request-42",
-                        InvocationContextCodec.ORIGIN_IP, "10.0.0.8"));
+                        InvocationContext.REQUEST_ID, "request-42",
+                        InvocationContext.ORIGIN_IP, "10.0.0.8"));
         assertThat(encoder.reservedFieldNames())
-                .containsExactlyInAnyOrder(InvocationContextCodec.REQUEST_ID, InvocationContextCodec.ORIGIN_IP);
+                .containsExactlyInAnyOrder(InvocationContext.REQUEST_ID, InvocationContext.ORIGIN_IP);
     }
 }

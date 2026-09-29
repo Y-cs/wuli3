@@ -2,9 +2,9 @@ package com.kjs.wuli3.dubbo.autoconfigure;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.kjs.wuli3.propagation.ContextProxy;
+import com.kjs.wuli3.propagation.ContextManager;
 import com.kjs.wuli3.propagation.codec.ContextPropagator;
-import com.kjs.wuli3.propagation.store.ContextStore;
+import com.kjs.wuli3.propagation.store.ThreadLocalContextBackend;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
@@ -24,8 +24,8 @@ class DubboAutoConfigurationTest {
         this.contextRunner
                 .withPropertyValues("wuli3.dubbo.context.enabled=false", "wuli3.dubbo.error.enabled=false")
                 .run(context -> {
-                    assertThat(context).hasSingleBean(ContextStore.class);
-                    assertThat(context).hasSingleBean(ContextProxy.class);
+                    assertThat(context).hasSingleBean(ThreadLocalContextBackend.class);
+                    assertThat(context).hasSingleBean(ContextManager.class);
                     assertThat(context).hasSingleBean(ContextPropagator.class);
                     final DubboProperties properties = context.getBean(DubboProperties.class);
                     assertThat(properties.getContext().isEnabled()).isFalse();

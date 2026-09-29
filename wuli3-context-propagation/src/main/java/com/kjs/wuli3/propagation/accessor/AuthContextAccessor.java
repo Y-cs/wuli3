@@ -1,7 +1,8 @@
 package com.kjs.wuli3.propagation.accessor;
 
-import com.kjs.wuli3.propagation.context.AuthContext;
-import com.kjs.wuli3.propagation.context.PrincipalType;
+import com.kjs.wuli3.propagation.context.ContextKey;
+import com.kjs.wuli3.propagation.internal.AuthContext;
+import com.kjs.wuli3.propagation.internal.PrincipalType;
 import com.kjs.wuli3.propagation.store.ContextReader;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -21,7 +22,7 @@ public class AuthContextAccessor {
      * @return 当前认证上下文；未设置时为空
      */
     public Optional<AuthContext> current() {
-        return this.contextReader.get(AuthContext.class);
+        return this.contextReader.get(ContextKey.of(AuthContext.class));
     }
 
     /**

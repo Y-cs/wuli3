@@ -1,11 +1,12 @@
 package com.kjs.wuli3.web.autoconfigure;
 
+import com.kjs.wuli3.propagation.ContextManager;
 import com.kjs.wuli3.propagation.accessor.AuthContextAccessor;
 import com.kjs.wuli3.propagation.accessor.InvocationContextAccessor;
 import com.kjs.wuli3.propagation.codec.ContextPropagator;
 import com.kjs.wuli3.propagation.store.ContextReader;
-import com.kjs.wuli3.propagation.store.ContextStore;
-import com.kjs.wuli3.propagation.store.ContextWriter;
+import com.kjs.wuli3.propagation.store.ContextBinder;
+import com.kjs.wuli3.propagation.store.ThreadLocalContextBackend;
 import com.kjs.wuli3.web.auth.AuthContextResolver;
 import com.kjs.wuli3.web.context.ClientIpResolver;
 import com.kjs.wuli3.web.context.RequestIdResolver;
@@ -23,7 +24,9 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.boot.web.client.RestClientCustomizer;
 import org.springframework.boot.web.client.RestTemplateCustomizer;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
+import org.springframework.web.servlet.HandlerExceptionResolver;
 import org.springframework.context.annotation.Bean;
+import org.springframework.beans.factory.annotation.Qualifier;
 
 /** Configures request context capture and propagation.
  *
@@ -33,10 +36,18 @@ import org.springframework.context.annotation.Bean;
 @EnableConfigurationProperties(WebContextProperties.class)
 public class WebContextAutoConfiguration {
 
+    /** 创建同时提供读取与作用域绑定能力的默认线程后端。 */
+    @Bean
+    @ConditionalOnMissingBean({ContextReader.class, ContextBinder.class})
+    ThreadLocalContextBackend contextBinder() {
+        return new ThreadLocalContextBackend();
+    }
+
+    /** 使用同一后端的读取和绑定接口创建上下文管理器。 */
     @Bean
     @ConditionalOnMissingBean
-    ContextStore contextStore() {
-        return new ContextStore();
+    ContextManager contextManager(final ContextReader reader, final ContextBinder binder) {
+        return new ContextManager(reader, binder);
     }
 
     @Bean
@@ -92,17 +103,25 @@ public class WebContextAutoConfiguration {
     }
 
     @Bean
-    @ConditionalOnBean(ContextWriter.class)
+    @ConditionalOnBean(ContextManager.class)
     @ConditionalOnMissingBean
     @ConditionalOnProperty(prefix = "wuli3.web.context", name = "enabled", havingValue = "true", matchIfMissing = true)
     FilterRegistrationBean<ContextFilter> contextFilterRegistration(
-            final ContextWriter contextWriter,
+            final ContextManager contextManager,
             final AuthContextResolver authContextResolver,
             final RequestIdResolver requestIdResolver,
             final ClientIpResolver clientIpResolver,
-            final WebContextProperties properties) {
+            final WebContextProperties properties,
+            @Qualifier("handlerExceptionResolver") final HandlerExceptionResolver exceptionResolver) {
+
         final ContextFilter filter =
-                new ContextFilter(contextWriter, authContextResolver, requestIdResolver, clientIpResolver, properties);
+                new ContextFilter(
+                        contextManager,
+                        authContextResolver,
+                        requestIdResolver,
+                        clientIpResolver,
+                        properties,
+                        exceptionResolver);
         final FilterRegistrationBean<ContextFilter> registration = new FilterRegistrationBean<>(filter);
         registration.setOrder(properties.getFilterOrder());
         return registration;
