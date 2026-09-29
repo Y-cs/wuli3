@@ -47,22 +47,6 @@ public class WebExceptionHandler {
     private final ErrorAlertNotifiers errorAlertNotifiers;
     private final List<WebErrorMapper> errorMappers;
 
-    /** 使用默认异常分类创建处理器。 */
-    public WebExceptionHandler(
-            final ApiResponseFactory responseFactory,
-            final InvocationContextAccessor invocationContextAccessor,
-            final WebResponseProperties responseProperties,
-            final List<ErrorAlertNotifier> errorAlertNotifiers,
-            final WebErrorStatusResolver webErrorStatusResolver) {
-        this(
-                responseFactory,
-                invocationContextAccessor,
-                responseProperties,
-                errorAlertNotifiers,
-                webErrorStatusResolver,
-                List.of());
-    }
-
     /** 使用已排序的开发者映射创建处理器。 */
     public WebExceptionHandler(
             final ApiResponseFactory responseFactory,
