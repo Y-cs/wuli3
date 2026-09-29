@@ -1,6 +1,10 @@
 package com.kjs.wuli3.redis;
 
 import static org.assertj.core.api.Assertions.assertThat;
+
+import com.kjs.wuli3.core.error.ErrorCodeException;
+
+import com.kjs.wuli3.core.error.ErrorCodeException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.Duration;
@@ -21,14 +25,14 @@ class RedisKeyTest {
 
     @Test
     void rejectsBlankKeysAndInvalidTimeToLive() {
-        assertThatThrownBy(() -> RedisKey.persistent(" ")).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> RedisKey.persistent(" ")).isInstanceOf(ErrorCodeException.class);
         assertThatThrownBy(() -> RedisKey.expiring("orders:1", Duration.ZERO))
-                .isInstanceOf(IllegalArgumentException.class);
+                .isInstanceOf(ErrorCodeException.class);
         assertThatThrownBy(() -> RedisKey.expiring("orders:1", Duration.ofNanos(999_999)))
-                .isInstanceOf(IllegalArgumentException.class);
+                .isInstanceOf(ErrorCodeException.class);
         assertThatThrownBy(() -> RedisKey.expiring("orders:1", Duration.ofMillis(-1)))
-                .isInstanceOf(IllegalArgumentException.class);
+                .isInstanceOf(ErrorCodeException.class);
         assertThatThrownBy(() -> RedisKey.expiring("orders:1", Duration.ofSeconds(Long.MAX_VALUE)))
-                .isInstanceOf(IllegalArgumentException.class);
+                .isInstanceOf(ErrorCodeException.class);
     }
 }

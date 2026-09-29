@@ -1,5 +1,7 @@
 package com.kjs.wuli3.event.envelope;
 
+import com.kjs.wuli3.core.assertion.Asserts;
+
 import java.time.Instant;
 import java.util.Objects;
 
@@ -24,14 +26,13 @@ public record EventEnvelope<T>(String topic, String eventType, String eventId, I
         topic = EventEnvelope.requireNonBlank(topic, "topic");
         eventType = EventEnvelope.requireNonBlank(eventType, "eventType");
         eventId = EventEnvelope.requireNonBlank(eventId, "eventId");
-        Objects.requireNonNull(occurredOn, "occurredOn cannot be null");
-        Objects.requireNonNull(payload, "payload cannot be null");
+        Asserts.whenNull(occurredOn).throwIllegalArgumentException("occurredOn cannot be null");
+        Asserts.whenNull(payload).throwIllegalArgumentException("payload cannot be null");
     }
 
     private static String requireNonBlank(final String value, final String name) {
-        if (Objects.requireNonNull(value, name + " cannot be null").isBlank()) {
-            throw new IllegalArgumentException(name + " cannot be blank");
-        }
+        Asserts.whenNull(value).throwIllegalArgumentException(name + " cannot be null");
+        Asserts.whenBlank(value).throwIllegalArgumentException(name + " cannot be blank");
         return value;
     }
 }

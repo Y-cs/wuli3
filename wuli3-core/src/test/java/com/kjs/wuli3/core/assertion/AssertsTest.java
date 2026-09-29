@@ -83,7 +83,7 @@ class AssertsTest {
 
     @Test
     void throwsErrorCodeExceptionWithCustomMessage() {
-        assertThatThrownBy(() -> Asserts.whenEmpty("").throwException(CommonErrors.ILLEGAL_ARGUMENT, "empty value"))
+        assertThatThrownBy(() -> Asserts.whenEmpty("").throwIllegalArgumentException("empty value"))
                 .isInstanceOfSatisfying(ErrorCodeException.class, exception -> {
                     assertThat(exception.getErrorCode()).isSameAs(CommonErrors.ILLEGAL_ARGUMENT);
                     assertThat(exception).hasMessage("empty value");

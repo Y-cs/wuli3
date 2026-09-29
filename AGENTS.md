@@ -42,6 +42,18 @@ Java 包名使用 `com.kjs.wuli3` 前缀。模块名使用 `wuli3-*`，Spring st
 
 如果抽取接口，需明确该能力存在的意义和边界，避免接口膨胀和滥用。
 
+## 错误边界与参数校验
+
+请求、协议、消息、业务调用等外部输入进入公共 API 时，必须使用
+`com.kjs.wuli3.core.assertion.Asserts` 转换为 `ErrorCodeException`，使异常进入统一错误码处理链；禁止使用
+`Objects.requireNonNull`、直接抛出 `IllegalArgumentException` 或直接抛出 `NullPointerException` 代替边界错误。
+非空参数使用 `whenNull(...)`，其他约束使用 `whenBlank`、`whenFalse` 等断言。
+使用 `CommonErrors.ILLEGAL_ARGUMENT` 时调用 `throwIllegalArgumentException(message)`；需要表达其他明确错误语义时调用
+`throwException(errorCode, message)`。高频且语义稳定的错误码可以按现有 fluent 风格补充专用断言方法，不要为了形式统一滥用非法参数错误码。
+
+构造器依赖、Bean 装配失败、私有方法不变量和明确的内部不可达状态属于内部错误，可以继续使用
+`Objects.requireNonNull` 或 `IllegalStateException`；这类校验不得用于掩盖请求或协议输入错误。新增代码应在注释或方法契约中保持这两类边界清晰。
+
 ## 测试指南
 
 测试框架为 JUnit Jupiter，断言库为 AssertJ。测试类放在对应模块的 `src/test/java` 下，命名建议使用 `*Test`，例如 `TimeFormattersTest`、`RedisAutoConfigurationTest`。新增公共 API、自动配置、错误处理和事件行为时，应补充对应单元测试或自动配置加载测试。

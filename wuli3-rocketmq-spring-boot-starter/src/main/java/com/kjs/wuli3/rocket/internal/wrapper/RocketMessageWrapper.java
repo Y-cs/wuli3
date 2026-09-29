@@ -1,9 +1,9 @@
 package com.kjs.wuli3.rocket.internal.wrapper;
 
+import com.kjs.wuli3.core.assertion.Asserts;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Map;
-import java.util.Objects;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -39,11 +39,20 @@ public record RocketMessageWrapper(
             final String tag,
             final @Nullable String orderKey,
             final @Nullable Duration delay) {
-        this.topic = Objects.requireNonNull(topic, "topic");
-        this.body = Arrays.copyOf(Objects.requireNonNull(body, "body"), body.length);
-        this.headers = Map.copyOf(Objects.requireNonNull(headers, "headers"));
-        this.key = Objects.requireNonNull(key, "key");
-        this.tag = Objects.requireNonNull(tag, "tag");
+        Asserts.whenNull(topic).throwIllegalArgumentException("topic must not be null");
+        Asserts.whenNull(body).throwIllegalArgumentException("body must not be null");
+        Asserts.whenNull(headers).throwIllegalArgumentException("headers must not be null");
+        Asserts.whenNull(key).throwIllegalArgumentException("key must not be null");
+        Asserts.whenNull(tag).throwIllegalArgumentException("tag must not be null");
+        headers.forEach((name, value) -> {
+            Asserts.whenNull(name).throwIllegalArgumentException("header name must not be null");
+            Asserts.whenNull(value).throwIllegalArgumentException("header value must not be null");
+        });
+        this.topic = topic;
+        this.body = Arrays.copyOf(body, body.length);
+        this.headers = Map.copyOf(headers);
+        this.key = key;
+        this.tag = tag;
         this.orderKey = orderKey;
         this.delay = delay;
     }

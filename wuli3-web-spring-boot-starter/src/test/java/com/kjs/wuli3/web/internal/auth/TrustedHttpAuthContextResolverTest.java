@@ -3,6 +3,7 @@ package com.kjs.wuli3.web.internal.auth;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.kjs.wuli3.core.error.ErrorCodeException;
 import com.kjs.wuli3.propagation.internal.AuthContext;
 import com.kjs.wuli3.propagation.internal.PrincipalType;
 import org.junit.jupiter.api.Test;
@@ -49,7 +50,7 @@ class TrustedHttpAuthContextResolverTest {
 
             assertThatThrownBy(() -> this.resolver.resolve(request))
                     .as("非法主体类型 %s", principalType)
-                    .isInstanceOf(IllegalArgumentException.class);
+                    .isInstanceOf(ErrorCodeException.class);
         }
     }
 
@@ -64,7 +65,7 @@ class TrustedHttpAuthContextResolverTest {
 
                 assertThatThrownBy(() -> this.resolver.resolve(request))
                         .as("空白字段 %s", field)
-                        .isInstanceOf(IllegalArgumentException.class);
+                        .isInstanceOf(ErrorCodeException.class);
             }
         }
     }

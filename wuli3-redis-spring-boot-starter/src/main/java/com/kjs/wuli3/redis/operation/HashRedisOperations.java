@@ -1,5 +1,6 @@
 package com.kjs.wuli3.redis.operation;
 
+import com.kjs.wuli3.core.assertion.Asserts;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.kjs.wuli3.redis.RedisKey;
 import com.kjs.wuli3.redis.codec.JsonRedisCodec;
@@ -37,21 +38,21 @@ public final class HashRedisOperations {
     /** 写入单个字段，并在需要时刷新整个 Hash 的过期时间。 */
     public void put(final RedisKey key, final String field, final Object value) {
         HashRedisOperations.validateKeyAndField(key, field);
-        this.hashOperations.put(key.value(), field, this.codec.encode(Objects.requireNonNull(value, "value")));
+        this.hashOperations.put(key.value(), field, this.codec.encode(value));
         this.refreshAfterMutation(key, 1L);
     }
 
     /** 批量写入字段，并在需要时刷新整个 Hash 的过期时间。 */
     public void putAll(final RedisKey key, final Map<String, ?> values) {
-        Objects.requireNonNull(key, "key");
-        Objects.requireNonNull(values, "values");
+        Asserts.whenNull(key).throwIllegalArgumentException("Redis key must not be null");
+        Asserts.whenNull(values).throwIllegalArgumentException("Redis values must not be null");
         if (values.isEmpty()) {
             return;
         }
         final Map<String, String> encodedValues = new LinkedHashMap<>();
         values.forEach((field, value) -> {
             HashRedisOperations.validateField(field);
-            encodedValues.put(field, this.codec.encode(Objects.requireNonNull(value, "value")));
+            encodedValues.put(field, this.codec.encode(value));
         });
         this.hashOperations.putAll(key.value(), encodedValues);
         this.refreshAfterMutation(key, encodedValues.size());
@@ -61,7 +62,7 @@ public final class HashRedisOperations {
     public boolean putIfAbsent(final RedisKey key, final String field, final Object value) {
         HashRedisOperations.validateKeyAndField(key, field);
         final boolean added = this.hashOperations.putIfAbsent(
-                key.value(), field, this.codec.encode(Objects.requireNonNull(value, "value")));
+                key.value(), field, this.codec.encode(value));
         this.refreshAfterMutation(key, added ? 1L : 0L);
         return added;
     }
@@ -69,7 +70,7 @@ public final class HashRedisOperations {
     /** 按具体类型读取字段值。 */
     public <T> Optional<T> get(final RedisKey key, final String field, final Class<T> type) {
         HashRedisOperations.validateKeyAndField(key, field);
-        Objects.requireNonNull(type, "type");
+        Asserts.whenNull(type).throwIllegalArgumentException("Redis value type must not be null");
         final String encodedValue = this.hashOperations.get(key.value(), field);
         return encodedValue == null ? Optional.empty() : Optional.ofNullable(this.codec.decode(encodedValue, type));
     }
@@ -77,7 +78,7 @@ public final class HashRedisOperations {
     /** 按泛型类型读取字段值。 */
     public <T> Optional<T> get(final RedisKey key, final String field, final TypeReference<T> typeReference) {
         HashRedisOperations.validateKeyAndField(key, field);
-        Objects.requireNonNull(typeReference, "typeReference");
+        Asserts.whenNull(typeReference).throwIllegalArgumentException("Redis value type reference must not be null");
         final String encodedValue = this.hashOperations.get(key.value(), field);
         return encodedValue == null
                 ? Optional.empty()
@@ -86,8 +87,8 @@ public final class HashRedisOperations {
 
     /** 按具体类型读取全部字段。 */
     public <T> Map<String, T> entries(final RedisKey key, final Class<T> type) {
-        Objects.requireNonNull(key, "key");
-        Objects.requireNonNull(type, "type");
+        Asserts.whenNull(key).throwIllegalArgumentException("Redis key must not be null");
+        Asserts.whenNull(type).throwIllegalArgumentException("Redis value type must not be null");
         final Map<String, T> decodedValues = new LinkedHashMap<>();
         this.hashOperations.entries(key.value()).forEach((field, encodedValue) -> {
             final T value = this.codec.decode(encodedValue, type);
@@ -100,8 +101,8 @@ public final class HashRedisOperations {
 
     /** 按泛型类型读取全部字段。 */
     public <T> Map<String, T> entries(final RedisKey key, final TypeReference<T> typeReference) {
-        Objects.requireNonNull(key, "key");
-        Objects.requireNonNull(typeReference, "typeReference");
+        Asserts.whenNull(key).throwIllegalArgumentException("Redis key must not be null");
+        Asserts.whenNull(typeReference).throwIllegalArgumentException("Redis value type reference must not be null");
         final Map<String, T> decodedValues = new LinkedHashMap<>();
         this.hashOperations.entries(key.value()).forEach((field, encodedValue) -> {
             final T value = this.codec.decode(encodedValue, typeReference);
@@ -114,8 +115,8 @@ public final class HashRedisOperations {
 
     /** 删除字段并返回实际删除数量。 */
     public long delete(final RedisKey key, final String... fields) {
-        Objects.requireNonNull(key, "key");
-        Objects.requireNonNull(fields, "fields");
+        Asserts.whenNull(key).throwIllegalArgumentException("Redis key must not be null");
+        Asserts.whenNull(fields).throwIllegalArgumentException("Redis fields must not be null");
         for (final String field : fields) {
             HashRedisOperations.validateField(field);
         }
@@ -130,12 +131,12 @@ public final class HashRedisOperations {
 
     /** 返回字段数量。 */
     public long size(final RedisKey key) {
-        Objects.requireNonNull(key, "key");
+        Asserts.whenNull(key).throwIllegalArgumentException("Redis key must not be null");
         return this.hashOperations.size(key.value());
     }
 
     private void refreshExpiration(final RedisKey key) {
-        Objects.requireNonNull(key, "key");
+        Asserts.whenNull(key).throwIllegalArgumentException("Redis key must not be null");
         final Duration timeToLive =
                 key.timeToLive().orElseThrow(() -> new IllegalArgumentException("永久 Redis key 没有可刷新的过期时间"));
         this.redisTemplate.expire(key.value(), timeToLive);
@@ -148,14 +149,12 @@ public final class HashRedisOperations {
     }
 
     private static void validateKeyAndField(final RedisKey key, final String field) {
-        Objects.requireNonNull(key, "key");
+        Asserts.whenNull(key).throwIllegalArgumentException("Redis key must not be null");
         HashRedisOperations.validateField(field);
     }
 
     private static void validateField(final String field) {
-        Objects.requireNonNull(field, "field");
-        if (field.isBlank()) {
-            throw new IllegalArgumentException("Redis Hash field 不能为空");
-        }
+        Asserts.whenNull(field).throwIllegalArgumentException("Redis field must not be null");
+        Asserts.whenBlank(field).throwIllegalArgumentException("Redis Hash field 不能为空");
     }
 }

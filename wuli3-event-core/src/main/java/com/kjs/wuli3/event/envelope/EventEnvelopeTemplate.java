@@ -1,5 +1,7 @@
 package com.kjs.wuli3.event.envelope;
 
+import com.kjs.wuli3.core.assertion.Asserts;
+
 import com.kjs.wuli3.core.id.IdGenerator;
 import com.kjs.wuli3.core.id.UuidStringIdGenerator;
 import com.kjs.wuli3.core.time.ClockProvider;
@@ -65,9 +67,8 @@ public final class EventEnvelopeTemplate {
     }
 
     private static String requireNonBlank(final String value, final String name) {
-        if (Objects.requireNonNull(value, name + " cannot be null").isBlank()) {
-            throw new IllegalArgumentException(name + " cannot be blank");
-        }
+        Asserts.whenNull(value).throwIllegalArgumentException(name + " cannot be null");
+        Asserts.whenBlank(value).throwIllegalArgumentException(name + " cannot be blank");
         return value;
     }
 }

@@ -1,7 +1,9 @@
 package com.kjs.wuli3.rocket;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+import com.kjs.wuli3.core.error.ErrorCodeException;
 
 import com.kjs.wuli3.rocket.internal.RocketPublishOptions;
 import java.time.Duration;
@@ -25,11 +27,11 @@ class RocketPublishOptionsTest {
 
     @Test
     void rejectsInvalidDelayAndOrderKey() {
-        assertThatIllegalArgumentException()
-                .isThrownBy(() -> new RocketPublishOptions().withDelay(Duration.ZERO))
-                .withMessage("delay must be positive");
-        assertThatIllegalArgumentException()
-                .isThrownBy(() -> new RocketPublishOptions().withOrderKey(" "))
-                .withMessage("orderKey cannot be blank");
+        assertThatThrownBy(() -> new RocketPublishOptions().withDelay(Duration.ZERO))
+                .isInstanceOf(ErrorCodeException.class)
+                .hasMessage("delay must be positive");
+        assertThatThrownBy(() -> new RocketPublishOptions().withOrderKey(" "))
+                .isInstanceOf(ErrorCodeException.class)
+                .hasMessage("orderKey cannot be blank");
     }
 }

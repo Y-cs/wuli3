@@ -1,6 +1,9 @@
 package com.kjs.wuli3.rabbit.internal;
 
+import com.kjs.wuli3.core.error.ErrorCodeException;
 import com.kjs.wuli3.propagation.codec.ContextPropagator;
+import com.kjs.wuli3.core.assertion.Asserts;
+import com.kjs.wuli3.core.error.builtin.CommonErrors;
 import com.kjs.wuli3.propagation.context.ContextSnapshot;
 import com.kjs.wuli3.propagation.ContextManager;
 import java.util.Map;
@@ -35,7 +38,7 @@ public final class RabbitContextSupport {
      * 在消息处理回调期间恢复 headers 中的传播上下文。
      *
      * @param headers 消息 headers（来自 {@code MessageProperties.getHeaders()}）
-     * @throws NullPointerException 当 {@code headers} 为 {@code null} 时
+     * @throws ErrorCodeException 当 {@code headers} 为 {@code null} 时
      */
     @SuppressWarnings("NullAway")
     public void runInScope(final Map<String, ?> headers, final Runnable task) {
@@ -49,9 +52,10 @@ public final class RabbitContextSupport {
 
     @SuppressWarnings("NullAway")
     private ContextSnapshot extract(final Map<String, ?> headers) {
-        final Map<String, ?> actualHeaders = Objects.requireNonNull(headers, "headers");
+        Asserts.whenNull(headers)
+                .throwIllegalArgumentException("message headers must not be null");
         final Function<String, @Nullable String> fieldReader = key -> {
-            final Object value = actualHeaders.get(key);
+            final Object value = headers.get(key);
             return value == null ? null : value.toString();
         };
         return this.contextPropagator.extract(fieldReader);

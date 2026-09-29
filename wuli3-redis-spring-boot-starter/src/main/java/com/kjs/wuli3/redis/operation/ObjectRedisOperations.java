@@ -1,5 +1,6 @@
 package com.kjs.wuli3.redis.operation;
 
+import com.kjs.wuli3.core.assertion.Asserts;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.kjs.wuli3.redis.RedisKey;
 import com.kjs.wuli3.redis.codec.JsonRedisCodec;
@@ -33,8 +34,9 @@ public final class ObjectRedisOperations {
 
     /** 按 key 的过期策略写入对象。 */
     public void set(final RedisKey key, final Object value) {
-        Objects.requireNonNull(key, "key");
-        final String encodedValue = this.codec.encode(Objects.requireNonNull(value, "value"));
+        Asserts.whenNull(key).throwIllegalArgumentException("Redis key must not be null");
+        Asserts.whenNull(value).throwIllegalArgumentException("Redis value must not be null");
+        final String encodedValue = this.codec.encode(value);
         final Optional<Duration> timeToLive = key.timeToLive();
         if (timeToLive.isPresent()) {
             this.valueOperations.set(key.value(), encodedValue, timeToLive.orElseThrow());
@@ -45,8 +47,9 @@ public final class ObjectRedisOperations {
 
     /** 仅在 key 不存在时原子写入对象及其过期时间。 */
     public boolean setIfAbsent(final RedisKey key, final Object value) {
-        Objects.requireNonNull(key, "key");
-        final String encodedValue = this.codec.encode(Objects.requireNonNull(value, "value"));
+        Asserts.whenNull(key).throwIllegalArgumentException("Redis key must not be null");
+        Asserts.whenNull(value).throwIllegalArgumentException("Redis value must not be null");
+        final String encodedValue = this.codec.encode(value);
         final Optional<Duration> timeToLive = key.timeToLive();
         final Boolean stored = timeToLive.isPresent()
                 ? this.valueOperations.setIfAbsent(key.value(), encodedValue, timeToLive.orElseThrow())
@@ -56,16 +59,16 @@ public final class ObjectRedisOperations {
 
     /** 按具体类型读取对象。 */
     public <T> Optional<T> get(final RedisKey key, final Class<T> type) {
-        Objects.requireNonNull(key, "key");
-        Objects.requireNonNull(type, "type");
+        Asserts.whenNull(key).throwIllegalArgumentException("Redis key must not be null");
+        Asserts.whenNull(type).throwIllegalArgumentException("Redis value type must not be null");
         final String encodedValue = this.valueOperations.get(key.value());
         return encodedValue == null ? Optional.empty() : Optional.ofNullable(this.codec.decode(encodedValue, type));
     }
 
     /** 按泛型类型读取对象。 */
     public <T> Optional<T> get(final RedisKey key, final TypeReference<T> typeReference) {
-        Objects.requireNonNull(key, "key");
-        Objects.requireNonNull(typeReference, "typeReference");
+        Asserts.whenNull(key).throwIllegalArgumentException("Redis key must not be null");
+        Asserts.whenNull(typeReference).throwIllegalArgumentException("Redis value type reference must not be null");
         final String encodedValue = this.valueOperations.get(key.value());
         return encodedValue == null
                 ? Optional.empty()

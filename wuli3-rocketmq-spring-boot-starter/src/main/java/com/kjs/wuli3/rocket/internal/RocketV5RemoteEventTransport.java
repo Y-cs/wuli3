@@ -1,5 +1,8 @@
 package com.kjs.wuli3.rocket.internal;
 
+import com.kjs.wuli3.core.assertion.Asserts;
+import com.kjs.wuli3.core.error.builtin.CommonErrors;
+
 import com.kjs.wuli3.core.error.ErrorCodeException;
 import com.kjs.wuli3.core.error.builtin.CommonErrors;
 import com.kjs.wuli3.event.envelope.EventEnvelope;
@@ -51,8 +54,10 @@ public final class RocketV5RemoteEventTransport implements RemoteEventTransport<
 
     @Override
     public void send(final RocketPublishOptions options, final EventEnvelope<?>... envelopes) {
-        Objects.requireNonNull(options, "options cannot be null");
-        Objects.requireNonNull(envelopes, "envelopes cannot be null");
+        Asserts.whenNull(options)
+                .throwIllegalArgumentException("publish options must not be null");
+        Asserts.whenNull(envelopes)
+                .throwIllegalArgumentException("event envelopes must not be null");
         for (final EventEnvelope<?> envelope : envelopes) {
             final RocketMessageWrapper wireMessage = this.encoder.encode(envelope, options);
             final Message message = this.createMessage(wireMessage, options);

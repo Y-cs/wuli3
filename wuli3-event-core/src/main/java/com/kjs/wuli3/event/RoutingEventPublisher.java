@@ -1,5 +1,10 @@
 package com.kjs.wuli3.event;
 
+import com.kjs.wuli3.core.assertion.Asserts;
+import com.kjs.wuli3.core.error.builtin.CommonErrors;
+
+import com.kjs.wuli3.core.assertion.Asserts;
+import com.kjs.wuli3.core.error.builtin.CommonErrors;
 import com.kjs.wuli3.event.envelope.EventEnvelope;
 import com.kjs.wuli3.event.error.UnsupportedCapabilityException;
 import java.util.Map;
@@ -28,7 +33,9 @@ public final class RoutingEventPublisher implements EventPublisher {
     @Override
     @SuppressWarnings("unchecked")
     public <PO extends PublishOptions> void publish(final PO options, final EventEnvelope<?>... envelopes) {
-        final PO requiredOptions = Objects.requireNonNull(options, "options cannot be null");
+        Asserts.whenNull(options)
+                .throwIllegalArgumentException("publish options must not be null");
+        final PO requiredOptions = options;
         final EventTransport<PO> transport = (EventTransport<PO>) this.transports.get(requiredOptions.getClass());
         if (transport == null) {
             throw new UnsupportedCapabilityException(

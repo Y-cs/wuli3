@@ -1,5 +1,6 @@
 package com.kjs.wuli3.redis;
 
+import com.kjs.wuli3.core.assertion.Asserts;
 import com.kjs.wuli3.redis.codec.JsonRedisCodec;
 import com.kjs.wuli3.redis.codec.RedisCodec;
 import com.kjs.wuli3.redis.operation.HashRedisOperations;
@@ -71,28 +72,33 @@ public final class RedisSupport {
 
     /** 删除完整 key，并返回是否实际删除。 */
     public boolean delete(final RedisKey key) {
-        Objects.requireNonNull(key, "key");
+        Asserts.whenNull(key).throwIllegalArgumentException("Redis key must not be null");
         return this.redisTemplate.delete(key.value());
     }
 
     /** 批量删除完整 key，并返回实际删除数量。 */
     public long delete(final Collection<RedisKey> keys) {
-        Objects.requireNonNull(keys, "keys");
+        Asserts.whenNull(keys).throwIllegalArgumentException("Redis keys must not be null");
         final List<String> keyValues = keys.stream()
-                .map(key -> Objects.requireNonNull(key, "key").value())
+                .map(RedisSupport::keyValue)
                 .toList();
         return this.redisTemplate.delete(keyValues);
     }
 
+    private static String keyValue(final RedisKey key) {
+        Asserts.whenNull(key).throwIllegalArgumentException("Redis key must not be null");
+        return key.value();
+    }
+
     /** 判断完整 key 是否存在。 */
     public boolean exists(final RedisKey key) {
-        Objects.requireNonNull(key, "key");
+        Asserts.whenNull(key).throwIllegalArgumentException("Redis key must not be null");
         return this.redisTemplate.hasKey(key.value());
     }
 
     /** 使用 key 自带的 TTL 重新设置过期时间。 */
     public boolean expire(final RedisKey key) {
-        Objects.requireNonNull(key, "key");
+        Asserts.whenNull(key).throwIllegalArgumentException("Redis key must not be null");
         final Duration timeToLive =
                 key.timeToLive().orElseThrow(() -> new IllegalArgumentException("永久 Redis key 没有可刷新的过期时间"));
         return Boolean.TRUE.equals(this.redisTemplate.expire(key.value(), timeToLive));

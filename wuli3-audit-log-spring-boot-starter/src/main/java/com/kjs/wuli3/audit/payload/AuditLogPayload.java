@@ -1,6 +1,6 @@
 package com.kjs.wuli3.audit.payload;
 
-import java.util.Objects;
+import com.kjs.wuli3.core.assertion.Asserts;
 
 /**
  * 可发送到独立审计服务的不可变审计载荷。
@@ -16,7 +16,7 @@ public record AuditLogPayload(AuditLog auditLog, AuditLogRuntimeSnapshot runtime
 
     /** 创建字段完整的审计载荷。 */
     public AuditLogPayload {
-        Objects.requireNonNull(auditLog, "auditLog");
-        Objects.requireNonNull(runtimeSnapshot, "runtimeSnapshot");
+        Asserts.whenNull(auditLog).throwIllegalArgumentException("auditLog cannot be null");
+        Asserts.whenNull(runtimeSnapshot).throwIllegalArgumentException("runtimeSnapshot cannot be null");
     }
 }

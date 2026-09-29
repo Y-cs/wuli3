@@ -1,5 +1,6 @@
 package com.kjs.wuli3.rocket.internal.wrapper;
 
+import com.kjs.wuli3.core.assertion.Asserts;
 import com.kjs.wuli3.core.error.ErrorCodeException;
 import com.kjs.wuli3.core.error.builtin.CommonErrors;
 import com.kjs.wuli3.event.envelope.EventEnvelope;
@@ -48,8 +49,8 @@ public final class RocketMessageWrapperEncoder {
      * @return 与 SDK 无关的线消息
      */
     public RocketMessageWrapper encode(final EventEnvelope<?> envelope, final RocketPublishOptions options) {
-        Objects.requireNonNull(envelope, "envelope");
-        Objects.requireNonNull(options, "options");
+        Asserts.whenNull(envelope).throwIllegalArgumentException("event envelope must not be null");
+        Asserts.whenNull(options).throwIllegalArgumentException("publish options must not be null");
         RocketMessageWrapperEncoder.validateTopic(envelope.topic(), envelope.eventId());
         RocketMessageWrapperEncoder.validateCapabilities(options);
 
@@ -97,7 +98,7 @@ public final class RocketMessageWrapperEncoder {
     }
 
     private static void validateTopic(final String topic, final String eventId) {
-        Objects.requireNonNull(topic, "topic");
+        Asserts.whenNull(topic).throwIllegalArgumentException("topic must not be null");
         if (!RocketMessageWrapperEncoder.TOPIC_PATTERN.matcher(topic).matches()
                 || topic.getBytes(StandardCharsets.UTF_8).length > RocketMessageWrapperEncoder.MAX_TOPIC_BYTES) {
             throw new ErrorCodeException(

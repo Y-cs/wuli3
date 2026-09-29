@@ -1,5 +1,8 @@
 package com.kjs.wuli3.event.transport;
 
+import com.kjs.wuli3.core.assertion.Asserts;
+import com.kjs.wuli3.core.error.builtin.CommonErrors;
+
 import com.kjs.wuli3.event.EventTransport;
 import com.kjs.wuli3.event.envelope.EventEnvelope;
 import com.kjs.wuli3.event.options.SpringLocalPublishOptions;
@@ -37,8 +40,11 @@ public final class SpringLocalEventTransport implements EventTransport<SpringLoc
 
     @Override
     public void send(final SpringLocalPublishOptions options, final EventEnvelope<?>... envelope) {
-        Objects.requireNonNull(options, "options cannot be null");
-        Arrays.stream(Objects.requireNonNull(envelope, "envelope cannot be null"))
+        Asserts.whenNull(options)
+                .throwIllegalArgumentException("publish options must not be null");
+        Asserts.whenNull(envelope)
+                .throwIllegalArgumentException("event envelopes must not be null");
+        Arrays.stream(envelope)
                 .forEach(this.applicationEventPublisher::publishEvent);
     }
 }

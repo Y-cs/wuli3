@@ -2,7 +2,6 @@ package com.kjs.wuli3.audit.payload;
 
 import com.kjs.wuli3.core.assertion.Asserts;
 import com.kjs.wuli3.propagation.internal.PrincipalType;
-import java.util.Objects;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -25,15 +24,13 @@ public record AuditLogRuntimeSnapshot(
 
     /** 创建来源快照；可选字段允许为 {@code null}，但不允许为空白字符串。 */
     public AuditLogRuntimeSnapshot {
-        if (Objects.requireNonNull(application, "application").isBlank()) {
-            throw new IllegalArgumentException("application cannot be blank");
-        }
+        Asserts.whenBlank(application).throwIllegalArgumentException("application cannot be blank");
     }
 
     /** 操作主体的运行时身份快照。 */
     public record AuditPrincipal(PrincipalType principalType, String principalId, String principalName) {
         public AuditPrincipal {
-            Objects.requireNonNull(principalType, "principalType");
+            Asserts.whenNull(principalType).throwIllegalArgumentException("principalType cannot be null");
             Asserts.whenBlank(principalId).throwIllegalArgumentException("principalId cannot be blank");
             Asserts.whenBlank(principalName).throwIllegalArgumentException("principalName cannot be blank");
         }
@@ -56,8 +53,8 @@ public record AuditLogRuntimeSnapshot(
     }
 
     private static void requireNullOrNonBlank(final @Nullable String value, final String name) {
-        if (value != null && value.isBlank()) {
-            throw new IllegalArgumentException(name + " cannot be blank");
+        if (value != null) {
+            Asserts.whenBlank(value).throwIllegalArgumentException(name + " cannot be blank");
         }
     }
 }

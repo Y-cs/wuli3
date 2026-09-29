@@ -1,5 +1,7 @@
 package com.kjs.wuli3.propagation.internal;
 
+import com.kjs.wuli3.core.assertion.Asserts;
+import com.kjs.wuli3.core.error.builtin.CommonErrors;
 import com.kjs.wuli3.propagation.codec.ContextCodec;
 import com.kjs.wuli3.propagation.context.ContextKey;
 import com.kjs.wuli3.propagation.context.PropagationContext;
@@ -31,7 +33,8 @@ public record AuthContext(PrincipalType principalType, String principalId, Strin
 
     /** 创建字段完整的认证主体快照。 */
     public AuthContext {
-        Objects.requireNonNull(principalType, "principalType");
+        Asserts.whenNull(principalType)
+                .throwIllegalArgumentException("principalType must not be null");
         AuthContext.requireNonBlank(principalId, "principalId");
         AuthContext.requireNonBlank(principalName, "principalName");
     }
@@ -52,10 +55,10 @@ public record AuthContext(PrincipalType principalType, String principalId, Strin
     }
 
     private static void requireNonBlank(final String value, final String name) {
-        Objects.requireNonNull(value, name);
-        if (value.isBlank()) {
-            throw new IllegalArgumentException(name + " must not be blank");
-        }
+        Asserts.whenNull(value)
+                .throwIllegalArgumentException(name + " must not be null");
+        Asserts.whenBlank(value)
+                .throwIllegalArgumentException(name + " must not be blank");
     }
 
     public static final class Codec implements ContextCodec<AuthContext> {
@@ -79,6 +82,7 @@ public record AuthContext(PrincipalType principalType, String principalId, Strin
             actualFieldWriter.accept(AuthContext.PRINCIPAL_NAME, actualContext.principalName());
         }
 
+        @SuppressWarnings("NullAway")
         @Override
         public Optional<AuthContext> decode(Function<String, @Nullable String> fieldReader) {
             Objects.requireNonNull(fieldReader, "fieldReader");
@@ -88,7 +92,7 @@ public record AuthContext(PrincipalType principalType, String principalId, Strin
             if (principalTypeStr == null || principalId == null || principalName == null) {
                 return Optional.empty();
             }
-            final PrincipalType principalType = PrincipalType.valueOf(principalTypeStr);
+            final PrincipalType principalType = PrincipalType.parse(principalTypeStr);
             return Optional.of(new AuthContext(principalType, principalId, principalName));
         }
     }

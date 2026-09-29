@@ -3,6 +3,7 @@ package com.kjs.wuli3.propagation.codec;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.kjs.wuli3.core.error.ErrorCodeException;
 import com.kjs.wuli3.propagation.context.ContextKey;
 import com.kjs.wuli3.propagation.context.ContextSnapshot;
 import com.kjs.wuli3.propagation.internal.AuthContext;
@@ -66,7 +67,7 @@ class ContextPropagatorTest {
                 AuthContext.PRINCIPAL_NAME, "alice");
 
         assertThatThrownBy(() -> encoder.extract(fields::get))
-                .isInstanceOf(IllegalArgumentException.class);
+                .isInstanceOf(ErrorCodeException.class);
     }
 
     @Test

@@ -1,5 +1,9 @@
 package com.kjs.wuli3.redis;
 
+import com.kjs.wuli3.core.assertion.Asserts;
+import com.kjs.wuli3.core.error.ErrorCodeException;
+import com.kjs.wuli3.core.error.builtin.CommonErrors;
+
 import java.time.Duration;
 import java.util.Objects;
 import java.util.Optional;
@@ -14,11 +18,8 @@ public record RedisKey(String value, Optional<Duration> timeToLive) {
     private static final Duration MINIMUM_TIME_TO_LIVE = Duration.ofMillis(1);
 
     public RedisKey {
-        Objects.requireNonNull(value, "value");
-        Objects.requireNonNull(timeToLive, "timeToLive");
-        if (value.isBlank()) {
-            throw new IllegalArgumentException("Redis key must not be blank");
-        }
+        Asserts.whenBlank(value).throwIllegalArgumentException("Redis key must not be blank");
+        Asserts.whenNull(timeToLive).throwIllegalArgumentException("timeToLive must not be null");
         timeToLive.ifPresent(RedisKey::validateTimeToLive);
     }
 
@@ -29,7 +30,7 @@ public record RedisKey(String value, Optional<Duration> timeToLive) {
 
     /** 创建在指定持续时间后过期的 key。 */
     public static RedisKey expiring(final String value, final Duration timeToLive) {
-        return new RedisKey(value, Optional.of(Objects.requireNonNull(timeToLive, "timeToLive")));
+        return new RedisKey(value, Optional.of(timeToLive));
     }
 
     private static void validateTimeToLive(final Duration timeToLive) {
@@ -37,10 +38,12 @@ public record RedisKey(String value, Optional<Duration> timeToLive) {
         try {
             timeToLiveMillis = timeToLive.toMillis();
         } catch (ArithmeticException exception) {
-            throw new IllegalArgumentException("Redis key timeToLive is too large", exception);
+            throw new ErrorCodeException(
+                    CommonErrors.ILLEGAL_ARGUMENT,
+                    "Redis key timeToLive is too large", exception);
         }
         if (timeToLiveMillis < RedisKey.MINIMUM_TIME_TO_LIVE.toMillis()) {
-            throw new IllegalArgumentException("Redis key timeToLive must be at least 1 millisecond");
+            Asserts.whenTrue(true).throwIllegalArgumentException("Redis key timeToLive must be at least 1 millisecond");
         }
     }
 }

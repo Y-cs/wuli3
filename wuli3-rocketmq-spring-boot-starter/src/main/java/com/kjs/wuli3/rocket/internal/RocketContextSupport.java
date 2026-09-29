@@ -1,5 +1,7 @@
 package com.kjs.wuli3.rocket.internal;
 
+import com.kjs.wuli3.core.assertion.Asserts;
+import com.kjs.wuli3.core.error.builtin.CommonErrors;
 import com.kjs.wuli3.propagation.context.ContextSnapshot;
 import com.kjs.wuli3.propagation.ContextManager;
 import com.kjs.wuli3.propagation.codec.ContextPropagator;
@@ -37,7 +39,7 @@ public final class RocketContextSupport {
      * 在消息处理回调期间恢复 headers 中的传播上下文。
      *
      * @param headers 消息 headers（来自 {@code MessageExt.getProperties()} 或 {@code RocketMessageWrapper.headers()}）
-     * @throws NullPointerException 当 {@code headers} 为 {@code null} 时
+     * @throws ErrorCodeException 当 {@code headers} 为 {@code null} 时
      */
     @SuppressWarnings("NullAway")
     public void runInScope(final Map<String, ?> headers, final Runnable task) {
@@ -51,7 +53,9 @@ public final class RocketContextSupport {
 
     @SuppressWarnings("NullAway")
     private ContextSnapshot extract(final Map<String, ?> headers) {
-        final Map<String, ?> actualHeaders = Objects.requireNonNull(headers, "headers");
+        Asserts.whenNull(headers)
+                .throwIllegalArgumentException("message headers must not be null");
+        final Map<String, ?> actualHeaders = headers;
         final Function<String, @Nullable String> fieldReader = key -> {
             final Object value = actualHeaders.get(key);
             return value == null ? null : value.toString();

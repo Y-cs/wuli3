@@ -1,5 +1,6 @@
 package com.kjs.wuli3.redis.operation;
 
+import com.kjs.wuli3.core.assertion.Asserts;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.kjs.wuli3.redis.RedisKey;
 import com.kjs.wuli3.redis.codec.JsonRedisCodec;
@@ -37,7 +38,7 @@ public final class SetRedisOperations {
 
     /** 添加成员，并在实际新增成员后刷新 key 的过期时间。 */
     public long add(final RedisKey key, final Object... values) {
-        Objects.requireNonNull(key, "key");
+        Asserts.whenNull(key).throwIllegalArgumentException("Redis key must not be null");
         final String[] encodedValues = this.encodeValues(values);
         final Long added = this.setOperations.add(key.value(), encodedValues);
         final long addedCount = added == null ? 0L : added;
@@ -47,7 +48,7 @@ public final class SetRedisOperations {
 
     /** 删除成员并返回实际删除数量。 */
     public long remove(final RedisKey key, final Object... values) {
-        Objects.requireNonNull(key, "key");
+        Asserts.whenNull(key).throwIllegalArgumentException("Redis key must not be null");
         final String[] encodedValues = this.encodeValues(values);
         final Long removed = this.setOperations.remove(key.value(), (Object[]) encodedValues);
         return removed == null ? 0L : removed;
@@ -55,39 +56,39 @@ public final class SetRedisOperations {
 
     /** 判断成员是否存在。 */
     public boolean contains(final RedisKey key, final Object value) {
-        Objects.requireNonNull(key, "key");
+        Asserts.whenNull(key).throwIllegalArgumentException("Redis key must not be null");
         return Boolean.TRUE.equals(
-                this.setOperations.isMember(key.value(), this.codec.encode(Objects.requireNonNull(value, "value"))));
+                this.setOperations.isMember(key.value(), this.codec.encode(value)));
     }
 
     /** 按具体类型读取全部成员。 */
     public <T> Set<T> members(final RedisKey key, final Class<T> type) {
-        Objects.requireNonNull(type, "type");
+        Asserts.whenNull(type).throwIllegalArgumentException("Redis value type must not be null");
         return this.decodeMembers(key, encodedValue -> this.codec.decode(encodedValue, type));
     }
 
     /** 按泛型类型读取全部成员。 */
     public <T> Set<T> members(final RedisKey key, final TypeReference<T> typeReference) {
-        Objects.requireNonNull(typeReference, "typeReference");
+        Asserts.whenNull(typeReference).throwIllegalArgumentException("Redis value type reference must not be null");
         return this.decodeMembers(key, encodedValue -> this.codec.decode(encodedValue, typeReference));
     }
 
     /** 返回成员数量。 */
     public long size(final RedisKey key) {
-        Objects.requireNonNull(key, "key");
+        Asserts.whenNull(key).throwIllegalArgumentException("Redis key must not be null");
         final Long size = this.setOperations.size(key.value());
         return size == null ? 0L : size;
     }
 
     private void refreshExpiration(final RedisKey key) {
-        Objects.requireNonNull(key, "key");
+        Asserts.whenNull(key).throwIllegalArgumentException("Redis key must not be null");
         final Duration timeToLive =
                 key.timeToLive().orElseThrow(() -> new IllegalArgumentException("永久 Redis key 没有可刷新的过期时间"));
         this.redisTemplate.expire(key.value(), timeToLive);
     }
 
     private <T> Set<T> decodeMembers(final RedisKey key, final Function<String, @Nullable T> decoder) {
-        Objects.requireNonNull(key, "key");
+        Asserts.whenNull(key).throwIllegalArgumentException("Redis key must not be null");
         final Set<String> encodedMembers = this.setOperations.members(key.value());
         if (encodedMembers == null || encodedMembers.isEmpty()) {
             return Set.of();
@@ -109,13 +110,14 @@ public final class SetRedisOperations {
     }
 
     private String[] encodeValues(final Object[] values) {
-        Objects.requireNonNull(values, "values");
+        Asserts.whenNull(values).throwIllegalArgumentException("Redis values must not be null");
         if (values.length == 0) {
             throw new IllegalArgumentException("Redis Set 操作至少需要一个成员");
         }
         final String[] encodedValues = new String[values.length];
         for (int index = 0; index < values.length; index++) {
-            encodedValues[index] = this.codec.encode(Objects.requireNonNull(values[index], "value"));
+            Asserts.whenNull(values[index]).throwIllegalArgumentException("Redis value must not be null");
+            encodedValues[index] = this.codec.encode(values[index]);
         }
         return encodedValues;
     }

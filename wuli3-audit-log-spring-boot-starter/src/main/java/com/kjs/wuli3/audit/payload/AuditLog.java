@@ -1,6 +1,6 @@
 package com.kjs.wuli3.audit.payload;
 
-import java.util.Objects;
+import com.kjs.wuli3.core.assertion.Asserts;
 
 /**
  * 业务代码描述的审计内容；操作主体和调用链信息由框架从当前上下文补全为 {@code AuditLogRuntimeSnapshot}。
@@ -20,7 +20,7 @@ public record AuditLog(String module, String targetId, String action, String con
         targetId = AuditLog.requireNonBlank(targetId, "targetId");
         action = AuditLog.requireNonBlank(action, "action");
         content = AuditLog.requireNonBlank(content, "content");
-        Objects.requireNonNull(outcome, "outcome");
+        Asserts.whenNull(outcome).throwIllegalArgumentException("outcome cannot be null");
     }
 
     /** 创建一条成功操作的审计内容。 */
@@ -36,9 +36,7 @@ public record AuditLog(String module, String targetId, String action, String con
     }
 
     private static String requireNonBlank(final String value, final String name) {
-        if (Objects.requireNonNull(value, name).isBlank()) {
-            throw new IllegalArgumentException(name + " cannot be blank");
-        }
+        Asserts.whenBlank(value).throwIllegalArgumentException(name + " cannot be blank");
         return value;
     }
 

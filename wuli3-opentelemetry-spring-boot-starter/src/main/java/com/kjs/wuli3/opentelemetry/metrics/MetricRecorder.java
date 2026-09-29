@@ -1,5 +1,7 @@
 package com.kjs.wuli3.opentelemetry.metrics;
 
+import com.kjs.wuli3.core.assertion.Asserts;
+
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.DoubleGauge;
 import io.opentelemetry.api.metrics.DoubleHistogram;
@@ -49,10 +51,11 @@ public final class MetricRecorder {
      */
     public void addToCounter(final String name, final long delta, final Attributes attributes) {
         if (delta < 0L) {
-            throw new IllegalArgumentException("counter delta must not be negative");
+            Asserts.whenTrue(delta < 0L).throwIllegalArgumentException("counter delta must not be negative");
         }
         final String metricName = MetricRecorder.requireName(name);
-        final Attributes actualAttributes = Objects.requireNonNull(attributes, "attributes");
+        Asserts.whenNull(attributes).throwIllegalArgumentException("attributes must not be null");
+        final Attributes actualAttributes = attributes;
         this.counters
                 .computeIfAbsent(
                         metricName, key -> this.meter.counterBuilder(key).build())
@@ -63,7 +66,8 @@ public final class MetricRecorder {
     public void recordHistogram(final String name, final double value, final Attributes attributes) {
         MetricRecorder.requireFinite(value);
         final String metricName = MetricRecorder.requireName(name);
-        final Attributes actualAttributes = Objects.requireNonNull(attributes, "attributes");
+        Asserts.whenNull(attributes).throwIllegalArgumentException("attributes must not be null");
+        final Attributes actualAttributes = attributes;
         this.histograms
                 .computeIfAbsent(
                         metricName, key -> this.meter.histogramBuilder(key).build())
@@ -74,23 +78,21 @@ public final class MetricRecorder {
     public void recordGauge(final String name, final double value, final Attributes attributes) {
         MetricRecorder.requireFinite(value);
         final String metricName = MetricRecorder.requireName(name);
-        final Attributes actualAttributes = Objects.requireNonNull(attributes, "attributes");
+        Asserts.whenNull(attributes).throwIllegalArgumentException("attributes must not be null");
+        final Attributes actualAttributes = attributes;
         this.gauges
                 .computeIfAbsent(metricName, key -> this.meter.gaugeBuilder(key).build())
                 .set(value, actualAttributes);
     }
 
     private static String requireName(final String name) {
-        final String metricName = Objects.requireNonNull(name, "name");
-        if (metricName.isBlank()) {
-            throw new IllegalArgumentException("metric name must not be blank");
-        }
-        return metricName;
+        Asserts.whenBlank(name).throwIllegalArgumentException("metric name must not be blank");
+        return name;
     }
 
     private static void requireFinite(final double value) {
         if (!Double.isFinite(value)) {
-            throw new IllegalArgumentException("metric value must be finite");
+            Asserts.whenFalse(Double.isFinite(value)).throwIllegalArgumentException("metric value must be finite");
         }
     }
 }

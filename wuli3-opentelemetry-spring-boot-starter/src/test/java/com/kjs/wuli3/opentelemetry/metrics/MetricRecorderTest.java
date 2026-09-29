@@ -1,6 +1,8 @@
 package com.kjs.wuli3.opentelemetry.metrics;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+import com.kjs.wuli3.core.error.ErrorCodeException;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -71,13 +73,13 @@ class MetricRecorderTest {
         final MetricRecorder recorder = new MetricRecorder(mock(Meter.class));
 
         assertThatThrownBy(() -> recorder.addToCounter("orders.created", -1L, Attributes.empty()))
-                .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> recorder.incrementCounter(" ")).isInstanceOf(IllegalArgumentException.class);
+                .isInstanceOf(ErrorCodeException.class);
+        assertThatThrownBy(() -> recorder.incrementCounter(" ")).isInstanceOf(ErrorCodeException.class);
         assertThatThrownBy(() -> recorder.incrementCounter("orders.created", null))
-                .isInstanceOf(NullPointerException.class);
+                .isInstanceOf(ErrorCodeException.class);
         assertThatThrownBy(() -> recorder.recordHistogram("orders.duration", Double.NaN, Attributes.empty()))
-                .isInstanceOf(IllegalArgumentException.class);
+                .isInstanceOf(ErrorCodeException.class);
         assertThatThrownBy(() -> recorder.recordGauge("orders.pending", Double.POSITIVE_INFINITY, Attributes.empty()))
-                .isInstanceOf(IllegalArgumentException.class);
+                .isInstanceOf(ErrorCodeException.class);
     }
 }

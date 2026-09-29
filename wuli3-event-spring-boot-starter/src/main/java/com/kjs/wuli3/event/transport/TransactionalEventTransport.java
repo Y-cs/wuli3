@@ -1,5 +1,8 @@
 package com.kjs.wuli3.event.transport;
 
+import com.kjs.wuli3.core.assertion.Asserts;
+import com.kjs.wuli3.core.error.builtin.CommonErrors;
+
 import com.kjs.wuli3.event.EventTransport;
 import com.kjs.wuli3.event.PublishOptions;
 import com.kjs.wuli3.event.envelope.EventEnvelope;
@@ -42,9 +45,11 @@ public final class TransactionalEventTransport<O extends PublishOptions> impleme
 
     @Override
     public void send(final O options, final EventEnvelope<?>... envelopes) {
-        Objects.requireNonNull(options, "options cannot be null");
-        final EventEnvelope<?>[] snapshot =
-                Objects.requireNonNull(envelopes, "envelopes cannot be null").clone();
+        Asserts.whenNull(options)
+                .throwIllegalArgumentException("publish options must not be null");
+        Asserts.whenNull(envelopes)
+                .throwIllegalArgumentException("event envelopes must not be null");
+        final EventEnvelope<?>[] snapshot = envelopes.clone();
         final boolean wantsAfterCommit =
                 options instanceof TransactionalPublishOptions transactional && transactional.afterCommit();
         if (!wantsAfterCommit || !TransactionSynchronizationManager.isActualTransactionActive()) {

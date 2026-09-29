@@ -1,7 +1,7 @@
 package com.kjs.wuli3.audit;
 
+import com.kjs.wuli3.core.assertion.Asserts;
 import java.time.Instant;
-import java.util.Objects;
 
 /**
  * 审计事件发布后返回的生产者侧回执。
@@ -11,9 +11,7 @@ import java.util.Objects;
 public record AuditLogReceipt(String eventId, Instant occurredAt) {
 
     public AuditLogReceipt {
-        if (Objects.requireNonNull(eventId, "eventId").isBlank()) {
-            throw new IllegalArgumentException("eventId cannot be blank");
-        }
-        Objects.requireNonNull(occurredAt, "occurredAt");
+        Asserts.whenBlank(eventId).throwIllegalArgumentException("eventId cannot be blank");
+        Asserts.whenNull(occurredAt).throwIllegalArgumentException("occurredAt cannot be null");
     }
 }

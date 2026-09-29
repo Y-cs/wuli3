@@ -1,5 +1,8 @@
 package com.kjs.wuli3.rabbit.internal;
 
+import com.kjs.wuli3.core.assertion.Asserts;
+import com.kjs.wuli3.core.error.builtin.CommonErrors;
+
 import com.kjs.wuli3.core.error.ErrorCodeException;
 import com.kjs.wuli3.event.envelope.EventEnvelope;
 import com.kjs.wuli3.event.error.SendFailedException;
@@ -46,8 +49,10 @@ public final class RabbitRemoteEventTransport implements RemoteEventTransport<Ra
 
     @Override
     public void send(final RabbitPublishOptions options, final EventEnvelope<?>... envelopes) {
-        final RabbitPublishOptions actualOptions = Objects.requireNonNull(options, "options");
-        final EventEnvelope<?>[] actualEnvelopes = Objects.requireNonNull(envelopes, "envelopes");
+        Asserts.whenNull(options).throwIllegalArgumentException("publish options must not be null");
+        final RabbitPublishOptions actualOptions = options;
+        Asserts.whenNull(envelopes).throwIllegalArgumentException("event envelopes must not be null");
+        final EventEnvelope<?>[] actualEnvelopes = envelopes;
         for (final EventEnvelope<?> envelope : actualEnvelopes) {
             final Message message = this.encoder.encode(envelope);
             if (actualOptions.async()) {
