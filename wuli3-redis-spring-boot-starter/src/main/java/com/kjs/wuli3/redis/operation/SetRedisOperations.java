@@ -1,7 +1,7 @@
 package com.kjs.wuli3.redis.operation;
 
-import com.kjs.wuli3.core.assertion.Asserts;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.kjs.wuli3.core.assertion.Asserts;
 import com.kjs.wuli3.redis.RedisKey;
 import com.kjs.wuli3.redis.codec.JsonRedisCodec;
 import com.kjs.wuli3.redis.codec.RedisCodec;
@@ -57,8 +57,7 @@ public final class SetRedisOperations {
     /** 判断成员是否存在。 */
     public boolean contains(final RedisKey key, final Object value) {
         Asserts.whenNull(key).throwIllegalArgumentException("Redis key must not be null");
-        return Boolean.TRUE.equals(
-                this.setOperations.isMember(key.value(), this.codec.encode(value)));
+        return Boolean.TRUE.equals(this.setOperations.isMember(key.value(), this.codec.encode(value)));
     }
 
     /** 按具体类型读取全部成员。 */

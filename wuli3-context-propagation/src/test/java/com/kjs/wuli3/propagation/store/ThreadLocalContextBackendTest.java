@@ -20,7 +20,9 @@ class ThreadLocalContextBackendTest {
         final AuthContext second = new AuthContext(PrincipalType.ADMIN, "2", "second");
         final ContextManager manager = new ContextManager(store, store);
         manager.with(ContextState.of(first)).run(() -> {
-            manager.with(ContextState.of(second)).run(() -> assertThat(store.get(ContextKey.of(AuthContext.class))).contains(second));
+            manager.with(ContextState.of(second))
+                    .run(() -> assertThat(store.get(ContextKey.of(AuthContext.class)))
+                            .contains(second));
             assertThat(store.get(ContextKey.of(AuthContext.class))).contains(first);
         });
         assertThat(store.get(ContextKey.of(AuthContext.class))).isEmpty();
@@ -46,8 +48,10 @@ class ThreadLocalContextBackendTest {
         final AuthContext captured = new AuthContext(PrincipalType.CUSTOMER, "1", "captured");
         final AuthContext caller = new AuthContext(PrincipalType.CUSTOMER, "2", "caller");
         manager.with(ContextState.of(captured)).run(() -> {
-            final Callable<String> wrapped =
-                    manager.from(manager.capture()).wrap(() -> store.get(ContextKey.of(AuthContext.class)).orElseThrow().principalId());
+            final Callable<String> wrapped = manager.from(manager.capture())
+                    .wrap(() -> store.get(ContextKey.of(AuthContext.class))
+                            .orElseThrow()
+                            .principalId());
             manager.with(ContextState.of(caller)).run(() -> {
                 try {
                     assertThat(wrapped.call()).isEqualTo("1");

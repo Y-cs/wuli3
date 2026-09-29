@@ -1,7 +1,6 @@
 package com.kjs.wuli3.opentelemetry.metrics;
 
 import com.kjs.wuli3.core.assertion.Asserts;
-
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.DoubleGauge;
 import io.opentelemetry.api.metrics.DoubleHistogram;

@@ -14,11 +14,12 @@ import org.springframework.web.servlet.HandlerExceptionResolver;
 
 class WebContextAutoConfigurationTest {
 
-    private final ApplicationContextRunner contextRunner =
-            new ApplicationContextRunner()
-                    .withBean("handlerExceptionResolver", HandlerExceptionResolver.class,
-                            () -> (request, response, handler, exception) -> null)
-                    .withConfiguration(AutoConfigurations.of(WebContextAutoConfiguration.class));
+    private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
+            .withBean(
+                    "handlerExceptionResolver",
+                    HandlerExceptionResolver.class,
+                    () -> (request, response, handler, exception) -> null)
+            .withConfiguration(AutoConfigurations.of(WebContextAutoConfiguration.class));
 
     @Test
     void configuresTrustedHttpAuthContextResolverByDefault() {

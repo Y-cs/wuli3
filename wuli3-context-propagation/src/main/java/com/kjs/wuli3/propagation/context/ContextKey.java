@@ -19,7 +19,6 @@ public class ContextKey<T extends Context> {
         return new ContextKey<>(type);
     }
 
-
     /** 判断该类型是否属于可跨边界传播的上下文。 */
     public boolean isPropagatable() {
         return PropagationContext.class.isAssignableFrom(this.type);

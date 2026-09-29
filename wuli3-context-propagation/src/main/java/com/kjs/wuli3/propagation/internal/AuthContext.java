@@ -1,17 +1,15 @@
 package com.kjs.wuli3.propagation.internal;
 
 import com.kjs.wuli3.core.assertion.Asserts;
-import com.kjs.wuli3.core.error.builtin.CommonErrors;
 import com.kjs.wuli3.propagation.codec.ContextCodec;
 import com.kjs.wuli3.propagation.context.ContextKey;
 import com.kjs.wuli3.propagation.context.PropagationContext;
-import org.jspecify.annotations.Nullable;
-
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
+import org.jspecify.annotations.Nullable;
 
 /**
  * 业务代码可读取的认证与授权元数据。
@@ -33,8 +31,7 @@ public record AuthContext(PrincipalType principalType, String principalId, Strin
 
     /** 创建字段完整的认证主体快照。 */
     public AuthContext {
-        Asserts.whenNull(principalType)
-                .throwIllegalArgumentException("principalType must not be null");
+        Asserts.whenNull(principalType).throwIllegalArgumentException("principalType must not be null");
         AuthContext.requireNonBlank(principalId, "principalId");
         AuthContext.requireNonBlank(principalName, "principalName");
     }
@@ -55,10 +52,8 @@ public record AuthContext(PrincipalType principalType, String principalId, Strin
     }
 
     private static void requireNonBlank(final String value, final String name) {
-        Asserts.whenNull(value)
-                .throwIllegalArgumentException(name + " must not be null");
-        Asserts.whenBlank(value)
-                .throwIllegalArgumentException(name + " must not be blank");
+        Asserts.whenNull(value).throwIllegalArgumentException(name + " must not be null");
+        Asserts.whenBlank(value).throwIllegalArgumentException(name + " must not be blank");
     }
 
     public static final class Codec implements ContextCodec<AuthContext> {
@@ -96,5 +91,4 @@ public record AuthContext(PrincipalType principalType, String principalId, Strin
             return Optional.of(new AuthContext(principalType, principalId, principalName));
         }
     }
-
 }

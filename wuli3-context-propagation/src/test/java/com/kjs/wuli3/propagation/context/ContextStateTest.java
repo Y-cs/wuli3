@@ -42,8 +42,8 @@ class ContextStateTest {
         assertThat(ContextSnapshot.from(updated).values()).containsExactly(last);
         assertThat(updated.without(ContextKey.of(AuthContext.class)).values()).containsExactly(replacement);
         assertThat(updated.without(ContextKey.of(LocalContext.class)).values()).containsExactly(last);
-        assertThat(updated.without(ContextKey.of(AuthContext.class))
-                .without(ContextKey.of(LocalContext.class))).isSameAs(ContextState.empty());
+        assertThat(updated.without(ContextKey.of(AuthContext.class)).without(ContextKey.of(LocalContext.class)))
+                .isSameAs(ContextState.empty());
         assertThat(ContextState.of().without(ContextKey.of(LocalContext.class))).isSameAs(ContextState.empty());
         assertThatThrownBy(updated.values()::clear).isInstanceOf(UnsupportedOperationException.class);
         assertThatThrownBy(updated.propagationValues()::clear).isInstanceOf(UnsupportedOperationException.class);

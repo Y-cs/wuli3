@@ -12,7 +12,7 @@ import org.jspecify.annotations.Nullable;
  *
  * @author GuoYang create on 2026/8/17 11:53
  */
-public interface ContextCodec<C extends PropagationContext>{
+public interface ContextCodec<C extends PropagationContext> {
 
     ContextKey<C> contentKey();
     /**

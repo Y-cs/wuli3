@@ -20,5 +20,4 @@ public interface PropagationContext extends Context {
     ContextKey<? extends PropagationContext> contentKey();
 
     ContextCodec<? extends PropagationContext> contentCodec();
-
 }

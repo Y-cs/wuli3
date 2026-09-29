@@ -3,9 +3,7 @@ package com.kjs.wuli3.redis;
 import com.kjs.wuli3.core.assertion.Asserts;
 import com.kjs.wuli3.core.error.ErrorCodeException;
 import com.kjs.wuli3.core.error.builtin.CommonErrors;
-
 import java.time.Duration;
-import java.util.Objects;
 import java.util.Optional;
 
 /**
@@ -38,9 +36,7 @@ public record RedisKey(String value, Optional<Duration> timeToLive) {
         try {
             timeToLiveMillis = timeToLive.toMillis();
         } catch (ArithmeticException exception) {
-            throw new ErrorCodeException(
-                    CommonErrors.ILLEGAL_ARGUMENT,
-                    "Redis key timeToLive is too large", exception);
+            throw new ErrorCodeException(CommonErrors.ILLEGAL_ARGUMENT, "Redis key timeToLive is too large", exception);
         }
         if (timeToLiveMillis < RedisKey.MINIMUM_TIME_TO_LIVE.toMillis()) {
             Asserts.whenTrue(true).throwIllegalArgumentException("Redis key timeToLive must be at least 1 millisecond");

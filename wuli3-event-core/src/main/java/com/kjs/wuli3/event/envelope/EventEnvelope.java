@@ -1,9 +1,7 @@
 package com.kjs.wuli3.event.envelope;
 
 import com.kjs.wuli3.core.assertion.Asserts;
-
 import java.time.Instant;
-import java.util.Objects;
 
 /**
  * 不可变且与具体传输实现无关的事件元数据和载荷。

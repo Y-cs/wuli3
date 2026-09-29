@@ -1,8 +1,8 @@
 package com.kjs.wuli3.web.internal.filter;
 
-import com.kjs.wuli3.propagation.internal.InvocationContext;
-import com.kjs.wuli3.propagation.context.ContextState;
 import com.kjs.wuli3.propagation.ContextManager;
+import com.kjs.wuli3.propagation.context.ContextState;
+import com.kjs.wuli3.propagation.internal.InvocationContext;
 import com.kjs.wuli3.web.auth.AuthContextResolver;
 import com.kjs.wuli3.web.context.ClientIpResolver;
 import com.kjs.wuli3.web.context.RequestIdResolver;
@@ -91,8 +91,7 @@ public final class ContextFilter extends OncePerRequestFilter {
                 case IOException ioException -> throw ioException;
                 case ServletException servletException -> throw servletException;
                 case RuntimeException runtimeException -> throw runtimeException;
-                default -> {
-                }
+                default -> {}
             }
             throw new ServletException(exception);
         } finally {

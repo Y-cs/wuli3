@@ -1,8 +1,8 @@
 package com.kjs.wuli3.dubbo.context;
 
-import com.kjs.wuli3.propagation.context.ContextSnapshot;
 import com.kjs.wuli3.dubbo.autoconfigure.DubboProperties;
 import com.kjs.wuli3.propagation.codec.ContextPropagator;
+import com.kjs.wuli3.propagation.context.ContextSnapshot;
 import com.kjs.wuli3.propagation.store.ContextReader;
 import lombok.Setter;
 import org.apache.dubbo.common.constants.CommonConstants;

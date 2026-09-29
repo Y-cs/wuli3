@@ -3,13 +3,12 @@ package com.kjs.wuli3.propagation.internal;
 import com.kjs.wuli3.propagation.codec.ContextCodec;
 import com.kjs.wuli3.propagation.context.ContextKey;
 import com.kjs.wuli3.propagation.context.PropagationContext;
-import org.jspecify.annotations.Nullable;
-
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
+import org.jspecify.annotations.Nullable;
 
 /**
  * 调用链中需要传播的请求元数据。
@@ -19,12 +18,12 @@ import java.util.function.Function;
  *
  * @author GuoYang create on 2026/8/17 11:53
  */
-public record InvocationContext(String originIp, String requestId) implements PropagationContext{
+public record InvocationContext(String originIp, String requestId) implements PropagationContext {
 
     public static final String REQUEST_ID = "X-Request-Id";
     public static final String ORIGIN_IP = "X-Origin-Ip";
 
-    private final static ContextCodec<InvocationContext> CODEC = new Codec();
+    private static final ContextCodec<InvocationContext> CODEC = new Codec();
 
     /**
      * 返回调用上下文的类型，用作上下文容器中的存取键。
@@ -71,6 +70,5 @@ public record InvocationContext(String originIp, String requestId) implements Pr
             }
             return Optional.of(new InvocationContext(originIp, requestId));
         }
-
     }
 }

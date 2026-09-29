@@ -1,8 +1,6 @@
 package com.kjs.wuli3.rabbit.internal;
 
 import com.kjs.wuli3.core.assertion.Asserts;
-import com.kjs.wuli3.core.error.builtin.CommonErrors;
-
 import com.kjs.wuli3.core.error.ErrorCodeException;
 import com.kjs.wuli3.event.envelope.EventEnvelope;
 import com.kjs.wuli3.event.error.SendFailedException;

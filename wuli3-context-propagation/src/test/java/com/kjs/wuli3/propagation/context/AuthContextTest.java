@@ -13,8 +13,10 @@ class AuthContextTest {
     @SuppressWarnings("NullAway")
     void rejectsNullFields() {
         assertThatThrownBy(() -> new AuthContext(null, "7", "alice")).isInstanceOf(ErrorCodeException.class);
-        assertThatThrownBy(() -> new AuthContext(PrincipalType.CUSTOMER, null, "alice")).isInstanceOf(ErrorCodeException.class);
-        assertThatThrownBy(() -> new AuthContext(PrincipalType.CUSTOMER, "7", null)).isInstanceOf(ErrorCodeException.class);
+        assertThatThrownBy(() -> new AuthContext(PrincipalType.CUSTOMER, null, "alice"))
+                .isInstanceOf(ErrorCodeException.class);
+        assertThatThrownBy(() -> new AuthContext(PrincipalType.CUSTOMER, "7", null))
+                .isInstanceOf(ErrorCodeException.class);
     }
 
     @Test

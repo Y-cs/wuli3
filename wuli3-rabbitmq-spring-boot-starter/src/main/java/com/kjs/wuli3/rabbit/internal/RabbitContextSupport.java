@@ -1,16 +1,14 @@
 package com.kjs.wuli3.rabbit.internal;
 
-import com.kjs.wuli3.core.error.ErrorCodeException;
-import com.kjs.wuli3.propagation.codec.ContextPropagator;
 import com.kjs.wuli3.core.assertion.Asserts;
-import com.kjs.wuli3.core.error.builtin.CommonErrors;
-import com.kjs.wuli3.propagation.context.ContextSnapshot;
+import com.kjs.wuli3.core.error.ErrorCodeException;
 import com.kjs.wuli3.propagation.ContextManager;
+import com.kjs.wuli3.propagation.codec.ContextPropagator;
+import com.kjs.wuli3.propagation.context.ContextSnapshot;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.Callable;
 import java.util.function.Function;
-
 import org.jspecify.annotations.Nullable;
 
 /** 从 RabbitMQ 消息 headers 解码传播上下文，由消费适配器显式恢复。
@@ -52,8 +50,7 @@ public final class RabbitContextSupport {
 
     @SuppressWarnings("NullAway")
     private ContextSnapshot extract(final Map<String, ?> headers) {
-        Asserts.whenNull(headers)
-                .throwIllegalArgumentException("message headers must not be null");
+        Asserts.whenNull(headers).throwIllegalArgumentException("message headers must not be null");
         final Function<String, @Nullable String> fieldReader = key -> {
             final Object value = headers.get(key);
             return value == null ? null : value.toString();

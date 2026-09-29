@@ -1,13 +1,12 @@
 package com.kjs.wuli3.opentelemetry.metrics;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
-import com.kjs.wuli3.core.error.ErrorCodeException;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.kjs.wuli3.core.error.ErrorCodeException;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.DoubleGauge;
 import io.opentelemetry.api.metrics.DoubleGaugeBuilder;

@@ -1,17 +1,17 @@
 package com.kjs.wuli3.web.internal.client;
 
-import com.kjs.wuli3.propagation.ContextManager;
-import com.kjs.wuli3.propagation.store.ThreadLocalContextBackend;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.kjs.wuli3.propagation.internal.AuthContext;
+import com.kjs.wuli3.propagation.ContextManager;
 import com.kjs.wuli3.propagation.codec.ContextPropagator;
+import com.kjs.wuli3.propagation.context.ContextState;
+import com.kjs.wuli3.propagation.internal.AuthContext;
 import com.kjs.wuli3.propagation.internal.InvocationContext;
 import com.kjs.wuli3.propagation.internal.PrincipalType;
-import com.kjs.wuli3.propagation.context.ContextState;
+import com.kjs.wuli3.propagation.store.ThreadLocalContextBackend;
 import com.kjs.wuli3.web.internal.interceptor.ContextPropagationInterceptor;
 import java.net.URI;
 import org.junit.jupiter.api.Test;
@@ -45,13 +45,16 @@ class InvocationContextClientHttpRequestInterceptorTest {
         when(request.getURI()).thenReturn(URI.create("https://service.example/orders"));
         when(execution.execute(request, body)).thenReturn(response);
 
-        new ContextManager(threadLocalContextStore, threadLocalContextStore).with(state).run(() -> {
-            try {
-                assertThat(interceptor.intercept(request, body, execution)).isSameAs(response);
-            } catch (final Exception exception) {
-                throw new RuntimeException(exception);
-            }
-        });
+        new ContextManager(threadLocalContextStore, threadLocalContextStore)
+                .with(state)
+                .run(() -> {
+                    try {
+                        assertThat(interceptor.intercept(request, body, execution))
+                                .isSameAs(response);
+                    } catch (final Exception exception) {
+                        throw new RuntimeException(exception);
+                    }
+                });
 
         assertThat(headers.getFirst(InvocationContext.REQUEST_ID)).isEqualTo("request-42");
         assertThat(headers.getFirst(InvocationContext.ORIGIN_IP)).isEqualTo("10.0.0.8");

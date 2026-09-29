@@ -1,7 +1,6 @@
 package com.kjs.wuli3.event.envelope;
 
 import com.kjs.wuli3.core.assertion.Asserts;
-
 import com.kjs.wuli3.core.id.IdGenerator;
 import com.kjs.wuli3.core.id.UuidStringIdGenerator;
 import com.kjs.wuli3.core.time.ClockProvider;

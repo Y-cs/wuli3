@@ -4,8 +4,8 @@ import com.kjs.wuli3.propagation.ContextManager;
 import com.kjs.wuli3.propagation.accessor.AuthContextAccessor;
 import com.kjs.wuli3.propagation.accessor.InvocationContextAccessor;
 import com.kjs.wuli3.propagation.codec.ContextPropagator;
-import com.kjs.wuli3.propagation.store.ContextReader;
 import com.kjs.wuli3.propagation.store.ContextBinder;
+import com.kjs.wuli3.propagation.store.ContextReader;
 import com.kjs.wuli3.propagation.store.ThreadLocalContextBackend;
 import com.kjs.wuli3.web.auth.AuthContextResolver;
 import com.kjs.wuli3.web.context.ClientIpResolver;
@@ -16,6 +16,7 @@ import com.kjs.wuli3.web.internal.context.DefaultClientIpResolver;
 import com.kjs.wuli3.web.internal.context.DefaultRequestIdResolver;
 import com.kjs.wuli3.web.internal.filter.ContextFilter;
 import com.kjs.wuli3.web.internal.interceptor.ContextPropagationInterceptor;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -24,9 +25,8 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.boot.web.client.RestClientCustomizer;
 import org.springframework.boot.web.client.RestTemplateCustomizer;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
-import org.springframework.web.servlet.HandlerExceptionResolver;
 import org.springframework.context.annotation.Bean;
-import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.web.servlet.HandlerExceptionResolver;
 
 /** Configures request context capture and propagation.
  *
@@ -114,14 +114,13 @@ public class WebContextAutoConfiguration {
             final WebContextProperties properties,
             @Qualifier("handlerExceptionResolver") final HandlerExceptionResolver exceptionResolver) {
 
-        final ContextFilter filter =
-                new ContextFilter(
-                        contextManager,
-                        authContextResolver,
-                        requestIdResolver,
-                        clientIpResolver,
-                        properties,
-                        exceptionResolver);
+        final ContextFilter filter = new ContextFilter(
+                contextManager,
+                authContextResolver,
+                requestIdResolver,
+                clientIpResolver,
+                properties,
+                exceptionResolver);
         final FilterRegistrationBean<ContextFilter> registration = new FilterRegistrationBean<>(filter);
         registration.setOrder(properties.getFilterOrder());
         return registration;

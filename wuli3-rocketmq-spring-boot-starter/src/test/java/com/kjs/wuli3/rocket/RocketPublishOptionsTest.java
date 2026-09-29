@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.kjs.wuli3.core.error.ErrorCodeException;
-
 import com.kjs.wuli3.rocket.internal.RocketPublishOptions;
 import java.time.Duration;
 import org.junit.jupiter.api.Test;

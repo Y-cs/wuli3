@@ -1,6 +1,5 @@
 package com.kjs.wuli3.audit.internal;
 
-import com.kjs.wuli3.propagation.context.ContextKey;
 import com.kjs.wuli3.audit.AuditLogReceipt;
 import com.kjs.wuli3.audit.AuditLogRecorder;
 import com.kjs.wuli3.audit.payload.AuditLog;
@@ -14,8 +13,9 @@ import com.kjs.wuli3.event.envelope.EventEnvelope;
 import com.kjs.wuli3.event.envelope.EventEnvelopeTemplate;
 import com.kjs.wuli3.opentelemetry.trace.TraceContext;
 import com.kjs.wuli3.opentelemetry.trace.TraceContextAccessor;
-import com.kjs.wuli3.propagation.internal.AuthContext;
 import com.kjs.wuli3.propagation.context.Context;
+import com.kjs.wuli3.propagation.context.ContextKey;
+import com.kjs.wuli3.propagation.internal.AuthContext;
 import com.kjs.wuli3.propagation.internal.InvocationContext;
 import com.kjs.wuli3.propagation.store.ContextReader;
 import java.util.Objects;

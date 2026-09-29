@@ -1,16 +1,13 @@
 package com.kjs.wuli3.rocket.internal;
 
 import com.kjs.wuli3.core.assertion.Asserts;
-import com.kjs.wuli3.core.error.builtin.CommonErrors;
-import com.kjs.wuli3.propagation.context.ContextSnapshot;
 import com.kjs.wuli3.propagation.ContextManager;
 import com.kjs.wuli3.propagation.codec.ContextPropagator;
-
+import com.kjs.wuli3.propagation.context.ContextSnapshot;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.Callable;
 import java.util.function.Function;
-
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -53,8 +50,7 @@ public final class RocketContextSupport {
 
     @SuppressWarnings("NullAway")
     private ContextSnapshot extract(final Map<String, ?> headers) {
-        Asserts.whenNull(headers)
-                .throwIllegalArgumentException("message headers must not be null");
+        Asserts.whenNull(headers).throwIllegalArgumentException("message headers must not be null");
         final Map<String, ?> actualHeaders = headers;
         final Function<String, @Nullable String> fieldReader = key -> {
             final Object value = actualHeaders.get(key);

@@ -10,11 +10,10 @@ public enum PrincipalType {
     SYSTEM;
 
     public static PrincipalType parse(String enumValue) {
-        try{
+        try {
             return PrincipalType.valueOf(enumValue);
-        }catch (IllegalArgumentException ignored) {
+        } catch (IllegalArgumentException ignored) {
             throw new ErrorCodeException(SystemErrors.ILLEGAL_ARGUMENT);
         }
     }
-
 }

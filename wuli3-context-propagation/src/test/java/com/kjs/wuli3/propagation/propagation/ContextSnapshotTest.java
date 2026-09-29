@@ -25,7 +25,8 @@ class ContextSnapshotTest {
                 new AuthContext(PrincipalType.CUSTOMER, "7", "alice"),
                 new AuthContext(PrincipalType.ADMIN, "8", "bob"));
 
-        assertThat(snapshot.get(ContextKey.of(AuthContext.class))).contains(new AuthContext(PrincipalType.ADMIN, "8", "bob"));
+        assertThat(snapshot.get(ContextKey.of(AuthContext.class)))
+                .contains(new AuthContext(PrincipalType.ADMIN, "8", "bob"));
         assertThatThrownBy(snapshot.values()::clear).isInstanceOf(UnsupportedOperationException.class);
     }
 }

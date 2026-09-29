@@ -1,6 +1,5 @@
 package com.kjs.wuli3.dubbo.context;
 
-import com.kjs.wuli3.propagation.context.ContextKey;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -8,10 +7,11 @@ import static org.mockito.Mockito.when;
 
 import com.kjs.wuli3.dubbo.autoconfigure.DubboProperties;
 import com.kjs.wuli3.propagation.ContextManager;
-import com.kjs.wuli3.propagation.store.ThreadLocalContextBackend;
 import com.kjs.wuli3.propagation.codec.ContextPropagator;
-import com.kjs.wuli3.propagation.internal.InvocationContext;
+import com.kjs.wuli3.propagation.context.ContextKey;
 import com.kjs.wuli3.propagation.context.ContextState;
+import com.kjs.wuli3.propagation.internal.InvocationContext;
+import com.kjs.wuli3.propagation.store.ThreadLocalContextBackend;
 import org.apache.dubbo.rpc.AppResponse;
 import org.apache.dubbo.rpc.Invocation;
 import org.apache.dubbo.rpc.Invoker;
@@ -49,24 +49,27 @@ class DubboContextFilterTest {
     @Test
     void providerRestoresRemoteContextOnlyForInvocationScope() {
         final ThreadLocalContextBackend store = new ThreadLocalContextBackend();
-        new ContextManager(store, store).with(ContextState.of(new InvocationContext("127.0.0.1", "previous"))).run(() -> {
-            final Invocation invocation = mock(Invocation.class);
-            when(invocation.getAttachment(InvocationContext.REQUEST_ID)).thenReturn("request-42");
-            when(invocation.getAttachment(InvocationContext.ORIGIN_IP)).thenReturn("10.0.0.8");
-            final Invoker<?> invoker = mock(Invoker.class);
-            when(invoker.invoke(invocation)).thenAnswer(ignored -> {
-                assertThat(store.get(ContextKey.of(InvocationContext.class)))
-                        .contains(new InvocationContext("10.0.0.8", "request-42"));
-                return new AppResponse();
-            });
-            final DubboContextProviderFilter filter = new DubboContextProviderFilter();
-            filter.setDubboProperties(this.properties);
-            filter.setContextPropagator(this.encoder);
-            filter.setContextManager(new ContextManager(store, store));
+        new ContextManager(store, store)
+                .with(ContextState.of(new InvocationContext("127.0.0.1", "previous")))
+                .run(() -> {
+                    final Invocation invocation = mock(Invocation.class);
+                    when(invocation.getAttachment(InvocationContext.REQUEST_ID)).thenReturn("request-42");
+                    when(invocation.getAttachment(InvocationContext.ORIGIN_IP)).thenReturn("10.0.0.8");
+                    final Invoker<?> invoker = mock(Invoker.class);
+                    when(invoker.invoke(invocation)).thenAnswer(ignored -> {
+                        assertThat(store.get(ContextKey.of(InvocationContext.class)))
+                                .contains(new InvocationContext("10.0.0.8", "request-42"));
+                        return new AppResponse();
+                    });
+                    final DubboContextProviderFilter filter = new DubboContextProviderFilter();
+                    filter.setDubboProperties(this.properties);
+                    filter.setContextPropagator(this.encoder);
+                    filter.setContextManager(new ContextManager(store, store));
 
-            filter.invoke(invoker, invocation);
+                    filter.invoke(invoker, invocation);
 
-            assertThat(store.get(ContextKey.of(InvocationContext.class))).contains(new InvocationContext("127.0.0.1", "previous"));
-        });
+                    assertThat(store.get(ContextKey.of(InvocationContext.class)))
+                            .contains(new InvocationContext("127.0.0.1", "previous"));
+                });
     }
 }

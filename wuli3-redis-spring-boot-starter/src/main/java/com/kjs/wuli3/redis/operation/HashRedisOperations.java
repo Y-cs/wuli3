@@ -1,7 +1,7 @@
 package com.kjs.wuli3.redis.operation;
 
-import com.kjs.wuli3.core.assertion.Asserts;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.kjs.wuli3.core.assertion.Asserts;
 import com.kjs.wuli3.redis.RedisKey;
 import com.kjs.wuli3.redis.codec.JsonRedisCodec;
 import com.kjs.wuli3.redis.codec.RedisCodec;
@@ -61,8 +61,7 @@ public final class HashRedisOperations {
     /** 仅在字段不存在时写入值。 */
     public boolean putIfAbsent(final RedisKey key, final String field, final Object value) {
         HashRedisOperations.validateKeyAndField(key, field);
-        final boolean added = this.hashOperations.putIfAbsent(
-                key.value(), field, this.codec.encode(value));
+        final boolean added = this.hashOperations.putIfAbsent(key.value(), field, this.codec.encode(value));
         this.refreshAfterMutation(key, added ? 1L : 0L);
         return added;
     }

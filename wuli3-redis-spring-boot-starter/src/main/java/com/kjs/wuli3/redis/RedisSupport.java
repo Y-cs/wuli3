@@ -79,9 +79,7 @@ public final class RedisSupport {
     /** 批量删除完整 key，并返回实际删除数量。 */
     public long delete(final Collection<RedisKey> keys) {
         Asserts.whenNull(keys).throwIllegalArgumentException("Redis keys must not be null");
-        final List<String> keyValues = keys.stream()
-                .map(RedisSupport::keyValue)
-                .toList();
+        final List<String> keyValues = keys.stream().map(RedisSupport::keyValue).toList();
         return this.redisTemplate.delete(keyValues);
     }
 

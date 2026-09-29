@@ -47,7 +47,8 @@ public final class ContextSnapshot {
         final Map<ContextKey<? extends Context>, Context> snapshotContexts = new HashMap<>();
         for (final Context context : contexts) {
             final Context actualContext = Objects.requireNonNull(context, "context");
-            final ContextKey<? extends Context> type = Objects.requireNonNull(actualContext.contentKey(), "context.contentKey()");
+            final ContextKey<? extends Context> type =
+                    Objects.requireNonNull(actualContext.contentKey(), "context.contentKey()");
             snapshotContexts.put(type, actualContext);
         }
         return new ContextSnapshot(snapshotContexts);
@@ -55,9 +56,8 @@ public final class ContextSnapshot {
 
     /** 从完整状态中捕获可传播上下文；普通本地上下文不会进入快照。 */
     public static ContextSnapshot from(final ContextState state) {
-        return ContextSnapshot.of(Objects.requireNonNull(state, "state")
-                .propagationValues()
-                .toArray(Context[]::new));
+        return ContextSnapshot.of(
+                Objects.requireNonNull(state, "state").propagationValues().toArray(Context[]::new));
     }
 
     /** 将传播项还原成独立完整状态，不合并执行线程已有上下文。 */

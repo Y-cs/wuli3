@@ -1,13 +1,13 @@
 package com.kjs.wuli3.rocket.internal.wrapper;
 
-import com.kjs.wuli3.propagation.ContextManager;
-import com.kjs.wuli3.propagation.store.ThreadLocalContextBackend;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.kjs.wuli3.event.envelope.EventEnvelope;
+import com.kjs.wuli3.propagation.ContextManager;
 import com.kjs.wuli3.propagation.codec.ContextPropagator;
-import com.kjs.wuli3.propagation.internal.InvocationContext;
 import com.kjs.wuli3.propagation.context.ContextState;
+import com.kjs.wuli3.propagation.internal.InvocationContext;
+import com.kjs.wuli3.propagation.store.ThreadLocalContextBackend;
 import com.kjs.wuli3.rocket.internal.RocketPublishOptions;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
@@ -24,8 +24,9 @@ class RocketMessageWrapperEncoderTest {
                 new EventEnvelope<>("orders", "order.paid.v1", "event-1", Instant.EPOCH, "payload");
 
         final RocketMessageWrapper[] result = new RocketMessageWrapper[1];
-        new ContextManager(threadLocalContextStore, threadLocalContextStore).with(state).run(() -> result[0] = new RocketMessageWrapperEncoder(
-                threadLocalContextStore, contextPropagator)
+        new ContextManager(threadLocalContextStore, threadLocalContextStore)
+                .with(state)
+                .run(() -> result[0] = new RocketMessageWrapperEncoder(threadLocalContextStore, contextPropagator)
                         .encode(envelope, new RocketPublishOptions()));
         final RocketMessageWrapper wrapper = result[0];
         final String body = new String(wrapper.body(), StandardCharsets.UTF_8);

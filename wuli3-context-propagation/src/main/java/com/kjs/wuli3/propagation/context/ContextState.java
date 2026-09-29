@@ -3,8 +3,6 @@ package com.kjs.wuli3.propagation.context;
 import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.ImmutableTable;
 import com.google.common.collect.Table;
-import com.kjs.wuli3.core.assertion.Asserts;
-
 import java.util.Collection;
 import java.util.Objects;
 import java.util.Optional;
@@ -38,7 +36,8 @@ public final class ContextState {
         final Table<ContextPartition, ContextKey<? extends Context>, Context> values = HashBasedTable.create();
         for (final Context context : contexts) {
             final Context actual = Objects.requireNonNull(context, "context");
-            final ContextKey<? extends Context> key = Objects.requireNonNull(actual.contentKey(), "context.contentKey()");
+            final ContextKey<? extends Context> key =
+                    Objects.requireNonNull(actual.contentKey(), "context.contentKey()");
             values.put(key.isPropagatable() ? ContextPartition.PROPAGATION : ContextPartition.LOCAL, key, actual);
         }
         return values.isEmpty() ? ContextState.EMPTY : new ContextState(values);
@@ -47,9 +46,8 @@ public final class ContextState {
     /** 返回指定类型的上下文。 */
     public <T extends Context> Optional<T> get(final ContextKey<T> type) {
         final ContextKey<T> actualType = Objects.requireNonNull(type, "type");
-        final ContextPartition partition = actualType.isPropagatable()
-                ? ContextPartition.PROPAGATION
-                : ContextPartition.LOCAL;
+        final ContextPartition partition =
+                actualType.isPropagatable() ? ContextPartition.PROPAGATION : ContextPartition.LOCAL;
         final Context value = this.contexts.get(partition, actualType);
         return value == null ? Optional.empty() : Optional.of(actualType.cast(value));
     }
@@ -57,9 +55,9 @@ public final class ContextState {
     /** 返回绑定上下文后的新状态。 */
     public <T extends Context> ContextState with(final T context) {
         final T actual = Objects.requireNonNull(context, "context");
-        final ContextKey<? extends Context> key =
-                Objects.requireNonNull(actual.contentKey(), "context.contentKey()");
-        final Table<ContextPartition, ContextKey<? extends Context>, Context> table = HashBasedTable.create(this.contexts);
+        final ContextKey<? extends Context> key = Objects.requireNonNull(actual.contentKey(), "context.contentKey()");
+        final Table<ContextPartition, ContextKey<? extends Context>, Context> table =
+                HashBasedTable.create(this.contexts);
         table.put(key.isPropagatable() ? ContextPartition.PROPAGATION : ContextPartition.LOCAL, key, actual);
         return new ContextState(table);
     }
@@ -67,7 +65,8 @@ public final class ContextState {
     /** 返回删除指定类型后的新状态。 */
     public ContextState without(final ContextKey<? extends Context> type) {
         final ContextKey<? extends Context> actualType = Objects.requireNonNull(type, "type");
-        final Table<ContextPartition, ContextKey<? extends Context>, Context> table = HashBasedTable.create(this.contexts);
+        final Table<ContextPartition, ContextKey<? extends Context>, Context> table =
+                HashBasedTable.create(this.contexts);
         table.remove(actualType.isPropagatable() ? ContextPartition.PROPAGATION : ContextPartition.LOCAL, actualType);
         return table.isEmpty() ? ContextState.EMPTY : new ContextState(table);
     }

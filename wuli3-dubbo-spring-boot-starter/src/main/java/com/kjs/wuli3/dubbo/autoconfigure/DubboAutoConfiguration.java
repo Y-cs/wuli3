@@ -2,9 +2,9 @@ package com.kjs.wuli3.dubbo.autoconfigure;
 
 import com.kjs.wuli3.propagation.ContextManager;
 import com.kjs.wuli3.propagation.codec.ContextPropagator;
-import com.kjs.wuli3.propagation.store.ThreadLocalContextBackend;
 import com.kjs.wuli3.propagation.store.ContextBinder;
 import com.kjs.wuli3.propagation.store.ContextReader;
+import com.kjs.wuli3.propagation.store.ThreadLocalContextBackend;
 import org.apache.dubbo.rpc.Filter;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;

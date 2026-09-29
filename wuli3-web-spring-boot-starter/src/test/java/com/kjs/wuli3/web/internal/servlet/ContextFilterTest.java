@@ -1,14 +1,13 @@
 package com.kjs.wuli3.web.internal.servlet;
 
-import com.kjs.wuli3.propagation.context.ContextKey;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.kjs.wuli3.propagation.ContextManager;
-import com.kjs.wuli3.propagation.store.ThreadLocalContextBackend;
-
+import com.kjs.wuli3.propagation.context.ContextKey;
 import com.kjs.wuli3.propagation.internal.AuthContext;
 import com.kjs.wuli3.propagation.internal.InvocationContext;
 import com.kjs.wuli3.propagation.internal.PrincipalType;
+import com.kjs.wuli3.propagation.store.ThreadLocalContextBackend;
 import com.kjs.wuli3.web.auth.AuthContextResolver;
 import com.kjs.wuli3.web.context.WebContextProperties;
 import com.kjs.wuli3.web.internal.filter.ContextFilter;
@@ -29,11 +28,14 @@ class ContextFilterTest {
                     assertThat(threadLocalContextStore.get(ContextKey.of(InvocationContext.class)))
                             .map(InvocationContext::requestId)
                             .contains("rid-1");
-                    assertThat(threadLocalContextStore.get(ContextKey.of(AuthContext.class))).isEmpty();
+                    assertThat(threadLocalContextStore.get(ContextKey.of(AuthContext.class)))
+                            .isEmpty();
                 });
 
-        assertThat(threadLocalContextStore.get(ContextKey.of(InvocationContext.class))).isEmpty();
-        assertThat(threadLocalContextStore.get(ContextKey.of(AuthContext.class))).isEmpty();
+        assertThat(threadLocalContextStore.get(ContextKey.of(InvocationContext.class)))
+                .isEmpty();
+        assertThat(threadLocalContextStore.get(ContextKey.of(AuthContext.class)))
+                .isEmpty();
     }
 
     @Test
@@ -50,7 +52,8 @@ class ContextFilterTest {
                             .contains("7");
                 });
 
-        assertThat(threadLocalContextStore.get(ContextKey.of(AuthContext.class))).isEmpty();
+        assertThat(threadLocalContextStore.get(ContextKey.of(AuthContext.class)))
+                .isEmpty();
     }
 
     private static ContextFilter filter(

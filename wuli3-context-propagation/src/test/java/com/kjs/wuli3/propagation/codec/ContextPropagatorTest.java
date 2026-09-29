@@ -52,8 +52,10 @@ class ContextPropagatorTest {
         encoder.inject(source, fields::put);
         final ContextSnapshot decoded = encoder.extract(fields::get);
 
-        assertThat(decoded.get(ContextKey.of(InvocationContext.class))).contains(new InvocationContext("10.0.0.8", "request-42"));
-        assertThat(decoded.get(ContextKey.of(AuthContext.class))).contains(new AuthContext(PrincipalType.CUSTOMER, "7", "alice"));
+        assertThat(decoded.get(ContextKey.of(InvocationContext.class)))
+                .contains(new InvocationContext("10.0.0.8", "request-42"));
+        assertThat(decoded.get(ContextKey.of(AuthContext.class)))
+                .contains(new AuthContext(PrincipalType.CUSTOMER, "7", "alice"));
     }
 
     @Test
@@ -66,8 +68,7 @@ class ContextPropagatorTest {
                 AuthContext.PRINCIPAL_ID, "7",
                 AuthContext.PRINCIPAL_NAME, "alice");
 
-        assertThatThrownBy(() -> encoder.extract(fields::get))
-                .isInstanceOf(ErrorCodeException.class);
+        assertThatThrownBy(() -> encoder.extract(fields::get)).isInstanceOf(ErrorCodeException.class);
     }
 
     @Test

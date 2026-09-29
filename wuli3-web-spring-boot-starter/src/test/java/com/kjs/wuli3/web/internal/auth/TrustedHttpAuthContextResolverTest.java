@@ -32,8 +32,8 @@ class TrustedHttpAuthContextResolverTest {
 
     @Test
     void returnsEmptyWhenAnyAuthenticationHeaderIsMissing() {
-        for (final String field : new String[] {
-                AuthContext.PRINCIPAL_TYPE, AuthContext.PRINCIPAL_ID, AuthContext.PRINCIPAL_NAME}) {
+        for (final String field :
+                new String[] {AuthContext.PRINCIPAL_TYPE, AuthContext.PRINCIPAL_ID, AuthContext.PRINCIPAL_NAME}) {
             final MockHttpServletRequest request = TrustedHttpAuthContextResolverTest.validRequest();
             request.removeHeader(field);
 
@@ -56,8 +56,8 @@ class TrustedHttpAuthContextResolverTest {
 
     @Test
     void rejectsBlankAuthenticationHeadersWhenAllFieldsArePresent() {
-        for (final String field : new String[] {
-                AuthContext.PRINCIPAL_TYPE, AuthContext.PRINCIPAL_ID, AuthContext.PRINCIPAL_NAME}) {
+        for (final String field :
+                new String[] {AuthContext.PRINCIPAL_TYPE, AuthContext.PRINCIPAL_ID, AuthContext.PRINCIPAL_NAME}) {
             for (final String blank : new String[] {"", " ", "\t"}) {
                 final MockHttpServletRequest request = TrustedHttpAuthContextResolverTest.validRequest();
                 request.removeHeader(field);
