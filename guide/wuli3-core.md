@@ -55,11 +55,11 @@ Maven 依赖示例：
 | `error.model` | `ErrorCode`、`ErrorMetadata`、`ErrorModule`、`ErrorOrigin`、`ErrorSeverity`、`ErrorVisibility` | 基础错误模型与声明式元数据。 |
 | `error.builtin` | `CommonErrors`、`SystemErrors`、`ErrorFrameworkErrors` | 框架内置错误码。 |
 | `error.propagation` | `ErrorCodeCarrier`、`ErrorCodePropagator` | 服务间错误传播值与字段读写。 |
-| `error.resolver` | `ErrorResolver`、`ErrorMetadataResolver` | 统一生成经过可见性处理的传播值，以及读取声明式元数据。 |
+| `error.resolver` | `ErrorResolver`、`ErrorMetadataResolver` | 读取元数据，分别生成完整内部传播值和公开边界投影。 |
 
-`ErrorResolver` 合并原 `ErrorCodeResolver`、`DefaultErrorCodeResolver` 和 `ErrorCodeCarrierCodec` 的职责，不再保留这些旧类型。`resolveBoundary(ErrorCodeException)` 是边界输出入口；`resolveCode(ErrorCode)` 仅用于格式化错误标识，不执行异常级可见性处理。
+`ErrorResolver` 合并原 `ErrorCodeResolver`、`DefaultErrorCodeResolver` 和 `ErrorCodeCarrierCodec` 的职责，不再保留这些旧类型。`resolvePropagation(ErrorCodeException)` 用于可信内部传播，不脱敏；`resolveBoundary(ErrorCodeException)` 用于最终公开边界投影；`resolveCode(ErrorCode)` 仅格式化错误标识。
 
-错误来源和严重程度属于错误码固有元数据，通过 `@ErrorMetadata` 声明；可见性属于边界输出策略，可通过 `withVisibility(...)` 覆盖。结构化响应明细在具体协议边界定义。
+责任方、严重程度和可见性的默认值通过 `@ErrorMetadata` 声明。开发者可用 `withOrigin(...)` 和 `withVisibility(...)` 分别覆盖当前异常的责任与可见性；二者独立，`CALLER + INTERNAL` 和 `SERVER + PUBLIC` 都合法。结构化明细与 HTTP 状态由 Web 边界处理。
 
 原 `SystemErrors.ILLEGAL_ARGUMENT`、`SystemErrors.ILLEGAL_STATE` 和 `SystemErrors.UNSUPPORTED_OPERATION` 已迁移为 `CommonErrors` 中的同名常量；`SystemErrors` 现在只保留系统级错误。
 
@@ -126,7 +126,14 @@ throw new ErrorCodeException(OrderErrors.ORDER_STATUS_INVALID)
         .withVisibility(ErrorVisibility.MESSAGE_ONLY);
 ```
 
-责任来源和严重程度应优先声明在 `@ErrorMetadata` 上；`ErrorVisibility` 由适配层按边界决定。
+如果下游的调用方错误来自本服务构造了错误请求，可在业务适配层重新确定责任：
+
+```java
+throw remoteException.withOrigin(ErrorOrigin.SERVER)
+        .withVisibility(ErrorVisibility.INTERNAL);
+```
+
+责任和可见性分别求值，未覆盖的维度继续继承。优先级为：适配层显式映射（如 Web 的 `WebErrorMapper`）> 当前异常运行时覆盖 > 远端协议元数据或本地声明。Core 不推断下游错误是否由最终用户导致。
 
 ### 3.4 责任来源、严重程度与可见性
 
@@ -147,7 +154,9 @@ throw new ErrorCodeException(OrderErrors.ORDER_STATUS_INVALID)
 - `PUBLIC`：错误信息可以对外输出。
 - `CODE_ONLY`：只输出错误码。
 - `MESSAGE_ONLY`：只输出消息。
-- `INTERNAL`：内部错误，不应直接对外输出。
+- `INTERNAL`：隐藏具体错误码和消息，不表示责任一定属于服务方。
+
+可见性只限制最终对外展示，不限制可信内部 RPC 传输。严重程度用于诊断和告警，不作为改写传播内容的依据。
 
 例如，JSON 序列化失败、消息发送失败等基础设施错误应声明为 `SERVER`；订单不存在、参数不合法等调用方可修正的业务错误保持默认的 `CALLER` 即可。
 
@@ -167,22 +176,33 @@ final ErrorSeverity severity = ErrorMetadataResolver.instance().getSeverity(Orde
 
 - `ErrorCode` 是统一错误标识契约，本地通常由带 `@ErrorModule` 的业务枚举实现。
 - `ErrorCodeException` 持有本地枚举或远程 `ErrorCodeCarrier`。
-- `ErrorCodeCarrier` 包含 `originalCode`、`code`、`message`、`origin`、`severity` 和 `sourceService`。`originalCode` 是内部诊断标识，`code/message` 是可对外展示的值；不得将整个传播对象直接作为公开 HTTP 响应。
+- `ErrorCodeCarrier` 包含 `originalCode`、`code`、`message`、`origin`、`severity`、`sourceService` 和 `visibility`。内部传播保留完整错误信息与策略，不得将整个对象作为公开 HTTP 响应。
 
 ```java
 final ErrorResolver resolver = new ErrorResolver("order");
-final ErrorCodeCarrier protocol = resolver.resolveBoundary(exception);
+// 可信内部传播不提前脱敏。
+final ErrorCodeCarrier protocol = resolver.resolvePropagation(exception);
 final ErrorCodeException restored = new ErrorCodeException(protocol);
+// 公开出口才应用策略，只输出投影后的展示字段。
+final ErrorCodeCarrier visible = resolver.resolveBoundary(restored);
 ```
 
-| 可见性 | 展示错误码 | 展示消息 |
-| --- | --- | --- |
-| `PUBLIC` | 当前错误码 | 当前消息 |
-| `CODE_ONLY` | 当前错误码 | `SystemErrors.INTERNAL_ERROR` 的消息 |
-| `MESSAGE_ONLY` | 当前服务的 `SYSTEM.INTERNAL_ERROR` | 当前消息 |
-| `INTERNAL` | 当前服务的 `SYSTEM.INTERNAL_ERROR` | `SystemErrors.INTERNAL_ERROR` 的消息 |
+Web 默认输出如下。占位码添加当前出口服务的非空服务前缀；HTTP 状态属于 Web 默认策略，开发者可覆盖。
 
-本地错误的 `originalCode` 是完整的 `SERVICE.MODULE.ERROR_NAME`。远程错误再次传播时，保留最初的 `originalCode/sourceService` 以及 `origin/severity`，默认继续转发展示码和已过滤消息，不会从原始错误码恢复被隐藏的展示码。消费方可用 `withVisibility(...)` 再次过滤；若再次隐藏错误码，兜底码使用当前服务前缀。消息被过滤后不保留原始消息。
+| 责任 | 可见性 | 展示错误码 | 展示消息 | 默认 HTTP 状态 |
+| --- | --- | --- | --- | --- |
+| `CALLER` | `PUBLIC` | 当前错误码 | 当前消息 | 400 |
+| `CALLER` | `CODE_ONLY` | 当前错误码 | 请求未被接受 | 400 |
+| `CALLER` | `MESSAGE_ONLY` | `COMMON.REQUEST_REJECTED` | 当前消息 | 400 |
+| `CALLER` | `INTERNAL` | `COMMON.REQUEST_REJECTED` | 请求未被接受 | 400 |
+| `SERVER` | `PUBLIC` | 当前错误码 | 当前消息 | 500 |
+| `SERVER` | `CODE_ONLY` | 当前错误码 | 内部错误 | 500 |
+| `SERVER` | `MESSAGE_ONLY` | `SYSTEM.INTERNAL_ERROR` | 当前消息 | 500 |
+| `SERVER` | `INTERNAL` | `SYSTEM.INTERNAL_ERROR` | 内部错误 | 500 |
+
+Dubbo 对上述八种组合均保留当前错误码、消息和元数据，不应用占位策略，也不携带 HTTP 状态。相比旧行为，隐藏调用方错误不再生成 `SYSTEM.INTERNAL_ERROR`，`CODE_ONLY` 调用方错误的占位消息也由“内部错误”改为“请求未被接受”。
+
+本地错误的 `originalCode` 是完整的 `SERVICE.MODULE.ERROR_NAME`。远程错误再次传播时保留最初的 `originalCode/sourceService`，继承责任、严重程度和可见性；本地运行时覆盖优先。公开投影隐藏码时使用当前服务的占位码，但原始诊断字段仍留在 carrier 内，不能整体序列化对外。
 
 `ErrorCodePropagator` 只负责内部服务间协议字段，不承担可见性策略：
 
@@ -192,11 +212,18 @@ propagator.inject(protocol, fieldWriter);
 final Optional<ErrorCodeCarrier> decoded = propagator.extract(fieldReader);
 ```
 
-内部传播字段为 `X-Wuli3-Error-Original-Code`、`X-Wuli3-Error-Code`、`X-Wuli3-Error-Message`、`X-Wuli3-Error-Origin`、`X-Wuli3-Error-Severity` 和 `X-Wuli3-Error-Source-Service`。原始错误码为必填字段，旧协议不再兼容；缺失或非法时拒绝解码，Dubbo 消费方保留原有异常。来源服务缺失时使用空字符串。
+内部传播字段为 `X-Wuli3-Error-Original-Code`、`X-Wuli3-Error-Code`、`X-Wuli3-Error-Message`、`X-Wuli3-Error-Origin`、`X-Wuli3-Error-Severity`、`X-Wuli3-Error-Source-Service` 和新增的 `X-Wuli3-Error-Visibility`。缺少必需字段或枚举值非法时拒绝解码，Dubbo 消费方保留原异常；来源服务缺失时使用空字符串。
 
-Web 复用同一个传播模型，但只将 `code/message` 投影到 `ApiResponse` 或 `ProblemDetail`，自行处理 HTTP 状态、请求 ID、验证明细和告警。其他异常由协议边界先包装为 `SystemErrors.INTERNAL_ERROR` 并指定 `INTERNAL` 后交给解析器。
+兼容性与升级顺序：
 
-该兜底规则只应由 Dubbo、HTTP、消息消费等外部协议边界使用，不是全局异常转换规则。启动配置校验、纯 Java API 契约和编程错误仍应保留合适的 JDK 异常；可预期的业务失败应显式抛出 `ErrorCodeException`；数据库、缓存、消息 SDK 等基础设施异常应在对应适配器中包装为模块自己的系统错误。
+- 旧六参数 carrier 构造器继续可用，默认 `PUBLIC`；协议缺少 `visibility` 同样按 `PUBLIC` 接收旧版已投影内容。不兼容缺少必需 `originalCode` 的更早协议。
+- 新版不会通过 `originalCode` 恢复旧版已隐藏的展示码，也无法恢复旧版丢弃的消息。
+- **先升级消费端及 Web 出口，再升级提供端**。旧消费端不识别可见性，可能将新提供端传来的完整敏感信息当成公开内容。多跳调用应从最终出口向上游逐层升级，确保接收及转发节点保留策略，公开出口执行过滤。
+- 旧提供端向新消费端传播时保留旧版脱敏结果，但无法获得完整诊断信息；全部升级后才形成完整的新传播链。
+
+Web 在 Core 模型上执行异常识别、投影及 HTTP 状态映射，两种响应格式只输出允许展示的字段。结构化校验详情仅在 `PUBLIC` 时输出。普通 `IllegalArgumentException` 默认归类为参数错误；框架错误按已知协议语义分类，未知异常才兜底为内部错误。开发者可覆盖默认分类。
+
+Dubbo 对普通异常保留原生处理机制，不再统一包装为内部错误；具体异常类型能否保留取决于 Dubbo 原生规则。Core 不全局转换 JDK 异常。可预期的业务失败应显式抛出 `ErrorCodeException`；基础设施失败应在对应适配器中表达明确的错误语义。
 
 这种拆分保证服务间不需要共享所有业务错误枚举。例如提供方的 `GroupErrors.PERMISSION_DENIED` 可以映射为 `GROUP.PERMISSION_DENIED` 后传播，消费方将其作为 `ErrorCodeException` 携带的 `ErrorCodeCarrier` 接收，不需要把 `GroupErrors` 放进自己的 classpath。
 

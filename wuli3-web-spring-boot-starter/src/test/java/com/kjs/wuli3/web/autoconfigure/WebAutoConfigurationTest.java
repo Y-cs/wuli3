@@ -33,7 +33,6 @@ import com.kjs.wuli3.web.auth.AuthContextResolver;
 import com.kjs.wuli3.web.context.RequestIds;
 import com.kjs.wuli3.web.error.ErrorAlertContext;
 import com.kjs.wuli3.web.error.ErrorAlertNotifier;
-import com.kjs.wuli3.web.error.WebErrors;
 import com.kjs.wuli3.web.response.ApiResponse;
 import com.kjs.wuli3.web.response.NativeResponse;
 import com.kjs.wuli3.web.response.NativeResponseMode;
@@ -327,11 +326,11 @@ class WebAutoConfigurationTest {
     }
 
     @Test
-    void illegalArgumentIsTreatedAsServerFailure() throws Exception {
+    void illegalArgumentIsTreatedAsBadRequest() throws Exception {
         mockMvc.perform(get("/illegal-argument"))
-                .andExpect(status().isInternalServerError())
-                .andExpect(jsonPath("$.code").value("WEB.INTERNAL_ERROR"))
-                .andExpect(jsonPath("$.message").value(WebErrors.INTERNAL_ERROR.getMessage()));
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("COMMON.ILLEGAL_ARGUMENT"))
+                .andExpect(jsonPath("$.message").value(CommonErrors.ILLEGAL_ARGUMENT.getMessage()));
     }
 
     /** 验证公开的远程错误保留完整字符串错误码、消息和请求标识。 */
@@ -344,13 +343,13 @@ class WebAutoConfigurationTest {
                 .andExpect(jsonPath("$.requestId").value("rid-remote"));
     }
 
-    /** 验证远程错误保留传播协议中的错误码和消息（已在提供方过滤）。 */
+    /** 验证完整内部传播的错误在 Web 出口隐藏敏感信息。 */
     @Test
     void propagatedInternalErrorHidesCodeAndMessage() throws Exception {
         mockMvc.perform(get("/propagated-internal-error"))
                 .andExpect(status().isInternalServerError())
-                .andExpect(jsonPath("$.code").value("GROUP.SYSTEM.INTERNAL_ERROR"))
-                .andExpect(jsonPath("$.message").value("provider details"));
+                .andExpect(jsonPath("$.code").value("SYSTEM.INTERNAL_ERROR"))
+                .andExpect(jsonPath("$.message").value("内部错误"));
     }
 
     @Test
@@ -358,7 +357,7 @@ class WebAutoConfigurationTest {
         mockMvc.perform(get("/code-only").header(RequestIds.HEADER_NAME, "rid-3"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("COMMON.UNSUPPORTED_OPERATION"))
-                .andExpect(jsonPath("$.message").value(WebErrors.INTERNAL_ERROR.getMessage()))
+                .andExpect(jsonPath("$.message").value("请求未被接受"))
                 .andExpect(jsonPath("$.requestId").value("rid-3"));
     }
 
@@ -375,8 +374,8 @@ class WebAutoConfigurationTest {
     void internalExceptionHidesCodeAndMessage() throws Exception {
         mockMvc.perform(get("/internal").header(RequestIds.HEADER_NAME, "rid-5"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value("SYSTEM.INTERNAL_ERROR"))
-                .andExpect(jsonPath("$.message").value(WebErrors.INTERNAL_ERROR.getMessage()))
+                .andExpect(jsonPath("$.code").value("COMMON.REQUEST_REJECTED"))
+                .andExpect(jsonPath("$.message").value("请求未被接受"))
                 .andExpect(jsonPath("$.requestId").value("rid-5"));
     }
 
@@ -624,11 +623,12 @@ class WebAutoConfigurationTest {
         String propagatedInternalError() {
             throw new ErrorCodeException(new ErrorCodeCarrier(
                     "GROUP.SECRET.FAILURE",
-                    "GROUP.SYSTEM.INTERNAL_ERROR",
+                    "GROUP.SECRET.FAILURE",
                     "provider details",
                     ErrorOrigin.SERVER,
                     ErrorSeverity.CRITICAL,
-                    "group"));
+                    "group",
+                    ErrorVisibility.INTERNAL));
         }
 
         @GetMapping("/code-only")

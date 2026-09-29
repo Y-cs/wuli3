@@ -1,11 +1,11 @@
 package com.kjs.wuli3.core.error.resolver;
 
 import com.kjs.wuli3.core.error.ErrorCodeException;
+import com.kjs.wuli3.core.error.builtin.CommonErrors;
 import com.kjs.wuli3.core.error.builtin.SystemErrors;
 import com.kjs.wuli3.core.error.model.ErrorCode;
 import com.kjs.wuli3.core.error.model.ErrorModule;
 import com.kjs.wuli3.core.error.model.ErrorOrigin;
-import com.kjs.wuli3.core.error.model.ErrorSeverity;
 import com.kjs.wuli3.core.error.model.ErrorVisibility;
 import com.kjs.wuli3.core.error.propagation.ErrorCodeCarrier;
 import java.util.Locale;
@@ -17,8 +17,6 @@ import java.util.Objects;
  * @author GuoYang create on 2026/9/24 10:00
  */
 public final class ErrorResolver {
-
-    private static final String INTERNAL_MESSAGE = SystemErrors.INTERNAL_ERROR.getMessage();
 
     private final String serviceCode;
     private final String rawServiceCode;
@@ -49,30 +47,51 @@ public final class ErrorResolver {
         return (prefix + moduleName + "." + errorEnum.name()).toUpperCase(Locale.ROOT);
     }
 
-    /** 按错误可见性生成跨服务传播值；远程错误的原始诊断信息保持不变。 */
-    public ErrorCodeCarrier resolveBoundary(final ErrorCodeException exception) {
+    /** 生成可信内部传播值，保留错误信息及最终对外可见性，不提前脱敏。 */
+    public ErrorCodeCarrier resolvePropagation(final ErrorCodeException exception) {
         final ErrorCodeException actualException = Objects.requireNonNull(exception, "exception");
         final ErrorCodeCarrier remote = actualException.asRemoteError().orElse(null);
-        final String originalCode =
-                remote == null ? this.resolveCode(actualException.getErrorCode()) : remote.originalCode();
-        final String currentCode = remote == null ? this.resolveCode(actualException.getErrorCode()) : remote.code();
-        final String message = Objects.requireNonNullElse(
-                actualException.getMessage(), actualException.getErrorCode().getMessage());
-        final ErrorVisibility visibility = actualException.getVisibility();
-        final String fallbackCode = this.resolveCode(SystemErrors.INTERNAL_ERROR);
+        final String currentCode = this.resolveCode(actualException.getErrorCode());
+        return new ErrorCodeCarrier(
+                remote == null ? currentCode : remote.originalCode(),
+                currentCode,
+                Objects.requireNonNullElse(
+                        actualException.getMessage(),
+                        actualException.getErrorCode().getMessage()),
+                actualException.getOrigin(),
+                actualException.getSeverity(),
+                remote == null ? this.rawServiceCode : remote.sourceService(),
+                actualException.getVisibility());
+    }
+
+    /**
+     * 在最终公开边界应用可见性；占位码和消息按当前责任归属选择。
+     *
+     * <p>返回值中的原始诊断字段仅供内部使用，不应直接序列化到公开响应。
+     */
+    public ErrorCodeCarrier resolveBoundary(final ErrorCodeException exception) {
+        final ErrorCodeCarrier propagation = this.resolvePropagation(exception);
+        final ErrorCode fallback = propagation.origin() == ErrorOrigin.CALLER
+                ? CommonErrors.REQUEST_REJECTED
+                : SystemErrors.INTERNAL_ERROR;
+        final ErrorVisibility visibility = propagation.visibility();
         final String visibleCode =
                 switch (visibility) {
-                    case PUBLIC, CODE_ONLY -> currentCode;
-                    case MESSAGE_ONLY, INTERNAL -> fallbackCode;
+                    case PUBLIC, CODE_ONLY -> propagation.code();
+                    case MESSAGE_ONLY, INTERNAL -> this.resolveCode(fallback);
                 };
         final String visibleMessage =
                 switch (visibility) {
-                    case PUBLIC, MESSAGE_ONLY -> message;
-                    case CODE_ONLY, INTERNAL -> INTERNAL_MESSAGE;
+                    case PUBLIC, MESSAGE_ONLY -> propagation.message();
+                    case CODE_ONLY, INTERNAL -> fallback.getMessage();
                 };
-        final ErrorOrigin origin = remote == null ? actualException.getOrigin() : remote.origin();
-        final ErrorSeverity severity = remote == null ? actualException.getSeverity() : remote.severity();
-        final String sourceService = remote == null ? this.rawServiceCode : remote.sourceService();
-        return new ErrorCodeCarrier(originalCode, visibleCode, visibleMessage, origin, severity, sourceService);
+        return new ErrorCodeCarrier(
+                propagation.originalCode(),
+                visibleCode,
+                visibleMessage,
+                propagation.origin(),
+                propagation.severity(),
+                propagation.sourceService(),
+                visibility);
     }
 }

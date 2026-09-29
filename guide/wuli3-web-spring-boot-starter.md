@@ -239,9 +239,9 @@ throw new ErrorCodeException(UserErrors.USER_NOT_FOUND);
 | `ErrorOrigin.CALLER` | 400 | 真实业务错误码，除非可见性隐藏 | 异常消息或错误码默认消息，除非可见性隐藏 |
 | `ErrorOrigin.SERVER` | 500 | 真实业务错误码，除非可见性隐藏 | 异常消息或错误码默认消息，除非可见性隐藏 |
 | `ErrorVisibility.PUBLIC`（默认） | 按 origin | 真实业务错误码 | 真实错误消息 |
-| `ErrorVisibility.CODE_ONLY` | 按 origin | 真实业务错误码 | `WEB.INTERNAL_ERROR` 的默认消息 |
-| `ErrorVisibility.MESSAGE_ONLY` | 按 origin | `WEB.INTERNAL_ERROR` | 真实错误消息 |
-| `ErrorVisibility.INTERNAL` | 按 origin | `WEB.INTERNAL_ERROR` | `WEB.INTERNAL_ERROR` 的默认消息 |
+| `ErrorVisibility.CODE_ONLY` | 按 origin | 真实业务错误码 | 按责任选择的安全占位消息 |
+| `ErrorVisibility.MESSAGE_ONLY` | 按 origin | 按责任选择的占位码 | 真实错误消息 |
+| `ErrorVisibility.INTERNAL` | 按 origin | 按责任选择的占位码 | 按责任选择的安全占位消息 |
 
 ### 错误元数据系统
 
@@ -257,13 +257,13 @@ wuli3-core 错误模型使用 `@ErrorMetadata` 注解声明错误的语义属性
 
 - **ErrorVisibility**（边界可见性）：控制错误信息在 HTTP 边界的暴露范围
   - `PUBLIC`：错误码和消息都对外输出（默认）
-  - `CODE_ONLY`：只输出错误码，消息替换为通用内部错误消息
-  - `MESSAGE_ONLY`：只输出消息，错误码替换为通用 INTERNAL_ERROR
-  - `INTERNAL`：错误码和消息都隐藏，完全使用通用内部错误
+  - `CODE_ONLY`：只输出错误码，消息替换为按责任选择的安全消息
+  - `MESSAGE_ONLY`：只输出消息，错误码替换为按责任选择的占位码
+  - `INTERNAL`：错误码和消息都隐藏，使用按责任选择的占位值
 
 可见性策略优先级：运行时覆盖（`withVisibility()`）> 字段级 `@ErrorMetadata` > 类级 `@ErrorMetadata` > 模块默认
 
-core 的 `ErrorResolver` 统一执行错误码和消息的可见性策略，隐藏码使用 `SystemErrors.INTERNAL_ERROR`。
+core 的 `ErrorResolver` 统一执行错误码和消息的可见性策略，CALLER 隐藏码使用 `COMMON.REQUEST_REJECTED`、安全消息为“请求未被接受”；SERVER 使用 `SYSTEM.INTERNAL_ERROR`、安全消息为“内部错误”。责任与可见性独立，`CALLER + INTERNAL` 和 `SERVER + PUBLIC` 均合法。
 Web 层复用其生成的 `ErrorCodeCarrier`，仅输出 `code/message`；`originalCode`、来源服务与诊断元数据不进入公开响应。
 `WebErrorResponseMapper` 只承担 HTTP 响应映射，HTTP 状态、请求 ID 和验证明细仍由 Web 层处理。
 
@@ -277,10 +277,10 @@ SERVICE_CODE.ERROR_MODULE.ERROR_NAME
 
 `SERVICE_CODE` 来自 `application.service.service-code`，未配置时省略。
 
-Dubbo 等协议适配层接收到跨边界传播的错误时会抛出携带 `ErrorCodeCarrier` 的 `ErrorCodeException`。`ErrorCodeCarrier` 是 `ErrorCode` 的远程实现，携带原始错误码、**已经过提供方可见性过滤的展示码和消息**、来源和严重程度，不需要在消费端伪造业务枚举。Web starter 会沿用现有 `ErrorCodeException` 链路：
+Dubbo 等协议适配层接收到跨边界传播的错误时会抛出携带 `ErrorCodeCarrier` 的 `ErrorCodeException`。`ErrorCodeCarrier` 是 `ErrorCode` 的远程实现，携带原始错误码、**完整错误码和消息**、来源、责任、严重程度以及最终对外可见性，不需要在消费端伪造业务枚举。Web starter 会沿用现有 `ErrorCodeException` 链路：
 
 - `ErrorOrigin.CALLER` 默认返回 400，`ErrorOrigin.SERVER` 默认返回 500（origin 在传播时保留）
-- `ErrorCodeCarrier` 默认使用 `PUBLIC` visibility，因为展示码和消息均已经过滤；消费方仍可通过 `withVisibility(...)` 再次过滤，原始码不会自动恢复为展示码
+- 新协议保留 visibility，Web 执行最终脱敏；消费方可通过 `withOrigin(...)` 与 `withVisibility(...)` 独立覆盖，单次覆盖优先于远端元数据。旧协议缺少 visibility 时按 PUBLIC 解释，先升级消费方再升级提供方
 - `ErrorSeverity.CRITICAL` 和 `FATAL` 仍会触发错误告警（severity 在传播时保留）
 - 消费方不需要依赖提供方的业务错误枚举，远程完整错误码也不会被替换为 Dubbo 自己的错误码
 
@@ -293,17 +293,18 @@ Dubbo 等协议适配层接收到跨边界传播的错误时会抛出携带 `Err
 | 异常类型 | HTTP 状态 | 统一错误码 | 说明 |
 | --- | --- | --- | --- |
 | `MethodArgumentNotValidException` | 400 | `WEB.BAD_REQUEST` | Bean Validation 参数校验失败。 |
-| `ConstraintViolationException` | 400 | `WEB.BAD_REQUEST` | 方法参数或路径参数约束失败。 |
+| `ConstraintViolationException` | 输入 400 / 返回值 500 | 按状态映射 | 返回值约束属于服务端错误。 |
 | `MissingServletRequestParameterException` | 400 | `WEB.BAD_REQUEST` | 缺少必填请求参数。 |
 | `MethodArgumentTypeMismatchException` | 400 | `WEB.BAD_REQUEST` | 请求参数类型转换失败。 |
-| `ServletRequestBindingException` | 400 | `WEB.BAD_REQUEST` | 请求绑定失败。 |
+| `ServletRequestBindingException` | 框架指定状态 | 按状态映射 | 尊重 ErrorResponse 状态，例如服务端缺失路径变量为 500。 |
 | `HttpMessageNotReadableException` | 400 | `WEB.BAD_REQUEST` | JSON 或请求体不可读。 |
-| `IllegalArgumentException`、`IllegalStateException` | 500 | `WEB.INTERNAL_ERROR` | 未显式转换的编程异常。 |
+| `IllegalArgumentException`（含 `NumberFormatException`） | 400 | `COMMON.ILLEGAL_ARGUMENT` | 使用安全默认提示，不输出原始消息。 |
+| `IllegalStateException`、`NullPointerException` | 500 | `WEB.INTERNAL_ERROR` | 未识别内部故障。 |
 | `HttpRequestMethodNotSupportedException` | 405 | `WEB.BAD_REQUEST` | HTTP 方法不支持。 |
 | `HttpMediaTypeNotSupportedException` | 415 | `WEB.BAD_REQUEST` | 请求媒体类型不支持。 |
 | `NoHandlerFoundException`、`NoResourceFoundException` | 404 | `WEB.NOT_FOUND` | MVC handler 或静态资源不存在。 |
-| `ResponseStatusException` | 异常指定状态 | 按状态映射 | 消息使用异常消息。 |
-| `ErrorResponseException` | 异常指定状态 | 按状态映射 | `NativeResponseMode.ALL` 下返回异常自带 body。 |
+| `ResponseStatusException` | 异常指定状态 | 按状态映射 | 使用安全默认提示；需要公开自定义消息时使用 WebErrorMapper。 |
+| `ErrorResponseException` | 异常指定状态 | 按状态映射 | 重建安全响应，不透传异常自带 body 或扩展属性。 |
 | `HttpMessageNotWritableException` | 500 | `WEB.INTERNAL_ERROR` | 响应写出失败，不暴露内部细节。 |
 | `ErrorCodeException`（传播错误） | 按传播错误的 `ErrorOrigin` | 按当前 Web 边界可见性策略 | 协议适配层接收的跨边界传播错误。 |
 | 其他 `Exception` | 500 | `WEB.INTERNAL_ERROR` | 未分类异常。 |
@@ -324,6 +325,16 @@ starter 不直接依赖 Spring Security。异常 cause 链中出现以下类名�
 | --- | --- | --- |
 | `org.springframework.security.core.AuthenticationException` | 401 | `WEB.UNAUTHORIZED` |
 | `org.springframework.security.access.AccessDeniedException` | 403 | `WEB.FORBIDDEN` |
+
+### 自定义 Web 异常识别
+
+注册 `WebErrorMapper` Bean 可将异常转换为明确的 `ErrorCodeException`。多个 mapper 按 Spring 顺序调用，第一个非 null 结果生效；返回 null 继续默认分类。优先级为 Web 显式映射 > 单次异常覆盖 > 远端元数据或本地错误声明 > 框架默认。HTTP 状态仍可通过 `WebErrorStatusResolver` 自定义。
+
+原生 IllegalArgumentException 默认 400 是本框架约定，不代表它天然证明客户端责任；服务端错误应显式设置 SERVER 或提供映射。不会沿任意 cause 链找到参数异常就降为 400。
+
+所有错误经同一投影路径输出；只有 PUBLIC 且为 4xx 的校验错误允许返回结构化详情。INTERNAL、CODE_ONLY、MESSAGE_ONLY 均不附带字段详情，避免内容绕过策略。原生 ProblemDetail 重新生成，只保留安全码、消息和 requestId；响应头仅保留 Allow、Accept、Retry-After、WWW-Authenticate 等明确协议头。MVC advice 不覆盖所有 Servlet Filter 或已提交响应。
+
+兼容性变化：原生 IllegalArgumentException 从 500 改为 400；隐藏调用方错误从 SYSTEM.INTERNAL_ERROR 改为 COMMON.REQUEST_REJECTED；ResponseStatusException/ProblemDetail 不再直接暴露原始消息和扩展属性。
 
 ## 参数校验详情
 

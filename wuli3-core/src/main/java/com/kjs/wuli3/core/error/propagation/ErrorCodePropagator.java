@@ -2,6 +2,7 @@ package com.kjs.wuli3.core.error.propagation;
 
 import com.kjs.wuli3.core.error.model.ErrorOrigin;
 import com.kjs.wuli3.core.error.model.ErrorSeverity;
+import com.kjs.wuli3.core.error.model.ErrorVisibility;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.BiConsumer;
@@ -11,7 +12,8 @@ import org.jspecify.annotations.Nullable;
 /**
  * 在错误传播协议与字符串字段之间进行协议无关的编码和解码。
  *
- * <p>字段名是跨 HTTP、Dubbo 等适配层共享的稳定传输契约，适配层只负责提供字段读写函数。
+ * <p>字段名是可信内部适配层共享的稳定传输契约，适配层只负责提供字段读写函数。
+ * 注意：协议包含完整诊断信息，不能直接作为面向用户的 HTTP 响应字段输出。
  *
  * @author GuoYang create on 2026/8/31 10:00
  */
@@ -31,6 +33,9 @@ public final class ErrorCodePropagator {
 
     /** 错误严重程度字段；值为 {@link ErrorSeverity} 的枚举名称。 */
     public static final String SEVERITY = "X-Wuli3-Error-Severity";
+
+    /** 最终对外可见性字段；可信内部协议保留该策略供出口使用。 */
+    public static final String VISIBILITY = "X-Wuli3-Error-Visibility";
 
     /** 错误来源服务字段；值为 {@link ErrorCodeCarrier#sourceService()}。 */
     public static final String SOURCE_SERVICE = "X-Wuli3-Error-Source-Service";
@@ -52,12 +57,15 @@ public final class ErrorCodePropagator {
         actualFieldWriter.accept(
                 ErrorCodePropagator.SEVERITY, actualProtocol.severity().name());
         actualFieldWriter.accept(ErrorCodePropagator.SOURCE_SERVICE, actualProtocol.sourceService());
+        actualFieldWriter.accept(
+                ErrorCodePropagator.VISIBILITY, actualProtocol.visibility().name());
     }
 
     /**
      * 从来源协议字段读取完整且合法的错误传播协议。
      *
      * <p>错误码、消息、责任归属或严重程度缺失、为空或非法时返回空；来源服务缺失时使用空字符串。
+     * 旧协议缺少可见性时按 PUBLIC 读取已投影内容，可见性存在但非法时拒绝解码。
      *
      * @param fieldReader 来源协议的字段读取函数；字段不存在时返回 {@code null}
      * @return 解码后的错误传播协议，字段不完整或非法时为空
@@ -73,6 +81,7 @@ public final class ErrorCodePropagator {
             return Optional.empty();
         }
         final @Nullable String sourceService = actualFieldReader.apply(ErrorCodePropagator.SOURCE_SERVICE);
+        final @Nullable String visibilityName = actualFieldReader.apply(ErrorCodePropagator.VISIBILITY);
         try {
             return Optional.of(new ErrorCodeCarrier(
                     originalCode,
@@ -80,7 +89,8 @@ public final class ErrorCodePropagator {
                     message,
                     ErrorOrigin.valueOf(originName),
                     ErrorSeverity.valueOf(severityName),
-                    Objects.requireNonNullElse(sourceService, "")));
+                    Objects.requireNonNullElse(sourceService, ""),
+                    visibilityName == null ? ErrorVisibility.PUBLIC : ErrorVisibility.valueOf(visibilityName)));
         } catch (final IllegalArgumentException invalidValue) {
             return Optional.empty();
         }

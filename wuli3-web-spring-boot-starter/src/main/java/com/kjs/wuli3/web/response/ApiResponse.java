@@ -2,6 +2,7 @@ package com.kjs.wuli3.web.response;
 
 import com.kjs.wuli3.core.error.ErrorCodeException;
 import com.kjs.wuli3.core.error.model.ErrorCode;
+import com.kjs.wuli3.core.error.model.ErrorVisibility;
 import com.kjs.wuli3.core.error.propagation.ErrorCodeCarrier;
 import com.kjs.wuli3.core.error.resolver.ErrorResolver;
 import java.util.Objects;
@@ -54,6 +55,8 @@ public record ApiResponse<T>(
     /** 仅向外投影已解析错误的展示码和消息，诊断字段留在服务内部。 */
     public static <T> ApiResponse<T> failure(
             final ErrorCodeCarrier carrier, final @Nullable String requestId, final @Nullable T data) {
-        return new ApiResponse<>(carrier.code(), carrier.message(), System.currentTimeMillis(), requestId, data);
+        // 结构化详情同时含有字段、校验码和消息，仅完整公开模式允许输出。
+        final T visibleData = carrier.visibility() == ErrorVisibility.PUBLIC ? data : null;
+        return new ApiResponse<>(carrier.code(), carrier.message(), System.currentTimeMillis(), requestId, visibleData);
     }
 }

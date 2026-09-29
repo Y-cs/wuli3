@@ -108,8 +108,8 @@ public final class ErrorMetadataResolver {
      * <p>查找顺序：字段级注解 → 类级注解 → 模块级注解（默认 PUBLIC）。
      */
     public ErrorVisibility getVisibility(final ErrorCode errorCode) {
-        if (errorCode instanceof ErrorCodeCarrier) {
-            return ErrorVisibility.PUBLIC;
+        if (errorCode instanceof ErrorCodeCarrier protocol) {
+            return protocol.visibility();
         }
         final Enum<?> errorEnum = ErrorMetadataResolver.enumValue(errorCode);
         return this.visibilityCache.computeIfAbsent(errorCode, code -> {

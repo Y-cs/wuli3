@@ -63,36 +63,36 @@ consumer Filter 捕获当前 `ContextSnapshot`，通过 Dubbo invocation attachm
 `ErrorCode` 和 `ErrorCodeException` 是统一错误模型。跨服务边界只传播 core 的 `ErrorCodeCarrier` 字段：
 
 ```text
-originalCode + code + message + origin + severity + sourceService
+originalCode + code + message + origin + severity + visibility + sourceService
 ```
 
 这些字段通过 core 的 `ErrorCodePropagator` 写入 Dubbo response attachments，固定使用
 `X-Wuli3-Error-Original-Code`、`X-Wuli3-Error-Code`、`X-Wuli3-Error-Message`、`X-Wuli3-Error-Origin`、
-`X-Wuli3-Error-Severity` 和 `X-Wuli3-Error-Source-Service`。Dubbo Filter 只向编码器提供
+`X-Wuli3-Error-Severity`、`X-Wuli3-Error-Visibility` 和 `X-Wuli3-Error-Source-Service`。Dubbo Filter 只向编码器提供
 `Result::setAttachment` 和 `Result::getAttachment`，不重复实现字段校验和枚举解析。
 
-传输过程不包含业务枚举类，不依赖消费方拥有提供方的错误码 class，也不序列化原始异常对象。consumer Filter 读取成功后，将 Dubbo 的占位异常替换为携带 `ErrorCodeCarrier` 的 `ErrorCodeException`。
+错误码协议的传输过程不包含业务枚举类，不依赖消费方拥有提供方的错误码 class，也不序列化原始异常对象。consumer Filter 读取成功后，将 Dubbo 的占位异常替换为携带 `ErrorCodeCarrier` 的 `ErrorCodeException`。
 
 | provider 结果 | 边界行为 |
 | --- | --- |
-| `ErrorCodeException`（本地错误） | 保留完整原始错误码，由 core 按可见性过滤展示码和消息后传播。 |
-| `ErrorCodeException`（已有远程错误） | 保留原始码、已过滤的展示码和消息及最初来源，支持多跳调用；不恢复被隐藏的信息。 |
-| 其他运行时异常或 RPC 结果异常 | 收敛为 `SYSTEM.INTERNAL_ERROR`，不传播原始异常类型、消息或业务栈。 |
+| `ErrorCodeException`（本地错误） | 完整传播错误码、消息、责任、严重程度、可见性和来源，不提前脱敏。 |
+| `ErrorCodeException`（已有远程错误） | 保留完整错误信息和最初来源，支持多跳调用；传播本地显式覆盖后的元数据。 |
+| 其他运行时异常或 RPC 结果异常 | 保持同步抛出或结果异常的原有形式，交由 Dubbo 原生机制处理。 |
 | 正常结果 | 不写入错误 attachments，不做转换。 |
 
-未知 JDK 异常的转换只发生在 Dubbo provider 边界。例如遗漏分类的 `IllegalArgumentException` 到达 provider Filter 时，会被安全收敛为来源 `SERVER`、严重度 `CRITICAL`、可见性 `INTERNAL` 的内部错误。这不意味着项目应全局捕获或替换 JDK 异常：
+Dubbo 是可信内部传播通道。`visibility` 描述最终对外出口的展示策略，不限制直接 RPC 调用方读取完整错误信息。四种可见性均传播完整 `code/message`，不强制把普通 `IllegalArgumentException`、`NullPointerException` 等包装成错误码异常。原生异常最终如何序列化和抵达消费方，仍由 Dubbo 自身规则决定。
 
 - 可预期的业务失败应声明业务 `ErrorCode` 并抛出 `ErrorCodeException`。
 - 数据库、缓存、消息等 SDK 异常应在对应基础设施适配器中包装为模块错误。
-- 启动参数、配置绑定和纯 Java API 契约错误应保留原生异常，让调用点和启动日志保有诊断信息。
+- 启动参数、配置绑定和纯 Java API 契约错误保留原生异常，让调用点和启动日志保有诊断信息。
 
-`originalCode` 仅供内部诊断，完整 attachments 只能用于内部服务间传播，不能复制到公开 HTTP 响应。新增字段为破坏性协议变更，需协调升级提供方和消费方。
+完整 attachments 仅用于可信内部服务间传播，不能直接复制到公开 HTTP 响应。新增的 `visibility` 字段应随提供方和消费方一起升级；旧提供方缺少该字段时，消费方按 `PUBLIC` 接受已投影的码和消息，不恢复已经隐藏的信息。非法可见性值使附件解码失败。旧消费方不理解新提供方的可见性字段，可能公开完整消息，因此升级顺序必须先消费方、后提供方。
 
-消费方若同时使用 Web starter，携带 `ErrorCodeCarrier` 的 `ErrorCodeException` 会直接进入现有 HTTP 错误处理链路，根据远程错误的 `origin` 确定 400/500，并根据边界可见性策略控制错误码和消息是否对外可见。
+消费方若同时使用 Web starter，恢复的 `ErrorCodeException` 进入 HTTP 错误处理链，最终在 Web 出口执行可见性策略并映射 HTTP 状态。RPC 的 `CALLER` 指直接调用服务，业务适配层应根据真实责任决定是否覆盖成对最终用户适用的责任归属。
 
 ### 5.2 降级行为
 
-错误 attachments 缺失（包括新增的原始错误码字段）或枚举策略字段非法时，consumer 不会根据不完整数据构造 `ErrorCodeException`，而是保留 Dubbo 原始异常。未安装该 starter 的消费方只会看到 provider 设置的通用远程调用失败异常，不会得到提供方的业务类或内部异常详情。
+错误 attachments 缺失（包括新增的原始错误码字段）或枚举策略字段非法时，consumer 不会根据不完整数据构造 `ErrorCodeException`，而是保留 Dubbo 原始异常。对于错误码异常，未安装该 starter 的消费方仅获得通用占位异常，完整错误信息仍存在内部响应附件中；普通异常保持 Dubbo 原生行为。
 
 ## 6. 限制
 

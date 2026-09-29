@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 
 import com.kjs.wuli3.core.error.model.ErrorOrigin;
 import com.kjs.wuli3.core.error.model.ErrorSeverity;
+import com.kjs.wuli3.core.error.model.ErrorVisibility;
 import com.kjs.wuli3.core.error.propagation.ErrorCodeCarrier;
 import com.kjs.wuli3.core.error.propagation.ErrorCodePropagator;
 import java.util.LinkedHashMap;
@@ -34,7 +35,8 @@ class ErrorCodePropagatorTest {
                         ErrorCodePropagator.MESSAGE, protocol.message(),
                         ErrorCodePropagator.ORIGIN, protocol.origin().name(),
                         ErrorCodePropagator.SEVERITY, protocol.severity().name(),
-                        ErrorCodePropagator.SOURCE_SERVICE, protocol.sourceService()));
+                        ErrorCodePropagator.SOURCE_SERVICE, protocol.sourceService(),
+                        ErrorCodePropagator.VISIBILITY, protocol.visibility().name()));
     }
 
     @Test
@@ -46,6 +48,26 @@ class ErrorCodePropagatorTest {
         this.encoder.inject(protocol, fields::put);
 
         assertThat(this.encoder.extract(fields::get)).contains(protocol);
+    }
+
+    @Test
+    @SuppressWarnings("NullAway")
+    void preservesVisibilityAndAcceptsLegacyProtocol() {
+        final Map<String, String> fields = new LinkedHashMap<>();
+        final ErrorCodeCarrier protocol = new ErrorCodeCarrier(
+                "ORDER.SECRET",
+                "ORDER.SECRET",
+                "secret",
+                ErrorOrigin.SERVER,
+                ErrorSeverity.CRITICAL,
+                "order",
+                ErrorVisibility.INTERNAL);
+        this.encoder.inject(protocol, fields::put);
+        assertThat(this.encoder.extract(fields::get)).contains(protocol);
+        fields.remove(ErrorCodePropagator.VISIBILITY);
+        assertThat(this.encoder.extract(fields::get).orElseThrow().visibility()).isEqualTo(ErrorVisibility.PUBLIC);
+        fields.put(ErrorCodePropagator.VISIBILITY, "UNKNOWN");
+        assertThat(this.encoder.extract(fields::get)).isEmpty();
     }
 
     @Test

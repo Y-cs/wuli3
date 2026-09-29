@@ -3,6 +3,7 @@ package com.kjs.wuli3.core.error.resolver;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.kjs.wuli3.core.error.ErrorCodeException;
+import com.kjs.wuli3.core.error.builtin.CommonErrors;
 import com.kjs.wuli3.core.error.builtin.SystemErrors;
 import com.kjs.wuli3.core.error.model.ErrorOrigin;
 import com.kjs.wuli3.core.error.model.ErrorSeverity;
@@ -35,6 +36,41 @@ class ErrorResolverTest {
             }
             assertThat(carrier.sourceService()).isEqualTo("group");
         }
+    }
+
+    @Test
+    void preservesTrustedPropagationUntilPublicBoundary() {
+        for (final ErrorVisibility visibility : ErrorVisibility.values()) {
+            final ErrorCodeCarrier propagated = this.resolver.resolvePropagation(
+                    new ErrorCodeException(CommonErrors.ILLEGAL_ARGUMENT, "敏感详情").withVisibility(visibility));
+            assertThat(propagated.code()).isEqualTo("GROUP.COMMON.ILLEGAL_ARGUMENT");
+            assertThat(propagated.message()).isEqualTo("敏感详情");
+            assertThat(propagated.visibility()).isEqualTo(visibility);
+            final ErrorCodeException received = new ErrorCodeException(propagated);
+            assertThat(received.getVisibility()).isEqualTo(visibility);
+            final ErrorCodeCarrier output = this.resolver.resolveBoundary(received);
+            assertThat(output.code())
+                    .isEqualTo(
+                            visibility == ErrorVisibility.PUBLIC || visibility == ErrorVisibility.CODE_ONLY
+                                    ? "GROUP.COMMON.ILLEGAL_ARGUMENT"
+                                    : "GROUP.COMMON.REQUEST_REJECTED");
+            assertThat(output.message())
+                    .isEqualTo(
+                            visibility == ErrorVisibility.PUBLIC || visibility == ErrorVisibility.MESSAGE_ONLY
+                                    ? "敏感详情"
+                                    : "请求未被接受");
+        }
+    }
+
+    @Test
+    void localOriginAndVisibilityOverridesTakePriorityOverRemoteMetadata() {
+        final ErrorCodeCarrier remote = this.resolver.resolvePropagation(
+                new ErrorCodeException(CommonErrors.ILLEGAL_ARGUMENT).withVisibility(ErrorVisibility.INTERNAL));
+        final ErrorCodeException received = new ErrorCodeException(remote).withOrigin(ErrorOrigin.SERVER);
+        assertThat(this.resolver.resolvePropagation(received).origin()).isEqualTo(ErrorOrigin.SERVER);
+        assertThat(this.resolver.resolveBoundary(received).code()).isEqualTo("GROUP.SYSTEM.INTERNAL_ERROR");
+        received.withVisibility(ErrorVisibility.PUBLIC);
+        assertThat(this.resolver.resolveBoundary(received).code()).isEqualTo(remote.code());
     }
 
     @Test

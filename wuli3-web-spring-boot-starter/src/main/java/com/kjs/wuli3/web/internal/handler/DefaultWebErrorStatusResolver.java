@@ -6,11 +6,12 @@ import com.kjs.wuli3.core.error.model.ErrorOrigin;
 import com.kjs.wuli3.web.error.WebErrorStatusResolver;
 import com.kjs.wuli3.web.error.WebErrors;
 import jakarta.validation.ConstraintViolationException;
+import jakarta.validation.ElementKind;
 import org.jspecify.annotations.Nullable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.http.converter.HttpMessageNotWritableException;
-import org.springframework.web.ErrorResponseException;
+import org.springframework.web.ErrorResponse;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -48,20 +49,21 @@ public final class DefaultWebErrorStatusResolver implements WebErrorStatusResolv
 
     @Override
     public HttpStatus resolve(final Throwable error, final ErrorCode responseCode) {
+        if (error instanceof ErrorCodeException coded) {
+            if (coded.getErrorCode() == WebErrors.PAYLOAD_TOO_LARGE && coded.getOrigin() == ErrorOrigin.CALLER) {
+                return HttpStatus.PAYLOAD_TOO_LARGE;
+            }
+            return DefaultWebErrorStatusResolver.status(coded.getOrigin());
+        }
         final HttpStatus securityStatus = DefaultWebErrorStatusResolver.securityStatus(error);
         if (securityStatus != null) {
             return securityStatus;
         }
-        if (responseCode == WebErrors.PAYLOAD_TOO_LARGE
-                || (error instanceof ErrorCodeException exception
-                        && exception.getErrorCode() == WebErrors.PAYLOAD_TOO_LARGE)) {
+        if (responseCode == WebErrors.PAYLOAD_TOO_LARGE) {
             return HttpStatus.PAYLOAD_TOO_LARGE;
         }
         switch (error) {
-            case ErrorCodeException errorCodeException -> {
-                return DefaultWebErrorStatusResolver.status(errorCodeException.getOrigin());
-            }
-            case ErrorResponseException errorResponseException -> {
+            case ErrorResponse errorResponseException -> {
                 return HttpStatus.valueOf(errorResponseException.getStatusCode().value());
             }
             default -> {}
@@ -88,11 +90,22 @@ public final class DefaultWebErrorStatusResolver implements WebErrorStatusResolv
     }
 
     private static boolean badRequest(final Throwable error) {
+        if (error instanceof ConstraintViolationException violation) {
+            // 返回值违反约束属于服务端契约失败，不能因使用同一校验异常而判为客户端错误。
+            return violation.getConstraintViolations().stream().noneMatch(item -> {
+                for (final jakarta.validation.Path.Node node : item.getPropertyPath()) {
+                    if (node.getKind() == ElementKind.RETURN_VALUE) {
+                        return true;
+                    }
+                }
+                return false;
+            });
+        }
         return error instanceof MethodArgumentNotValidException
                 || error instanceof MethodArgumentTypeMismatchException
                 || error instanceof ServletRequestBindingException
                 || error instanceof HttpMessageNotReadableException
-                || error instanceof ConstraintViolationException;
+                || error instanceof IllegalArgumentException;
     }
 
     /**

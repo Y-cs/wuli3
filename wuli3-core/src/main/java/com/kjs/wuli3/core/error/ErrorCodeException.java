@@ -29,6 +29,8 @@ public class ErrorCodeException extends RuntimeException {
 
     private @Nullable ErrorVisibility outputVisibility;
 
+    private @Nullable ErrorOrigin outputOrigin;
+
     /**
      * 使用错误码、消息和底层原因创建异常。
      */
@@ -66,11 +68,18 @@ public class ErrorCodeException extends RuntimeException {
         return this;
     }
 
+    /** 覆盖当前异常的责任归属，优先于远端元数据和错误码声明。 */
+    public ErrorCodeException withOrigin(final ErrorOrigin origin) {
+        this.outputOrigin = Objects.requireNonNull(origin, "origin");
+        return this;
+    }
+
     /**
      * 获取错误责任归属。
      */
     public ErrorOrigin getOrigin() {
-        return ErrorMetadataResolver.instance().getOrigin(this.errorCode);
+        return Objects.requireNonNullElseGet(
+                this.outputOrigin, () -> ErrorMetadataResolver.instance().getOrigin(this.errorCode));
     }
 
     /**

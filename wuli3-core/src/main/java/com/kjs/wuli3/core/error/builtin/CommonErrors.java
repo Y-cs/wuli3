@@ -23,7 +23,10 @@ public enum CommonErrors implements ErrorCode {
 
     ILLEGAL_STATE("非法状态异常"),
 
-    ILLEGAL_ARGUMENT("非法参数异常");
+    ILLEGAL_ARGUMENT("非法参数异常"),
+
+    /** 调用方错误隐藏具体错误码时的安全占位。 */
+    REQUEST_REJECTED("请求未被接受");
 
     private final String message;
 }

@@ -1,8 +1,6 @@
 package com.kjs.wuli3.dubbo.error;
 
 import com.kjs.wuli3.core.error.ErrorCodeException;
-import com.kjs.wuli3.core.error.builtin.SystemErrors;
-import com.kjs.wuli3.core.error.model.ErrorVisibility;
 import com.kjs.wuli3.core.error.propagation.ErrorCodeCarrier;
 import com.kjs.wuli3.core.error.propagation.ErrorCodePropagator;
 import com.kjs.wuli3.core.error.resolver.ErrorResolver;
@@ -25,7 +23,7 @@ import org.jspecify.annotations.Nullable;
 /**
  * 把 Dubbo provider 的失败结果转换为 core 定义的稳定错误协议。
  *
- * <p>注意：未声明的异常会收敛为内部系统错误，原始业务枚举、异常类型和消息都不会跨服务边界传播。
+ * <p>注意：可信内部 RPC 完整传播错误码及可见性元数据；普通异常保留 Dubbo 原生处理行为。
  *
  * @author GuoYang create on 2026/8/28 17:59
  */
@@ -55,7 +53,7 @@ public final class DubboErrorProviderFilter implements Filter {
         final String sourceService = DubboErrorProviderFilter.sourceService(invoker);
         try {
             result = invoker.invoke(invocation);
-        } catch (final RuntimeException exception) {
+        } catch (final ErrorCodeException exception) {
             final AppResponse response = new AppResponse(invocation);
             this.translate(response, exception, sourceService);
             return AsyncRpcResult.newDefaultAsyncResult(response, invocation);
@@ -76,12 +74,11 @@ public final class DubboErrorProviderFilter implements Filter {
      * 写入稳定错误协议，并用不包含提供方类型的占位异常替换原始异常。
      */
     private void translate(final Result result, final Throwable exception, final String sourceService) {
-        final ErrorCodeException local = exception instanceof ErrorCodeException errorCodeException
-                ? errorCodeException
-                : new ErrorCodeException(SystemErrors.INTERNAL_ERROR, exception)
-                        .withVisibility(ErrorVisibility.INTERNAL);
+        if (!(exception instanceof ErrorCodeException local)) {
+            return;
+        }
         final ErrorResolver errorResolver = this.errorResolvers.computeIfAbsent(sourceService, ErrorResolver::new);
-        final ErrorCodeCarrier protocol = errorResolver.resolveBoundary(local);
+        final ErrorCodeCarrier protocol = errorResolver.resolvePropagation(local);
         DubboErrorProviderFilter.ERROR_PROPAGATION_ENCODER.inject(protocol, result::setAttachment);
         result.setException(new RuntimeException("Remote service invocation failed"));
     }
