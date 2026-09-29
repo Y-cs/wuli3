@@ -1,9 +1,7 @@
 package com.kjs.wuli3.propagation.context;
 
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -41,7 +39,7 @@ public final class ContextSnapshot {
      * @return 独立且不可变的上下文快照
      * @throws NullPointerException 当上下文数组或任一上下文为 {@code null} 时
      */
-    public static ContextSnapshot of(final PropagationContext... contexts) {
+    public static ContextSnapshot of(final Context... contexts) {
         Objects.requireNonNull(contexts, "contexts");
         if (contexts.length == 0) {
             return ContextSnapshot.empty();
@@ -57,13 +55,9 @@ public final class ContextSnapshot {
 
     /** 从完整状态中捕获可传播上下文；普通本地上下文不会进入快照。 */
     public static ContextSnapshot from(final ContextState state) {
-        final List<PropagationContext> values = new ArrayList<>();
-        for (final Context context : Objects.requireNonNull(state, "state").values()) {
-            if (context instanceof PropagationContext propagationContext) {
-                values.add(propagationContext);
-            }
-        }
-        return ContextSnapshot.of(values.toArray(PropagationContext[]::new));
+        return ContextSnapshot.of(Objects.requireNonNull(state, "state")
+                .propagationValues()
+                .toArray(Context[]::new));
     }
 
     /** 将传播项还原成独立完整状态，不合并执行线程已有上下文。 */

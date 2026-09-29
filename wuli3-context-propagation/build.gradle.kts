@@ -7,4 +7,5 @@ description =
 
 dependencies {
     implementation(project(":wuli3-core"))
+    implementation("com.google.guava:guava")
 }

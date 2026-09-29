@@ -20,7 +20,13 @@ public class ContextKey<T extends Context> {
     }
 
 
-    public T cast(Context context) {
-        return type.cast(context);
+    /** 判断该类型是否属于可跨边界传播的上下文。 */
+    public boolean isPropagatable() {
+        return PropagationContext.class.isAssignableFrom(this.type);
+    }
+
+    /** 将上下文转换为当前 Key 声明的具体类型。 */
+    public T cast(final Context context) {
+        return this.type.cast(context);
     }
 }
