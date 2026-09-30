@@ -74,3 +74,12 @@ tasks.register<WriteProperties>("apiCompatibilityCheck") {
     property("version", version.toString())
     property("comparison", "skipped-no-published-baseline")
 }
+
+// 真实基础设施验收独立于普通 check，避免本地单元测试隐式启动容器。
+tasks.register<Exec>("verifyOrderServiceIntegration") {
+    group = "verification"
+    description = "Verifies the standalone order integration fixture with MySQL, Redis and RocketMQ v5."
+    dependsOn(publishAllPublicationsToTemporaryRepository)
+    workingDir(layout.projectDirectory.dir("integration-tests/order-service"))
+    commandLine("bash", "run.sh", "verify", "--published")
+}

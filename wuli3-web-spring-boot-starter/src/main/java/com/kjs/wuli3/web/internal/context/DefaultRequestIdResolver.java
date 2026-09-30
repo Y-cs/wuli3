@@ -4,7 +4,6 @@ import com.kjs.wuli3.core.id.UuidStringIdGenerator;
 import com.kjs.wuli3.web.context.RequestIdResolver;
 import com.kjs.wuli3.web.context.WebContextProperties;
 import jakarta.servlet.http.HttpServletRequest;
-import java.util.UUID;
 import java.util.regex.Pattern;
 import org.jspecify.annotations.Nullable;
 

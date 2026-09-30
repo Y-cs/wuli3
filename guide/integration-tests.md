@@ -2,13 +2,14 @@
 
 ## 1. 目录定位
 
-`integration-tests/` 包含独立于主构建的外部消费者 fixture，用于验证 Wuli3 发布产物，而不是验证业务流程或中间件连接。
+`integration-tests/` 包含独立于主构建的测试工程。BOM consumer 验证发布产物消费，订单夹具验证真实业务流程与中间件连接。
 它们不加入根 `settings.gradle.kts`，避免消费者通过项目依赖绕过真实 Maven 发布元数据。
 
 当前包含：
 
 - `gradle-consumer/`：验证 Gradle 项目通过 Wuli3 BOM 无版本消费代表组件，并运行最小 JUnit 测试。
 - `maven-consumer/`：验证 Maven 项目导入 Wuli3 BOM 后无版本消费代表组件，并完成 Java 编译。
+- [`order-service/`](../integration-tests/order-service/README.md)：独立 DDD 多模块订单集成测试，覆盖 HTTP、MySQL、Redis 和 RocketMQ v5。
 
 ## 2. 验证流程
 
@@ -48,7 +49,7 @@ CI secret 或环境变量。
 
 ## 4. 验证边界
 
-当前验证覆盖：
+BOM consumer 验证覆盖：
 
 - BOM 是否包含被测组件的版本约束；
 - Gradle Module Metadata 和 Maven POM 是否可以解析；
@@ -56,7 +57,7 @@ CI secret 或环境变量。
 - Gradle 和 Maven 是否都能从发布产物编译代表性调用代码；
 - Gradle consumer 的最小运行行为。
 
-当前不覆盖：
+BOM consumer 不覆盖（其中订单 HTTP、MySQL、Redis、RocketMQ v5 由独立订单验收覆盖）：
 
 - Spring Boot 完整应用启动；
 - MySQL、Redis、RocketMQ、Elasticsearch、MongoDB 等真实基础设施连接；
@@ -72,5 +73,17 @@ API/ABI 对比由 `apiCompatibilityCheck` 承担；首次正式版本发布后�
 1. 组件必须先由统一 publishing convention 发布，并加入 BOM 约束。
 2. consumer 依赖不写组件版本，确保版本确实来自 BOM。
 3. 至少增加一处代表性类型引用，避免只验证坐标存在而未验证产物内容。
-4. 只有依赖真实基础设施的行为才进入单独的应用集成测试，不在此处启动容器或外部服务。
+4. 依赖真实基础设施的行为进入 `order-service` 等独立应用集成测试，不在 BOM consumer 中启动容器或外部服务。
 5. fixture 不得依赖根项目源码路径或 Gradle project dependency。
+
+## 6. 订单服务真实集成验收
+
+```bash
+./gradlew verifyOrderServiceIntegration
+```
+
+该任务先发布当前组件到临时 Maven 仓库，再运行订单夹具的 `run.sh verify`。
+需要 JDK 21、可用的 Docker daemon、Docker Compose 和镜像/依赖下载网络。
+夹具复用本仓库构建约定，Wuli3 组件通过临时仓库独占解析，不依赖 `mavenLocal()`，也不引用生成示例源码。
+普通 `check` 不启动容器；`integrationTest` 显式验收真实服务。
+失败时保留测试报告和容器日志，并清理本次创建的专用 Compose 工程。

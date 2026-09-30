@@ -2,7 +2,6 @@ package com.kjs.wuli3.event.autoconfigure;
 
 import com.kjs.wuli3.event.EventPublisher;
 import com.kjs.wuli3.event.EventTransport;
-import com.kjs.wuli3.event.PublishOptions;
 import com.kjs.wuli3.event.RoutingEventPublisher;
 import com.kjs.wuli3.event.remote.RoutingEventTransport;
 import com.kjs.wuli3.event.transport.AsyncEventTransport;
@@ -50,9 +49,7 @@ public class EventAutoConfiguration {
                 new AsyncEventTransport<>(springLocalEventMessageTransport, executor));
         final RoutingEventPublisher publisher = new RoutingEventPublisher();
         publisher.register(localTransport);
-        routingEventTransports.forEach(
-                transport -> publisher.register(new TransactionalEventTransport<>(transport)));
+        routingEventTransports.forEach(transport -> publisher.register(new TransactionalEventTransport<>(transport)));
         return publisher;
     }
-
 }

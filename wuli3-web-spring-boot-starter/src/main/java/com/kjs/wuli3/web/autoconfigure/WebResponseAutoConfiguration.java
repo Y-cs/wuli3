@@ -34,9 +34,7 @@ public class WebResponseAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean(ErrorController.class)
-    WebErrorController webErrorController(
-            final ErrorAttributes errorAttributes,
-            final ApiResponseFactory factory) {
+    WebErrorController webErrorController(final ErrorAttributes errorAttributes, final ApiResponseFactory factory) {
         return new WebErrorController(errorAttributes, factory);
     }
 

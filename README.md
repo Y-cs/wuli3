@@ -26,7 +26,7 @@ wuli3 分布式项目脚手架底座。项目使用 JDK 21、Gradle 9.6.0、多�
 | [`wuli3-elasticsearch-spring-boot-starter`](guide/wuli3-elasticsearch-spring-boot-starter.md) | Spring Data Elasticsearch 依赖聚合。 |
 | [`wuli3-mongodb-spring-boot-starter`](guide/wuli3-mongodb-spring-boot-starter.md) | Spring Data MongoDB 依赖聚合。 |
 
-`integration-tests/` 不是 Gradle 业务模块，而是用于验证发布产物能否被外部 Gradle/Maven 项目正确消费的独立测试工程。
+`integration-tests/` 包含独立的 Gradle/Maven 发布产物消费者，以及验证真实 MySQL、Redis、RocketMQ v5 的 [订单服务集成测试](integration-tests/order-service/README.md)。这些工程不加入主构建的业务模块。
 
 所有模块文档统一从 [`guide/README.md`](guide/README.md) 进入。事件发布边界见
 [`wuli3-event-spring-boot-starter`](guide/wuli3-event-spring-boot-starter.md)，RocketMQ 配置见
