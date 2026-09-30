@@ -10,9 +10,8 @@ import com.kjs.wuli3.propagation.internal.AuthContext;
 import com.kjs.wuli3.propagation.internal.InvocationContext;
 import com.kjs.wuli3.propagation.internal.PrincipalType;
 import com.kjs.wuli3.propagation.store.ThreadLocalContextBackend;
-import java.util.Map;
-
 import com.kjs.wuli3.rocket.RocketContextSupport;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 class RocketContextSupportTest {

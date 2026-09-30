@@ -136,3 +136,26 @@ v5 支持异步延迟，但不支持异步 FIFO 或顺序延迟。
 未指定回调时保留默认失败日志。批量发送每条事件共用回调，业务负责线程安全与事件关联。
 参数校验或异步启动失败直接抛异常，不额外触发回调；事务回滚未发送时不触发回调。
 v4 的 SendResult 状态由业务判断，回调成功不等于消费成功。此功能不提供持久重试或可靠投递保证。
+
+## v5 配置
+
+基础 v5 Producer 参数可以放在配置文件中，Starter 会在没有业务自定义 `Producer` Bean 时自动创建：
+
+```yaml
+wuli3:
+  rocketmq:
+    v5:
+      endpoints: localhost:8081
+      access-key: ${ROCKETMQ_ACCESS_KEY:}
+      access-secret: ${ROCKETMQ_ACCESS_SECRET:}
+      security-token: ${ROCKETMQ_SECURITY_TOKEN:}
+      topics:
+        - orders
+      request-timeout: 10s
+      ssl-enabled: false
+      namespace: order-service
+      max-startup-attempts: 3
+      max-attempts: 3
+```
+
+业务代码只需使用 `RocketV5PublishOptions`，不再负责连接地址、凭据和主题列表。凭据建议通过环境变量占位符注入。若需要自定义认证、事务检查器、多个 Producer 或特殊生命周期，业务可以声明自己的 `Producer` Bean；Starter 会自动让位。

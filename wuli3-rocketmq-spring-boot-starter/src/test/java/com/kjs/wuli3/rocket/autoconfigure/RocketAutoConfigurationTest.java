@@ -17,6 +17,7 @@ import com.kjs.wuli3.rocket.v5.RocketV5RemoteEventTransport;
 import com.kjs.wuli3.rocket.v5.autoconfigure.RocketV5AutoConfiguration;
 import org.apache.rocketmq.client.apis.ClientServiceProvider;
 import org.apache.rocketmq.client.apis.producer.Producer;
+import org.apache.rocketmq.client.apis.producer.ProducerBuilder;
 import org.apache.rocketmq.spring.core.RocketMQTemplate;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
@@ -85,6 +86,32 @@ class RocketAutoConfigurationTest {
                     assertThat(context).hasSingleBean(RemoteEventTransport.class);
                     assertThat(context).hasSingleBean(RocketRemoteEventTransport.class);
                     assertThat(context).doesNotHaveBean(RocketContextSupport.class);
+                });
+    }
+
+    @Test
+    void createsV5ProducerFromConfigurationWhenApplicationDoesNotProvideOne()
+            throws org.apache.rocketmq.client.apis.ClientException {
+        final ClientServiceProvider provider = mock(ClientServiceProvider.class);
+        final ProducerBuilder builder = mock(ProducerBuilder.class);
+        final Producer producer = mock(Producer.class);
+        org.mockito.Mockito.when(provider.newProducerBuilder()).thenReturn(builder);
+        org.mockito.Mockito.when(builder.setClientConfiguration(org.mockito.ArgumentMatchers.any()))
+                .thenReturn(builder);
+        org.mockito.Mockito.when(builder.setTopics(org.mockito.ArgumentMatchers.any(String[].class)))
+                .thenReturn(builder);
+        org.mockito.Mockito.when(builder.setMaxAttempts(org.mockito.ArgumentMatchers.anyInt()))
+                .thenReturn(builder);
+        org.mockito.Mockito.when(builder.build()).thenReturn(producer);
+        this.contextRunner
+                .withPropertyValues(
+                        "wuli3.rocketmq.v5.endpoints=localhost:8081",
+                        "wuli3.rocketmq.v5.topics[0]=orders",
+                        "wuli3.rocketmq.v5.request-timeout=5s")
+                .withBean(ClientServiceProvider.class, () -> provider)
+                .run(context -> {
+                    assertThat(context).hasSingleBean(Producer.class);
+                    org.mockito.Mockito.verify(builder).setTopics("orders");
                 });
     }
 
