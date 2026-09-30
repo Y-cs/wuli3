@@ -1,4 +1,4 @@
-package com.kjs.wuli3.rocket.internal;
+package com.kjs.wuli3.rocket;
 
 import com.kjs.wuli3.core.assertion.Asserts;
 import com.kjs.wuli3.core.error.ErrorCodeException;

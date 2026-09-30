@@ -1,4 +1,4 @@
-package com.kjs.wuli3.rocket.internal.wrapper;
+package com.kjs.wuli3.rocket.message;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

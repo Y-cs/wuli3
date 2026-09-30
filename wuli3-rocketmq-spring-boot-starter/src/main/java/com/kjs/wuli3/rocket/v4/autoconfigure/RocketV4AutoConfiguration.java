@@ -3,7 +3,7 @@ package com.kjs.wuli3.rocket.v4.autoconfigure;
 import com.kjs.wuli3.event.autoconfigure.ConditionalOnMissingRoutingEventTransport;
 import com.kjs.wuli3.event.autoconfigure.EventAutoConfiguration;
 import com.kjs.wuli3.rocket.autoconfigure.RocketCommonAutoConfiguration;
-import com.kjs.wuli3.rocket.internal.wrapper.RocketMessageWrapperEncoder;
+import com.kjs.wuli3.rocket.message.RocketMessageWrapperEncoder;
 import com.kjs.wuli3.rocket.v4.RocketRemoteEventTransport;
 import com.kjs.wuli3.rocket.v4.RocketV4PublishOptions;
 import org.apache.rocketmq.spring.core.RocketMQTemplate;

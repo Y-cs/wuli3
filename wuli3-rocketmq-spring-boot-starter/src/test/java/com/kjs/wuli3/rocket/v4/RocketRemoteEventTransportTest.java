@@ -11,7 +11,7 @@ import com.kjs.wuli3.core.error.ErrorCodeException;
 import com.kjs.wuli3.event.envelope.EventEnvelope;
 import com.kjs.wuli3.event.error.SendFailedException;
 import com.kjs.wuli3.propagation.codec.ContextPropagator;
-import com.kjs.wuli3.rocket.internal.wrapper.RocketMessageWrapperEncoder;
+import com.kjs.wuli3.rocket.message.RocketMessageWrapperEncoder;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;

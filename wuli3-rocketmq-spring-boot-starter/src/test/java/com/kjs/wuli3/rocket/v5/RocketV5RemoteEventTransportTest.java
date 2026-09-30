@@ -14,7 +14,7 @@ import static org.mockito.Mockito.when;
 import com.kjs.wuli3.event.envelope.EventEnvelope;
 import com.kjs.wuli3.event.error.SendFailedException;
 import com.kjs.wuli3.propagation.codec.ContextPropagator;
-import com.kjs.wuli3.rocket.internal.wrapper.RocketMessageWrapperEncoder;
+import com.kjs.wuli3.rocket.message.RocketMessageWrapperEncoder;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
