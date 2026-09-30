@@ -1,0 +1,58 @@
+package com.kjs.wuli3.event.autoconfigure;
+
+import com.kjs.wuli3.event.EventPublisher;
+import com.kjs.wuli3.event.EventTransport;
+import com.kjs.wuli3.event.PublishOptions;
+import com.kjs.wuli3.event.RoutingEventPublisher;
+import com.kjs.wuli3.event.remote.RoutingEventTransport;
+import com.kjs.wuli3.event.transport.AsyncEventTransport;
+import com.kjs.wuli3.event.transport.SpringLocalEventTransport;
+import com.kjs.wuli3.event.transport.TransactionalEventTransport;
+import java.util.List;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.boot.autoconfigure.AutoConfiguration;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.context.annotation.Bean;
+import org.springframework.core.task.TaskExecutor;
+import org.springframework.core.task.VirtualThreadTaskExecutor;
+
+/**
+ * 自动配置本地和尽力而为的远程事件发布。
+ *
+ * @author GuoYang create on 2026/8/17 11:53
+ */
+@AutoConfiguration
+public class EventAutoConfiguration {
+
+    /** 创建本地 Spring 事件传输实现。 */
+    @Bean
+    @ConditionalOnMissingBean(SpringLocalEventTransport.class)
+    SpringLocalEventTransport springLocalEventMessageTransport(
+            final ApplicationEventPublisher applicationEventPublisher) {
+        return new SpringLocalEventTransport(applicationEventPublisher);
+    }
+
+    @Bean("applicationTaskExecutor")
+    @ConditionalOnMissingBean(name = "applicationTaskExecutor")
+    TaskExecutor applicationTaskExecutor() {
+        return new VirtualThreadTaskExecutor("event-publisher-executor");
+    }
+
+    /** 创建按具体选项类型路由的应用事件发布器。 */
+    @Bean
+    @ConditionalOnMissingBean(EventPublisher.class)
+    EventPublisher eventPublisher(
+            final SpringLocalEventTransport springLocalEventMessageTransport,
+            final List<RoutingEventTransport<?>> routingEventTransports,
+            @Qualifier("applicationTaskExecutor") final TaskExecutor executor) {
+        final EventTransport<?> localTransport = new TransactionalEventTransport<>(
+                new AsyncEventTransport<>(springLocalEventMessageTransport, executor));
+        final RoutingEventPublisher publisher = new RoutingEventPublisher();
+        publisher.register(localTransport);
+        routingEventTransports.forEach(
+                transport -> publisher.register(new TransactionalEventTransport<>(transport)));
+        return publisher;
+    }
+
+}

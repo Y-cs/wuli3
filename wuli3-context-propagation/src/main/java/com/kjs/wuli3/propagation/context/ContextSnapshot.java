@@ -1,0 +1,99 @@
+package com.kjs.wuli3.propagation.context;
+
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+
+/**
+ * 可跨异步任务和协议边界传递的不可变上下文快照。
+ *
+ * <p>快照仅保存不可变的 {@link PropagationContext} 实例。
+ *
+ * @author GuoYang create on 2026/8/17 11:53
+ */
+public final class ContextSnapshot {
+
+    private static final ContextSnapshot EMPTY = new ContextSnapshot(Map.of());
+
+    private final Map<ContextKey<? extends Context>, Context> contexts;
+
+    private ContextSnapshot(final Map<ContextKey<? extends Context>, Context> contexts) {
+        this.contexts = Map.copyOf(contexts);
+    }
+
+    /**
+     * 返回不包含任何上下文的快照。
+     *
+     * @return 空上下文快照
+     */
+    public static ContextSnapshot empty() {
+        return ContextSnapshot.EMPTY;
+    }
+
+    /**
+     * 由指定上下文创建快照；同类型上下文以最后一个为准。
+     *
+     * @param contexts 待写入快照的上下文
+     * @return 独立且不可变的上下文快照
+     * @throws NullPointerException 当上下文数组或任一上下文为 {@code null} 时
+     */
+    public static ContextSnapshot of(final Context... contexts) {
+        Objects.requireNonNull(contexts, "contexts");
+        if (contexts.length == 0) {
+            return ContextSnapshot.empty();
+        }
+        final Map<ContextKey<? extends Context>, Context> snapshotContexts = new HashMap<>();
+        for (final Context context : contexts) {
+            final Context actualContext = Objects.requireNonNull(context, "context");
+            final ContextKey<? extends Context> type =
+                    Objects.requireNonNull(actualContext.contentKey(), "context.contentKey()");
+            snapshotContexts.put(type, actualContext);
+        }
+        return new ContextSnapshot(snapshotContexts);
+    }
+
+    /** 从完整状态中捕获可传播上下文；普通本地上下文不会进入快照。 */
+    public static ContextSnapshot from(final ContextState state) {
+        return ContextSnapshot.of(
+                Objects.requireNonNull(state, "state").propagationValues().toArray(Context[]::new));
+    }
+
+    /** 将传播项还原成独立完整状态，不合并执行线程已有上下文。 */
+    public ContextState toState() {
+        return ContextState.of(this.contexts.values().toArray(Context[]::new));
+    }
+
+    /**
+     * 获取指定类型的上下文。
+     *
+     * @param type 要获取的上下文类型
+     * @param <T>  上下文具体类型
+     * @return 对应上下文；快照中不存在时为空
+     * @throws NullPointerException 当 {@code type} 为 {@code null} 时
+     */
+    public <T extends Context> Optional<T> get(final ContextKey<T> type) {
+        final ContextKey<T> actualType = Objects.requireNonNull(type, "type");
+        final Context value = this.contexts.get(actualType);
+        return value == null ? Optional.empty() : Optional.of(actualType.cast(value));
+    }
+
+    /**
+     * 返回快照中全部上下文的不可变集合。
+     *
+     * @return 全部上下文
+     */
+    public Collection<Context> values() {
+        return this.contexts.values();
+    }
+
+    /**
+     * 判断快照是否不包含任何上下文。
+     *
+     * @return 当快照为空时为 {@code true}
+     */
+    public boolean isEmpty() {
+        return this.contexts.isEmpty();
+    }
+}

@@ -1,0 +1,88 @@
+package com.kjs.wuli3.web.autoconfigure;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.kjs.wuli3.core.error.resolver.ErrorResolver;
+import com.kjs.wuli3.propagation.accessor.InvocationContextAccessor;
+import com.kjs.wuli3.web.error.ErrorAlertNotifier;
+import com.kjs.wuli3.web.error.WebErrorMapper;
+import com.kjs.wuli3.web.error.WebErrorStatusResolver;
+import com.kjs.wuli3.web.internal.advice.ApiResponseBodyAdvice;
+import com.kjs.wuli3.web.internal.advice.ApiResponseFactory;
+import com.kjs.wuli3.web.internal.error.WebErrorController;
+import com.kjs.wuli3.web.internal.handler.WebExceptionHandler;
+import com.kjs.wuli3.web.response.WebResponseProperties;
+import java.util.List;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.boot.autoconfigure.AutoConfiguration;
+import org.springframework.boot.autoconfigure.AutoConfigureBefore;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.autoconfigure.web.servlet.error.ErrorMvcAutoConfiguration;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.boot.web.servlet.error.ErrorAttributes;
+import org.springframework.boot.web.servlet.error.ErrorController;
+import org.springframework.context.annotation.Bean;
+
+/** Configures response wrapping and exception mapping.
+ *
+ * @author GuoYang create on 2026/8/17 11:53
+ */
+@AutoConfiguration(after = {WebContextAutoConfiguration.class, WebErrorAutoConfiguration.class})
+@AutoConfigureBefore(ErrorMvcAutoConfiguration.class)
+@EnableConfigurationProperties(WebResponseProperties.class)
+public class WebResponseAutoConfiguration {
+
+    @Bean
+    @ConditionalOnMissingBean(ErrorController.class)
+    WebErrorController webErrorController(
+            final ErrorAttributes errorAttributes,
+            final ApiResponseFactory factory) {
+        return new WebErrorController(errorAttributes, factory);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    ApiResponseFactory apiResponseFactory(
+            final InvocationContextAccessor accessor,
+            final ErrorResolver errorResolver,
+            final WebResponseProperties properties) {
+        return new ApiResponseFactory(accessor, errorResolver, properties);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    @ConditionalOnProperty(
+            prefix = "wuli3.web.response",
+            name = "wrapper-enabled",
+            havingValue = "true",
+            matchIfMissing = true)
+    ApiResponseBodyAdvice apiResponseBodyAdvice(
+            final ApiResponseFactory factory, final WebResponseProperties properties, final ObjectMapper objectMapper) {
+        return new ApiResponseBodyAdvice(factory, properties, objectMapper);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    @ConditionalOnProperty(
+            prefix = "wuli3.web.response",
+            name = "exception-handler-enabled",
+            havingValue = "true",
+            matchIfMissing = true)
+    WebExceptionHandler webExceptionHandler(
+            final ApiResponseFactory factory,
+            final InvocationContextAccessor accessor,
+            final WebResponseProperties properties,
+            final ObjectProvider<ErrorAlertNotifier> notifierProvider,
+            final ObjectProvider<WebErrorMapper> mapperProvider,
+            final WebErrorStatusResolver statusResolver) {
+        final List<ErrorAlertNotifier> notifiers =
+                notifierProvider.orderedStream().toList();
+        return new WebExceptionHandler(
+                factory,
+                accessor,
+                properties,
+                notifiers,
+                statusResolver,
+                mapperProvider.orderedStream().toList());
+    }
+}
