@@ -326,6 +326,14 @@ starter 不直接依赖 Spring Security。异常 cause 链中出现以下类名�
 | `org.springframework.security.core.AuthenticationException` | 401 | `WEB.UNAUTHORIZED` |
 | `org.springframework.security.access.AccessDeniedException` | 403 | `WEB.FORBIDDEN` |
 
+### 容器错误处理边界
+
+starter 在 Spring Boot 的 `ErrorMvcAutoConfiguration` 之前注册应用级 `WebErrorController`，接管容器可转交的 `/error` 请求。不存在的路径、`HttpServletResponse.sendError(...)` 以及未处理异常触发的 `ERROR` dispatch 均使用应用级默认 `ApiResponse` 格式；此类请求没有 Controller 方法，不能依赖 `@NativeResponse`。响应保留容器确定的 HTTP 状态，错误码和消息通过同一 Web 错误投影生成。
+
+容器提供的异常消息、堆栈、原始异常类型和扩展属性不直接输出。响应已提交后不尝试重写，只保留容器日志或应用诊断记录。非法 HTTP 报文、请求头限制等在进入应用前由容器或网关拒绝的请求不属于 starter 可接管范围，应由容器配置或网关错误页统一处理。
+
+当前嵌入式容器集成测试覆盖项目默认的 Tomcat。Jetty、Undertow 只有在项目引入对应 starter 并启用相应测试运行配置后才执行同一组容器契约测试；不能将默认 Tomcat 测试结果宣称为其他容器已验证。
+
 ### 自定义 Web 异常识别
 
 注册 `WebErrorMapper` Bean 可将异常转换为明确的 `ErrorCodeException`。多个 mapper 按 Spring 顺序调用，第一个非 null 结果生效；返回 null 继续默认分类。优先级为 Web 显式映射 > 单次异常覆盖 > 远端元数据或本地错误声明 > 框架默认。HTTP 状态仍可通过 `WebErrorStatusResolver` 自定义。
