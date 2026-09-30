@@ -49,14 +49,10 @@ public class EventAutoConfiguration {
         final EventTransport<?> localTransport = new TransactionalEventTransport<>(
                 new AsyncEventTransport<>(springLocalEventMessageTransport, executor));
         final RoutingEventPublisher publisher = new RoutingEventPublisher();
-        EventAutoConfiguration.register(publisher, localTransport);
+        publisher.register(localTransport);
         routingEventTransports.forEach(
-                transport -> EventAutoConfiguration.register(publisher, new TransactionalEventTransport<>(transport)));
+                transport -> publisher.register(new TransactionalEventTransport<>(transport)));
         return publisher;
     }
 
-    private static <PO extends PublishOptions> void register(
-            final RoutingEventPublisher publisher, final EventTransport<PO> transport) {
-        publisher.register(transport);
-    }
 }

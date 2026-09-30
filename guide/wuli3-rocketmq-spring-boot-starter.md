@@ -23,28 +23,20 @@ rocketmq:
 
 以上是 v4 的配置方式；具体连接、认证和 producer 参数由 RocketMQ Spring Boot starter 管理。选择 v4 时没有 `RocketMQTemplate`，本模块不会注册 v4 transport。
 
-## 选择客户端
+## 客户端与包边界
 
-默认使用由 RocketMQ Spring Boot starter 管理的 v4 `RocketMQTemplate`：
+- `com.kjs.wuli3.rocket.v4`：`RocketV4PublishOptions`、`RocketRemoteEventTransport`，自动配置位于 `v4.autoconfigure`。
+- `com.kjs.wuli3.rocket.v5`：`RocketV5PublishOptions`、`RocketV5RemoteEventTransport`，自动配置位于 `v5.autoconfigure`。
+- `autoconfigure.RocketCommonAutoConfiguration` 与 `internal`：共享编码、线协议和上下文传播。
 
-```yaml
-wuli3:
-  rocketmq:
-    client-version: v4
-```
+两种 Transport 可同时注册，Publisher 按选项的具体类型路由。
+v4 需要 `RocketMQTemplate` Bean；v5 需要运行时 Java Client 和业务提供的 `Producer` Bean。
+业务提供同选项类型的 Transport 时，仅替换对应版本的默认实现。
+移除原 `RocketPublishOptions` 与 `wuli3.rocketmq.client-version`，调用方需迁移到对应版本选项。
+连接配置继续由 v4 官方 Starter 或业务创建的 v5 Producer 管理，不保留无实际配置项的 Properties 类。
 
-`wuli3.rocketmq.client-version` 只决定 starter 自动注入哪个 transport：
-
-| 配置 | 前提 | 自动注入 |
-| --- | --- | --- |
-| 未设置或 `v4` | 存在 `RocketMQTemplate` | 基于 v4 的 `RocketRemoteEventTransport` |
-| `v5` | 运行时包含 Java Client v5，且存在一个 `Producer` Bean | 基于 v5 的 `RocketV5RemoteEventTransport` |
-
-应用自己声明的 `RocketEventTransport` 优先于上述自动配置；其他 options 类型的
-`RemoteEventTransport` 可以与 RocketMQ transport 同时注册。选择 v5 时设置 `client-version: v5`。
-v5 依赖在本 starter 中是 `compileOnly`，应用必须显式引入它，并提供由 Spring 关闭的
-`Producer` Bean；starter 会通过 SPI 创建可覆盖的 `ClientServiceProvider` Bean。已选择 v5
-但未提供 `Producer` 时，应用会在启动时失败，不会静默回退到 v4 或默认 transport。
+v5 依赖是 `compileOnly`，应用需显式引入。starter 提供可覆盖的 `ClientServiceProvider` 工厂，
+不创建 Producer，也不管理业务 Producer 的生命周期。没有 Producer 时不注册 v5 Transport。
 
 ```kotlin
 dependencies {
@@ -72,14 +64,16 @@ Producer rocketV5Producer(final ClientServiceProvider clientServiceProvider) thr
 final EventEnvelope<OrderPaid> envelope =
         EventEnvelopeTemplate.of("orders", "order.paid.v1").wrap(payload);
 
-final RocketPublishOptions options = new RocketPublishOptions()
-        .withAfterCommit();
+final RocketV4PublishOptions options = RocketV4PublishOptions.builder()
+        .afterCommit(true)
+        .build();
 
 eventPublisher.publish(options, envelope);
 ```
 
-`RocketPublishOptions` 通过 `withAsync()`、`withAfterCommit()`、`withOrderKey(...)` 和
-`withDelay(...)` 创建不可变副本。支持同步、异步、顺序和精确延迟发送，但精确延迟不能与
+`RocketV4PublishOptions` 推荐通过 `builder().async(true).afterCommit(true).build()` 一次构造，
+构建器设置字段时复用自身，`build()` 才创建不可变选项。固定配置可提前构造并复用；构建器不能跨线程共享。
+支持同步、异步、顺序和精确延迟发送，但精确延迟不能与
 `async` 或 order key 组合。v4 支持异步顺序发送；Java Client v5 不支持异步 FIFO，选择 v5
 时 `async` 不能与 order key 组合。编码器要求：
 
@@ -128,3 +122,17 @@ rocketMqContextSupport.runInScope(messageExt.getProperties(), () -> {
 ./gradlew :wuli3-rocketmq-spring-boot-starter:test
 ./gradlew :wuli3-rocketmq-spring-boot-starter:check
 ```
+
+## 发送回调
+
+v4 使用 `RocketV4PublishOptions.builder().sendCallback(callback).build()`，回调是 SDK 原生 `SendCallback`。
+v5 使用 `RocketV5PublishOptions.builder().sendCallback((receipt, failure) -> { /* 业务处理 */ }).build()`，
+回调类型为 `BiConsumer<SendReceipt, Throwable>`：成功时只有 receipt，失败时只有 failure。
+两者均支持同步与异步；`async(true)` 开启异步发送。v4 精确延迟不支持异步或顺序组合，
+v5 支持异步延迟，但不支持异步 FIFO 或顺序延迟。
+
+同步回调在发送线程执行，发送失败通知回调后仍抛异常；异步通过 SDK 完成通知触发回调。
+回调运行时异常单独记录日志，不覆盖发送异常，也不会把成功回调异常再报告为发送失败。
+未指定回调时保留默认失败日志。批量发送每条事件共用回调，业务负责线程安全与事件关联。
+参数校验或异步启动失败直接抛异常，不额外触发回调；事务回滚未发送时不触发回调。
+v4 的 SendResult 状态由业务判断，回调成功不等于消费成功。此功能不提供持久重试或可靠投递保证。

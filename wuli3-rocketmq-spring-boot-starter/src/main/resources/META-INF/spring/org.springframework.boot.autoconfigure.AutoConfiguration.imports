@@ -1,1 +1,3 @@
-com.kjs.wuli3.rocket.autoconfigure.RocketAutoConfiguration
+com.kjs.wuli3.rocket.autoconfigure.RocketCommonAutoConfiguration
+com.kjs.wuli3.rocket.v4.autoconfigure.RocketV4AutoConfiguration
+com.kjs.wuli3.rocket.v5.autoconfigure.RocketV5AutoConfiguration

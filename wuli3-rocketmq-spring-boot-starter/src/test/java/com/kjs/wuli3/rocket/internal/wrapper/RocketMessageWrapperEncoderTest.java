@@ -8,7 +8,6 @@ import com.kjs.wuli3.propagation.codec.ContextPropagator;
 import com.kjs.wuli3.propagation.context.ContextState;
 import com.kjs.wuli3.propagation.internal.InvocationContext;
 import com.kjs.wuli3.propagation.store.ThreadLocalContextBackend;
-import com.kjs.wuli3.rocket.internal.RocketPublishOptions;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import org.junit.jupiter.api.Test;
@@ -27,7 +26,7 @@ class RocketMessageWrapperEncoderTest {
         new ContextManager(threadLocalContextStore, threadLocalContextStore)
                 .with(state)
                 .run(() -> result[0] = new RocketMessageWrapperEncoder(threadLocalContextStore, contextPropagator)
-                        .encode(envelope, new RocketPublishOptions()));
+                        .encode(envelope, null, null));
         final RocketMessageWrapper wrapper = result[0];
         final String body = new String(wrapper.body(), StandardCharsets.UTF_8);
 

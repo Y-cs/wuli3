@@ -9,10 +9,12 @@ import com.kjs.wuli3.propagation.ContextManager;
 import com.kjs.wuli3.propagation.codec.ContextPropagator;
 import com.kjs.wuli3.propagation.store.ThreadLocalContextBackend;
 import com.kjs.wuli3.rocket.internal.RocketContextSupport;
-import com.kjs.wuli3.rocket.internal.RocketPublishOptions;
-import com.kjs.wuli3.rocket.internal.RocketRemoteEventTransport;
-import com.kjs.wuli3.rocket.internal.RocketV5RemoteEventTransport;
 import com.kjs.wuli3.rocket.internal.wrapper.RocketMessageWrapperEncoder;
+import com.kjs.wuli3.rocket.v4.RocketRemoteEventTransport;
+import com.kjs.wuli3.rocket.v4.RocketV4PublishOptions;
+import com.kjs.wuli3.rocket.v4.autoconfigure.RocketV4AutoConfiguration;
+import com.kjs.wuli3.rocket.v5.RocketV5RemoteEventTransport;
+import com.kjs.wuli3.rocket.v5.autoconfigure.RocketV5AutoConfiguration;
 import org.apache.rocketmq.client.apis.ClientServiceProvider;
 import org.apache.rocketmq.client.apis.producer.Producer;
 import org.apache.rocketmq.spring.core.RocketMQTemplate;
@@ -23,8 +25,56 @@ import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 
 class RocketAutoConfigurationTest {
 
-    private final ApplicationContextRunner contextRunner =
-            new ApplicationContextRunner().withConfiguration(AutoConfigurations.of(RocketAutoConfiguration.class));
+    private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
+            .withConfiguration(AutoConfigurations.of(
+                    RocketCommonAutoConfiguration.class,
+                    RocketV4AutoConfiguration.class,
+                    RocketV5AutoConfiguration.class));
+
+    /** 验证两种选项可以通过同一个发布器分别路由。 */
+    @Test
+    void routesBothVersionsThroughPublisher() {
+        final RocketMQTemplate template = mock(RocketMQTemplate.class);
+        final Producer producer = mock(Producer.class);
+        this.contextRunner
+                .withConfiguration(
+                        AutoConfigurations.of(com.kjs.wuli3.event.autoconfigure.EventAutoConfiguration.class))
+                .withBean(RocketMQTemplate.class, () -> template)
+                .withBean(Producer.class, () -> producer)
+                .run(context -> {
+                    final com.kjs.wuli3.event.EventPublisher publisher =
+                            context.getBean(com.kjs.wuli3.event.EventPublisher.class);
+                    final com.kjs.wuli3.event.envelope.EventEnvelope<String> event =
+                            new com.kjs.wuli3.event.envelope.EventEnvelope<>(
+                                    "orders", "created", "id-1", java.time.Instant.EPOCH, "payload");
+                    publisher.publish(new RocketV4PublishOptions(), event);
+                    publisher.publish(new com.kjs.wuli3.rocket.v5.RocketV5PublishOptions(), event);
+                    org.mockito.Mockito.verify(template)
+                            .syncSend(
+                                    org.mockito.ArgumentMatchers.eq("orders"),
+                                    org.mockito.ArgumentMatchers.any(org.springframework.messaging.Message.class));
+                    try {
+                        org.mockito.Mockito.verify(producer)
+                                .send(org.mockito.ArgumentMatchers.any(
+                                        org.apache.rocketmq.client.apis.message.Message.class));
+                    } catch (final org.apache.rocketmq.client.apis.ClientException exception) {
+                        throw new AssertionError(exception);
+                    }
+                });
+    }
+
+    /** 覆盖 v4 不应屏蔽 v5 默认传输。 */
+    @Test
+    void overridingV4KeepsV5Registered() {
+        this.contextRunner
+                .withBean(RocketMQTemplate.class, () -> mock(RocketMQTemplate.class))
+                .withBean(Producer.class, () -> mock(Producer.class))
+                .withBean(NoopRocketTransport.class, NoopRocketTransport::new)
+                .run(context -> {
+                    assertThat(context).doesNotHaveBean(RocketRemoteEventTransport.class);
+                    assertThat(context).hasSingleBean(RocketV5RemoteEventTransport.class);
+                });
+    }
 
     @Test
     void registersDefaultEncoderAndTransportWhenTemplateIsAvailable() {
@@ -79,42 +129,35 @@ class RocketAutoConfigurationTest {
     }
 
     @Test
-    void selectsV5TransportWhenConfigured() {
+    void registersBothTransportsWhenBothClientsExist() {
         this.contextRunner
-                .withPropertyValues("wuli3.rocketmq.client-version=v5")
                 .withBean(RocketMQTemplate.class, () -> mock(RocketMQTemplate.class))
                 .withBean(Producer.class, () -> mock(Producer.class))
                 .withBean(ClientServiceProvider.class, () -> mock(ClientServiceProvider.class))
                 .run(context -> {
-                    assertThat(context.getBean(RocketProperties.class).getClientVersion())
-                            .isEqualTo(RocketProperties.ClientVersion.V5);
-                    assertThat(context).hasSingleBean(RemoteEventTransport.class);
+                    assertThat(context).getBeans(RemoteEventTransport.class).hasSize(2);
                     assertThat(context).hasSingleBean(RocketV5RemoteEventTransport.class);
-                    assertThat(context).doesNotHaveBean(RocketRemoteEventTransport.class);
+                    assertThat(context).hasSingleBean(RocketRemoteEventTransport.class);
                 });
     }
 
     @Test
-    void failsStartupWhenV5IsSelectedWithoutAnApplicationProducer() {
+    void skipsV5WithoutAnApplicationProducer() {
         this.contextRunner
-                .withPropertyValues("wuli3.rocketmq.client-version=v5")
                 .withBean(ClientServiceProvider.class, () -> mock(ClientServiceProvider.class))
                 .run(context -> {
-                    assertThat(context).hasFailed();
-                    assertThat(context.getStartupFailure()).hasMessageContaining("Producer");
+                    assertThat(context).hasNotFailed();
+                    assertThat(context).doesNotHaveBean(RocketV5RemoteEventTransport.class);
                 });
     }
 
     @Test
     void registersV5TransportWithoutV4Template() {
-        this.contextRunner
-                .withPropertyValues("wuli3.rocketmq.client-version=v5")
-                .withBean(Producer.class, () -> mock(Producer.class))
-                .run(context -> {
-                    assertThat(context).hasSingleBean(ClientServiceProvider.class);
-                    assertThat(context).hasSingleBean(RemoteEventTransport.class);
-                    assertThat(context).hasSingleBean(RocketV5RemoteEventTransport.class);
-                });
+        this.contextRunner.withBean(Producer.class, () -> mock(Producer.class)).run(context -> {
+            assertThat(context).hasSingleBean(ClientServiceProvider.class);
+            assertThat(context).hasSingleBean(RemoteEventTransport.class);
+            assertThat(context).hasSingleBean(RocketV5RemoteEventTransport.class);
+        });
     }
 
     @Test
@@ -128,16 +171,17 @@ class RocketAutoConfigurationTest {
                 });
     }
 
-    private static final class NoopRocketTransport implements RemoteEventTransport<RocketPublishOptions> {
+    private static final class NoopRocketTransport implements RemoteEventTransport<RocketV4PublishOptions> {
 
         @Override
-        public Class<RocketPublishOptions> supportedOptionsType() {
-            return RocketPublishOptions.class;
+        public Class<RocketV4PublishOptions> supportedOptionsType() {
+            return RocketV4PublishOptions.class;
         }
 
         @Override
         public void send(
-                final RocketPublishOptions options, final com.kjs.wuli3.event.envelope.EventEnvelope<?>... envelopes) {}
+                final RocketV4PublishOptions options,
+                final com.kjs.wuli3.event.envelope.EventEnvelope<?>... envelopes) {}
     }
 
     private record OtherOptions() implements PublishOptions {}

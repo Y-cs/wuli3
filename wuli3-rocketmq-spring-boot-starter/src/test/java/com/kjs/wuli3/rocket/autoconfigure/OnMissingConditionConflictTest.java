@@ -5,8 +5,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.kjs.wuli3.event.EventPublisher;
 import com.kjs.wuli3.event.envelope.EventEnvelope;
 import com.kjs.wuli3.event.remote.RoutingEventTransport;
-import com.kjs.wuli3.rocket.internal.RocketPublishOptions;
-import com.kjs.wuli3.rocket.internal.RocketRemoteEventTransport;
+import com.kjs.wuli3.rocket.v4.RocketRemoteEventTransport;
+import com.kjs.wuli3.rocket.v4.RocketV4PublishOptions;
+import com.kjs.wuli3.rocket.v4.autoconfigure.RocketV4AutoConfiguration;
+import com.kjs.wuli3.rocket.v5.autoconfigure.RocketV5AutoConfiguration;
 import org.apache.rocketmq.spring.core.RocketMQTemplate;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -23,7 +25,10 @@ class OnMissingConditionConflictTest {
 
     private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
             .withConfiguration(AutoConfigurations.of(
-                    com.kjs.wuli3.event.autoconfigure.EventAutoConfiguration.class, RocketAutoConfiguration.class));
+                    com.kjs.wuli3.event.autoconfigure.EventAutoConfiguration.class,
+                    RocketCommonAutoConfiguration.class,
+                    RocketV4AutoConfiguration.class,
+                    RocketV5AutoConfiguration.class));
 
     @Test
     void customRoutingTransportBacksOffTheDefaultRemoteTransport() {
@@ -44,15 +49,15 @@ class OnMissingConditionConflictTest {
     static class CustomRoutingTransportConfig {
 
         @Bean
-        RoutingEventTransport<RocketPublishOptions> customRocketTransport() {
-            return new RoutingEventTransport<RocketPublishOptions>() {
+        RoutingEventTransport<RocketV4PublishOptions> customRocketTransport() {
+            return new RoutingEventTransport<RocketV4PublishOptions>() {
                 @Override
-                public Class<RocketPublishOptions> supportedOptionsType() {
-                    return RocketPublishOptions.class;
+                public Class<RocketV4PublishOptions> supportedOptionsType() {
+                    return RocketV4PublishOptions.class;
                 }
 
                 @Override
-                public void send(final RocketPublishOptions options, final EventEnvelope<?>... envelopes) {
+                public void send(final RocketV4PublishOptions options, final EventEnvelope<?>... envelopes) {
                     // no-op test stub
                 }
             };

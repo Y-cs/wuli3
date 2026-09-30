@@ -48,12 +48,10 @@ public final class RabbitRemoteEventTransport implements RemoteEventTransport<Ra
     @Override
     public void send(final RabbitPublishOptions options, final EventEnvelope<?>... envelopes) {
         Asserts.whenNull(options).throwIllegalArgumentException("publish options must not be null");
-        final RabbitPublishOptions actualOptions = options;
         Asserts.whenNull(envelopes).throwIllegalArgumentException("event envelopes must not be null");
-        final EventEnvelope<?>[] actualEnvelopes = envelopes;
-        for (final EventEnvelope<?> envelope : actualEnvelopes) {
+        for (final EventEnvelope<?> envelope : envelopes) {
             final Message message = this.encoder.encode(envelope);
-            if (actualOptions.async()) {
+            if (options.async()) {
                 this.sendAsynchronously(envelope, message);
             } else {
                 this.sendSynchronously(envelope, message);

@@ -30,12 +30,11 @@ public final class RoutingEventPublisher implements EventPublisher {
     @SuppressWarnings("unchecked")
     public <PO extends PublishOptions> void publish(final PO options, final EventEnvelope<?>... envelopes) {
         Asserts.whenNull(options).throwIllegalArgumentException("publish options must not be null");
-        final PO requiredOptions = options;
-        final EventTransport<PO> transport = (EventTransport<PO>) this.transports.get(requiredOptions.getClass());
+        final EventTransport<PO> transport = (EventTransport<PO>) this.transports.get(options.getClass());
         if (transport == null) {
             throw new UnsupportedCapabilityException(
-                    "No transport registered for " + requiredOptions.getClass().getName());
+                    "No transport registered for " + options.getClass().getName());
         }
-        transport.send(requiredOptions, envelopes);
+        transport.send(options, envelopes);
     }
 }

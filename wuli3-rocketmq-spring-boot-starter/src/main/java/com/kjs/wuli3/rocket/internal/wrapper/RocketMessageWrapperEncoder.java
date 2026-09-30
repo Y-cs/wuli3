@@ -8,7 +8,6 @@ import com.kjs.wuli3.json.core.Jsons;
 import com.kjs.wuli3.propagation.codec.ContextPropagator;
 import com.kjs.wuli3.propagation.context.ContextSnapshot;
 import com.kjs.wuli3.propagation.store.ContextReader;
-import com.kjs.wuli3.rocket.internal.RocketPublishOptions;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.LinkedHashMap;
@@ -45,14 +44,14 @@ public final class RocketMessageWrapperEncoder {
      * 校验并序列化事件，不调用任一 RocketMQ 客户端 SDK。
      *
      * @param envelope 待序列化事件
-     * @param options  请求的远程投递能力
+     * @param delay 精确延迟
+     * @param orderKey 顺序键
      * @return 与 SDK 无关的线消息
      */
-    public RocketMessageWrapper encode(final EventEnvelope<?> envelope, final RocketPublishOptions options) {
+    public RocketMessageWrapper encode(
+            final EventEnvelope<?> envelope, final @Nullable Duration delay, final @Nullable String orderKey) {
         Asserts.whenNull(envelope).throwIllegalArgumentException("event envelope must not be null");
-        Asserts.whenNull(options).throwIllegalArgumentException("publish options must not be null");
         RocketMessageWrapperEncoder.validateTopic(envelope.topic(), envelope.eventId());
-        RocketMessageWrapperEncoder.validateCapabilities(options);
 
         final Map<String, Object> headers = this.propagationHeaders();
         return new RocketMessageWrapper(
@@ -61,8 +60,8 @@ public final class RocketMessageWrapperEncoder {
                 headers,
                 envelope.eventId(),
                 envelope.eventType(),
-                options.orderKey(),
-                options.delay());
+                orderKey,
+                delay);
     }
 
     /**
@@ -79,22 +78,6 @@ public final class RocketMessageWrapperEncoder {
         final ContextSnapshot snapshot = ContextSnapshot.from(this.contextReader.state());
         this.contextPropagator.inject(snapshot, headers::put);
         return headers;
-    }
-
-    private static void validateCapabilities(final RocketPublishOptions options) {
-        final Duration delay = options.delay();
-        if (delay == null) {
-            return;
-        }
-        if (options.async()) {
-            throw new ErrorCodeException(
-                    CommonErrors.UNSUPPORTED_OPERATION, "RocketMQ exact delay does not support async " + "publication");
-        }
-        if (options.orderKey() != null) {
-            throw new ErrorCodeException(
-                    CommonErrors.UNSUPPORTED_OPERATION,
-                    "RocketMQ exact delay does not support " + "ordered publication");
-        }
     }
 
     private static void validateTopic(final String topic, final String eventId) {
