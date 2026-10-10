@@ -24,64 +24,90 @@ import java.util.Set;
 final class DddProjectGenerator {
     private static final String TEMPLATE_ROOT = "/ddd-template/";
     private static final String TEMPLATE_VERSION = "1.0.0";
+
+    /** 模板文件与生成路径的映射，按生成工程的模块顺序排列。 */
     private static final List<TemplateFile> BASE_FILES = List.of(
-            file("settings.gradle.kts.tpl", "settings.gradle.kts"),
-            file("build.gradle.kts.tpl", "build.gradle.kts"),
-            file("gradle.properties.tpl", "gradle.properties"),
-            file("README.md.tpl", "README.md"),
-            file("AGENTS.md.tpl", "AGENTS.md"),
-            file("generation.properties.tpl", ".wuli3/generation.properties"),
-            file("shared-kernel.gradle.kts.tpl", "shared-kernel/build.gradle.kts"),
-            file("domain.gradle.kts.tpl", "domain/build.gradle.kts"),
-            file("api.gradle.kts.tpl", "api/build.gradle.kts"),
-            file("app.gradle.kts.tpl", "app/build.gradle.kts"),
-            file("infra.gradle.kts.tpl", "infra/build.gradle.kts"),
-            file("adapter.gradle.kts.tpl", "adapter/build.gradle.kts"),
-            file("bootstrap.gradle.kts.tpl", "bootstrap/build.gradle.kts"),
-            file("Status.java.tpl", "shared-kernel/src/main/java/{{packagePath}}/sharedkernel/Status.java"),
-            file("EntityId.java.tpl", "shared-kernel/src/main/java/{{packagePath}}/sharedkernel/EntityId.java"),
+            // root
+            file("root/settings.gradle.kts.tpl", "settings.gradle.kts"),
+            file("root/build.gradle.kts.tpl", "build.gradle.kts"),
+            file("root/gradle.properties.tpl", "gradle.properties"),
+            file("root/README.md.tpl", "README.md"),
+            file("root/AGENTS.md.tpl", "AGENTS.md"),
+            file("root/Dockerfile.tpl", "Dockerfile"),
+            file("root/dockerignore.tpl", ".dockerignore"),
+            file("root/gitignore.tpl", ".gitignore"),
+            file("root/generation.properties.tpl", ".wuli3/generation.properties"),
+            // shared-kernel
+            file("shared-kernel/shared-kernel.gradle.kts.tpl", "shared-kernel/build.gradle.kts"),
             file(
-                    "SharedKernelArchitectureTest.java.tpl",
+                    "shared-kernel/Status.java.tpl",
+                    "shared-kernel/src/main/java/{{packagePath}}/sharedkernel/Status.java"),
+            file(
+                    "shared-kernel/EntityId.java.tpl",
+                    "shared-kernel/src/main/java/{{packagePath}}/sharedkernel/EntityId.java"),
+            file(
+                    "shared-kernel/SharedKernelArchitectureTest.java.tpl",
                     "shared-kernel/src/test/java/{{packagePath}}/architecture/SharedKernelArchitectureTest.java"),
             file(
-                    "SharedKernelTest.java.tpl",
+                    "shared-kernel/SharedKernelTest.java.tpl",
                     "shared-kernel/src/test/java/{{packagePath}}/sharedkernel/SharedKernelTest.java"),
+            // domain
+            file("domain/domain.gradle.kts.tpl", "domain/build.gradle.kts"),
             file(
-                    "Domain.java.tpl",
+                    "domain/Domain.java.tpl",
                     "domain/src/main/java/{{packagePath}}/domain/{{domainPackage}}/{{domainType}}.java"),
             file(
-                    "DomainTest.java.tpl",
+                    "domain/DomainTest.java.tpl",
                     "domain/src/test/java/{{packagePath}}/domain/{{domainPackage}}/{{domainType}}Test.java"),
-            file("DomainApi.java.tpl", "api/src/main/java/{{packagePath}}/api/{{domainType}}Api.java"),
-            file("DomainStatusView.java.tpl", "api/src/main/java/{{packagePath}}/api/{{domainType}}StatusView.java"),
-            file("DomainUseCase.java.tpl", "app/src/main/java/{{packagePath}}/app/port/in/{{domainType}}UseCase.java"),
+            // api
+            file("api/api.gradle.kts.tpl", "api/build.gradle.kts"),
+            file("api/DomainApi.java.tpl", "api/src/main/java/{{packagePath}}/api/{{domainType}}Api.java"),
             file(
-                    "DomainRepository.java.tpl",
+                    "api/DomainStatusView.java.tpl",
+                    "api/src/main/java/{{packagePath}}/api/{{domainType}}StatusView.java"),
+            // app
+            file("app/app.gradle.kts.tpl", "app/build.gradle.kts"),
+            file(
+                    "app/DomainUseCase.java.tpl",
+                    "app/src/main/java/{{packagePath}}/app/port/in/{{domainType}}UseCase.java"),
+            file(
+                    "app/DomainRepository.java.tpl",
                     "app/src/main/java/{{packagePath}}/app/port/out/{{domainType}}Repository.java"),
             file(
-                    "DomainApplicationService.java.tpl",
+                    "app/DomainApplicationService.java.tpl",
                     "app/src/main/java/{{packagePath}}/app/internal/{{domainType}}ApplicationService.java"),
+            // infra
+            file("infra/infra.gradle.kts.tpl", "infra/build.gradle.kts"),
             file(
-                    "DomainRepositoryAdapter.java.tpl",
+                    "infra/DomainRepositoryAdapter.java.tpl",
                     "infra/src/main/java/{{packagePath}}/infra/persistence/{{domainType}}RepositoryAdapter.java"),
             file(
-                    "InfraArchitectureTest.java.tpl",
+                    "infra/InfraArchitectureTest.java.tpl",
                     "infra/src/test/java/{{packagePath}}/architecture/InfraArchitectureTest.java"),
+            // adapter
+            file("adapter/adapter.gradle.kts.tpl", "adapter/build.gradle.kts"),
             file(
-                    "DomainController.java.tpl",
+                    "adapter/DomainController.java.tpl",
                     "adapter/src/main/java/{{packagePath}}/adapter/in/web/{{domainType}}Controller.java"),
-            file("BootstrapApplication.java.tpl", "bootstrap/src/main/java/{{packagePath}}/BootstrapApplication.java"),
-            file("application.yml.tpl", "bootstrap/src/main/resources/application.yml"),
+            // bootstrap
+            file("bootstrap/bootstrap.gradle.kts.tpl", "bootstrap/build.gradle.kts"),
             file(
-                    "BootstrapApplicationTest.java.tpl",
+                    "bootstrap/BootstrapApplication.java.tpl",
+                    "bootstrap/src/main/java/{{packagePath}}/BootstrapApplication.java"),
+            file("bootstrap/application.yml.tpl", "bootstrap/src/main/resources/application.yml"),
+            file(
+                    "bootstrap/BootstrapApplicationTest.java.tpl",
                     "bootstrap/src/test/java/{{packagePath}}/BootstrapApplicationTest.java"));
+
+    /** 选择 MySQL 持久化时额外生成的 infra 文件。 */
     private static final List<TemplateFile> MYSQL_FILES = List.of(
             file(
-                    "mysql/DomainPo.java.tpl",
+                    "infra/mysql/DomainPo.java.tpl",
                     "infra/src/main/java/{{packagePath}}/infra/persistence/{{domainType}}Po.java"),
             file(
-                    "mysql/DomainMapper.java.tpl",
+                    "infra/mysql/DomainMapper.java.tpl",
                     "infra/src/main/java/{{packagePath}}/infra/persistence/{{domainType}}Mapper.java"));
+
     private static final Map<String, String> WRAPPER_FILES = Map.of(
             "wrapper/gradlew", "gradlew",
             "wrapper/gradlew.bat", "gradlew.bat",
@@ -137,14 +163,15 @@ final class DddProjectGenerator {
         result.put("buildLogicVersion", options.buildLogicVersion());
         result.put("templateVersion", DddProjectGenerator.TEMPLATE_VERSION);
         result.put("infraDependencies", this.infraDependencies(options));
-        result.put("bootstrapTestImports", this.bootstrapTestImports(options));
-        result.put("bootstrapTestConfiguration", this.bootstrapTestConfiguration(options));
         result.put("repositoryFields", this.repositoryFields(options));
         result.put("repositoryConstructor", this.repositoryConstructor(options));
         result.put("repositoryLoad", this.repositoryLoad(options));
+        result.put("bootstrapTestImports", this.bootstrapTestImports(options));
+        result.put("bootstrapTestConfiguration", this.bootstrapTestConfiguration(options));
         return result;
     }
 
+    /** infra 构建脚本的依赖片段：持久化与消息中间件按选项切换。 */
     private String infraDependencies(final GeneratorOptions options) {
         final StringBuilder result = new StringBuilder();
         if (options.persistence().equals("mysql")) {
@@ -160,6 +187,7 @@ final class DddProjectGenerator {
         return result.toString();
     }
 
+    /** 仓储适配器的 Mapper 字段声明，非 MySQL 时为空。 */
     private String repositoryFields(final GeneratorOptions options) {
         if (!options.persistence().equals("mysql")) {
             return "";
@@ -167,6 +195,28 @@ final class DddProjectGenerator {
         return "    private final " + options.domainType() + "Mapper mapper;\n";
     }
 
+    /** 仓储适配器的构造器，非 MySQL 时为空。 */
+    private String repositoryConstructor(final GeneratorOptions options) {
+        if (!options.persistence().equals("mysql")) {
+            return "";
+        }
+        return "\n    public " + options.domainType() + "RepositoryAdapter(final " + options.domainType()
+                + "Mapper mapper) {\n        this.mapper = mapper;\n    }\n";
+    }
+
+    /** 仓储适配器的加载实现，MySQL 选项下走 Mapper 查询。 */
+    private String repositoryLoad(final GeneratorOptions options) {
+        if (!options.persistence().equals("mysql")) {
+            return "        return new " + options.domainType() + "(new EntityId(\"sample-1\"));";
+        }
+        return "        final " + options.domainType() + "Po stored = this.mapper.selectById(\"sample-1\");\n"
+                + "        if (stored == null) {\n"
+                + "            return new " + options.domainType() + "(new EntityId(\"sample-1\"));\n"
+                + "        }\n"
+                + "        return stored.toDomain();";
+    }
+
+    /** 启动测试的导入片段，MySQL 选项下需要额外导入自动配置与 Mockito。 */
     private String bootstrapTestImports(final GeneratorOptions options) {
         if (!options.persistence().equals("mysql")) {
             return """
@@ -185,6 +235,7 @@ final class DddProjectGenerator {
                 "import org.springframework.test.context.bean.override.mockito.MockitoBean;");
     }
 
+    /** 启动测试的类注解片段，MySQL 选项下排除数据源自动配置并 Mock Mapper。 */
     private String bootstrapTestConfiguration(final GeneratorOptions options) {
         if (!options.persistence().equals("mysql")) {
             return "";
@@ -199,25 +250,6 @@ final class DddProjectGenerator {
                         "            DataSourceTransactionManagerAutoConfiguration.class,",
                         "            JdbcTemplateAutoConfiguration.class",
                         "        })");
-    }
-
-    private String repositoryConstructor(final GeneratorOptions options) {
-        if (!options.persistence().equals("mysql")) {
-            return "";
-        }
-        return "\n    public " + options.domainType() + "RepositoryAdapter(final " + options.domainType()
-                + "Mapper mapper) {\n        this.mapper = mapper;\n    }\n";
-    }
-
-    private String repositoryLoad(final GeneratorOptions options) {
-        if (!options.persistence().equals("mysql")) {
-            return "        return new " + options.domainType() + "(new EntityId(\"sample-1\"));";
-        }
-        return "        final " + options.domainType() + "Po stored = this.mapper.selectById(\"sample-1\");\n"
-                + "        if (stored == null) {\n"
-                + "            return new " + options.domainType() + "(new EntityId(\"sample-1\"));\n"
-                + "        }\n"
-                + "        return stored.toDomain();";
     }
 
     private void render(final Path root, final TemplateFile template, final Map<String, String> variables)
