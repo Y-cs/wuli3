@@ -69,5 +69,38 @@ publishing {
             name = "temporary"
             url = rootProject.layout.buildDirectory.dir("temporary-maven-repository").get().asFile.toURI()
         }
+        // central Maven 仓库（如阿里云制品仓库）。属性与凭据约定见 PublishingConventionsPlugin，
+        val centralReleasesUrl = providers.gradleProperty("centralReleasesUrl")
+            .orElse(providers.environmentVariable("CENTRAL_MAVEN_RELEASES_URL"))
+            .filter { it.isNotBlank() }
+        val centralSnapshotsUrl = providers.gradleProperty("centralSnapshotsUrl")
+            .orElse(providers.environmentVariable("CENTRAL_MAVEN_SNAPSHOTS_URL"))
+            .filter { it.isNotBlank() }
+        val centralFallbackUrl = providers.gradleProperty("centralUrl")
+            .orElse(providers.environmentVariable("CENTRAL_MAVEN_URL"))
+            .filter { it.isNotBlank() }
+        val centralRepositoryUrl = if (version.toString().endsWith("-SNAPSHOT")) {
+            centralSnapshotsUrl.orElse(centralFallbackUrl)
+        } else {
+            centralReleasesUrl.orElse(centralFallbackUrl)
+        }
+        if (centralRepositoryUrl.isPresent) {
+            maven {
+                name = "central"
+                url = uri(centralRepositoryUrl.get())
+                val credentialsUsername = providers.gradleProperty("centralUsername")
+                    .orElse(providers.environmentVariable("CENTRAL_MAVEN_USERNAME"))
+                    .filter { it.isNotBlank() }
+                val credentialsPassword = providers.gradleProperty("centralPassword")
+                    .orElse(providers.environmentVariable("CENTRAL_MAVEN_PASSWORD"))
+                    .filter { it.isNotBlank() }
+                if (credentialsUsername.isPresent && credentialsPassword.isPresent) {
+                    credentials {
+                        username = credentialsUsername.get()
+                        password = credentialsPassword.get()
+                    }
+                }
+            }
+        }
     }
 }
