@@ -51,8 +51,23 @@ val verifyMavenBomConsumer = tasks.register<Exec>("verifyMavenBomConsumer") {
     group = "verification"
     dependsOn(publishAllPublicationsToTemporaryRepository, cleanMavenConsumerRepository)
     workingDir(layout.projectDirectory.dir("integration-tests/maven-consumer"))
+    // 解析为绝对路径，避免守护进程启动时的 PATH 与当前构建环境不同。
+    val mavenCommand = if (System.getProperty("os.name").startsWith("Windows")) "mvn.cmd" else "mvn"
+    val mavenExecutable = providers.gradleProperty("wuli3.maven.executable")
+        .orElse(providers.environmentVariable("MAVEN_HOME").map { "$it/bin/$mavenCommand" })
+        .orElse(providers.environmentVariable("M2_HOME").map { "$it/bin/$mavenCommand" })
+        .orElse(providers.environmentVariable("PATH").map { path ->
+            path.split(File.pathSeparator)
+                .map { File(it, mavenCommand) }
+                .firstOrNull { it.isFile && it.canExecute() }
+                ?.absolutePath
+                ?: throw GradleException(
+                    "Maven executable not found. Set -Pwuli3.maven.executable=/absolute/path/to/$mavenCommand " +
+                        "or MAVEN_HOME, or add Maven to PATH.",
+                )
+        })
     commandLine(
-        "mvn",
+        file(mavenExecutable.get()).absolutePath,
         "--settings",
         "settings.xml",
         "-Dmaven.repo.local=../../build/consumer-maven-home",
@@ -73,4 +88,13 @@ tasks.register<WriteProperties>("apiCompatibilityCheck") {
     property("status", "baseline-created")
     property("version", version.toString())
     property("comparison", "skipped-no-published-baseline")
+}
+
+// 真实基础设施验收独立于普通 check，避免本地单元测试隐式启动容器。
+tasks.register<Exec>("verifyOrderServiceIntegration") {
+    group = "verification"
+    description = "Verifies the standalone order integration fixture with MySQL, Redis and RocketMQ v5."
+    dependsOn(publishAllPublicationsToTemporaryRepository)
+    workingDir(layout.projectDirectory.dir("integration-tests/order-service"))
+    commandLine("bash", "run.sh", "verify", "--published")
 }

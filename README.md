@@ -26,7 +26,7 @@ wuli3 分布式项目脚手架底座。项目使用 JDK 21、Gradle 9.6.0、多�
 | [`wuli3-elasticsearch-spring-boot-starter`](guide/wuli3-elasticsearch-spring-boot-starter.md) | Spring Data Elasticsearch 依赖聚合。 |
 | [`wuli3-mongodb-spring-boot-starter`](guide/wuli3-mongodb-spring-boot-starter.md) | Spring Data MongoDB 依赖聚合。 |
 
-`integration-tests/` 不是 Gradle 业务模块，而是用于验证发布产物能否被外部 Gradle/Maven 项目正确消费的独立测试工程。
+`integration-tests/` 包含独立的 Gradle/Maven 发布产物消费者，以及验证真实 MySQL、Redis、RocketMQ v5 的 [订单服务集成测试](integration-tests/order-service/README.md)。这些工程不加入主构建的业务模块。
 
 所有模块文档统一从 [`guide/README.md`](guide/README.md) 进入。事件发布边界见
 [`wuli3-event-spring-boot-starter`](guide/wuli3-event-spring-boot-starter.md)，RocketMQ 配置见
@@ -72,6 +72,11 @@ wuli3 分布式项目脚手架底座。项目使用 JDK 21、Gradle 9.6.0、多�
 ```bash
 ./gradlew verifyBomConsumers --warning-mode fail
 ```
+
+Maven 验证任务依次从 `-Pwuli3.maven.executable`、`MAVEN_HOME`、`M2_HOME` 和当前构建的
+`PATH` 解析 Maven 可执行文件的绝对路径，避免 Gradle 守护进程沿用旧 `PATH` 导致 `mvn` 启动失败。
+IDE 启动的 Gradle 若未继承终端环境，可在用户级 `~/.gradle/gradle.properties` 中配置
+`wuli3.maven.executable=/absolute/path/to/mvn`（Windows 使用 `mvn.cmd`）；不要把本机路径提交到仓库。
 
 CI 推荐执行顺序：
 

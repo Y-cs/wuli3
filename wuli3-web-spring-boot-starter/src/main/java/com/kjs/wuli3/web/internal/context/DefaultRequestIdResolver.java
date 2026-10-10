@@ -1,9 +1,9 @@
 package com.kjs.wuli3.web.internal.context;
 
+import com.kjs.wuli3.core.id.UuidStringIdGenerator;
 import com.kjs.wuli3.web.context.RequestIdResolver;
 import com.kjs.wuli3.web.context.WebContextProperties;
 import jakarta.servlet.http.HttpServletRequest;
-import java.util.UUID;
 import java.util.regex.Pattern;
 import org.jspecify.annotations.Nullable;
 
@@ -45,6 +45,6 @@ public final class DefaultRequestIdResolver implements RequestIdResolver {
     }
 
     private static String generate() {
-        return UUID.randomUUID().toString();
+        return UuidStringIdGenerator.INSTANCE.nextId();
     }
 }
