@@ -8,7 +8,6 @@ import com.kjs.wuli3.event.EventPublisher;
 import com.kjs.wuli3.event.envelope.EventEnvelope;
 import com.kjs.wuli3.event.envelope.EventEnvelopeTemplate;
 import com.kjs.wuli3.json.provider.JacksonProvider;
-import com.kjs.wuli3.logging.autoconfigure.LoggingProperties;
 import com.kjs.wuli3.opentelemetry.autoconfigure.Wuli3OpenTelemetryAutoConfiguration;
 import com.kjs.wuli3.opentelemetry.metrics.MetricRecorder;
 import com.kjs.wuli3.opentelemetry.trace.TraceContextAccessor;
@@ -16,12 +15,13 @@ import com.kjs.wuli3.opentelemetry.trace.TraceMdc;
 import com.kjs.wuli3.redis.RedisKey;
 import com.kjs.wuli3.redis.RedisSupport;
 import com.kjs.wuli3.redis.id.RedisMinuteIdGenerator;
+import com.kjs.wuli3.redis.lock.RedisLock;
 import com.kjs.wuli3.redis.lock.RedisLockExecutor;
-import com.kjs.wuli3.redis.lock.RedisLockRequest;
 import com.kjs.wuli3.redis.operation.HashRedisOperations;
 import com.kjs.wuli3.redis.operation.ObjectRedisOperations;
 import com.kjs.wuli3.redis.operation.SetRedisOperations;
 import com.kjs.wuli3.redis.operation.StringRedisOperations;
+import com.kjs.wuli3.spring.logging.LoggingProperties;
 import io.opentelemetry.api.common.Attributes;
 import java.time.Duration;
 import java.time.Instant;
@@ -53,7 +53,7 @@ class BomConsumerTest {
         assertNotNull(SetRedisOperations.class);
         assertNotNull(RedisLockExecutor.class);
         assertNotNull(RedisKey.expiring("consumer:test", Duration.ofMinutes(1)));
-        assertNotNull(RedisLockRequest.watchdog("consumer:lock", Duration.ZERO));
+        assertNotNull(RedisLock.watchdog("consumer:lock", Duration.ZERO));
         org.junit.jupiter.api.Assertions.assertThrows(
                 ClassNotFoundException.class,
                 () -> Class.forName("org.apache.rocketmq.client.apis.ClientServiceProvider"));
