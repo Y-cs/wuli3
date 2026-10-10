@@ -21,7 +21,11 @@ final class SharedKernelArchitectureTest {
             .should()
             .onlyDependOnClassesThat()
             .resideInAnyPackage(
-                    "..sharedkernel..", "java..", "com.kjs.wuli3.core..", "org.jetbrains.kotlin..", "org.jetbrains.annotations..");
+                    "..sharedkernel..",
+                    "java..",
+                    "com.kjs.wuli3.core..",
+                    "org.jetbrains.kotlin..",
+                    "org.jetbrains.annotations..");
 
     private SharedKernelArchitectureTest() {}
 }

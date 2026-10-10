@@ -8,6 +8,13 @@ application {
     mainClass.set("com.kjs.wuli3.generator.DddGenerator")
 }
 
+// application 插件不会把入口写进 jar manifest，缺了 Main-Class 时 java -jar 和 JBang 都无法启动 CLI。
+tasks.jar {
+    manifest {
+        attributes("Main-Class" to application.mainClass.get())
+    }
+}
+
 gradlePlugin {
     plugins {
         register("dddGenerator") {

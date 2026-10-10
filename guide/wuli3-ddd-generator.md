@@ -2,84 +2,82 @@
 
 ## 用途
 
-`wuli3-ddd-generator` 同时提供 Gradle 插件和独立 Java CLI，用于生成单体多模块 DDD 服务。生成结果是普通 Gradle 工程，生成完成后不依赖生成器运行。
+`wuli3-ddd-generator` 用于生成单体多模块 DDD 服务。新工程通过制品库以命令行方式初始化，无需检出本仓库源码。生成结果是普通
+Gradle 工程，生成完成后不依赖生成器运行。
 
 仓库内的完整生成结果位于 [`examples/order-service`](../examples/order-service)，可以直接查看模块结构。
 
-## Gradle 任务
+生成器会在工程根目录创建 `AGENTS.md`，包含模块边界、构建风格、编码风格、测试指南、提交规范、Git 使用、注释和配置安全约束。
+规范使用生成时的服务名、领域名和 Java 包名，随内置模板发布，不依赖运行目录中的 `AGENTS.md`，也不包含生成器仓库的本机路径或
+OMX 配置。
 
-推荐通过 Gradle 插件提供的强类型任务生成服务：
+## JBang 初始化
 
-```kotlin
-// settings.gradle.kts
-pluginManagement {
-    repositories {
-        mavenLocal()
-        gradlePluginPortal()
-        mavenCentral()
-    }
-}
-```
-
-```kotlin
-// build.gradle.kts
-plugins {
-    id("com.kjs.wuli3.ddd-generator") version "0.1.3-SNAPSHOT"
-}
-```
+外部项目无需检出本仓库，直接用 [JBang](https://www.jbang.dev/) 从 Maven 仓库拉取生成器执行：
 
 ```bash
-./gradlew generateDddService \
-  --service order-service \
-  --base-package com.example.order \
-  --domain order \
-  --persistence mysql \
-  --messaging rocketmq \
-  --output ./services
+jbang com.kjs.wuli3:wuli3-ddd-generator:0.1.3-SNAPSHOT generate \
+  --service demo-web --package com.demo.web --domain order \
+  --persistence none --messaging none --output .
 ```
 
-`generateDddService` 是一次性脚手架任务，每次执行都会检查目标服务目录；目录非空时任务失败，不会覆盖业务代码。未传 `--output` 时，服务生成到应用该插件的根工程目录。
-
-命令需要在应用了 `com.kjs.wuli3.ddd-generator` 插件的 Gradle 工程根目录执行，而不是在 Wuli3 源码仓库根目录直接执行。前提条件如下：
-
-- 使用 JDK 21；
-- 工程包含可执行的 Gradle Wrapper；
-- `pluginManagement.repositories` 能解析插件 marker；本地开发可以使用 `mavenLocal()`；
-- Wuli3 BOM、Starter 和 `build-logic` 版本已经发布到配置的仓库；本地开发也可以先发布到 Maven Local。
-
-## CLI
-
-在发布了 Wuli3 构件和 `build-logic` 插件的环境中执行：
+JBang 默认从 Maven Central 解析。构件发布在内部仓库时，用 `--repos` 追加仓库地址：
 
 ```bash
-java -cp wuli3-ddd-generator.jar com.kjs.wuli3.generator.DddGenerator generate \
-  --service order-service \
-  --package com.example.order \
-  --domain order \
-  --persistence mysql \
-  --messaging rocketmq \
-  --output ./services
+jbang --repos <内部仓库URL>,mavenlocal \
+  com.kjs.wuli3:wuli3-ddd-generator:0.1.3-SNAPSHOT generate \
+  --service demo-web --package com.demo.web --domain order \
+  --persistence none --messaging none --output .
 ```
 
-参数说明：
+### 参数
 
-| 参数 | 必填 | 说明 |
-| --- | --- | --- |
-| `--service` | 是 | 小写服务名，可包含数字和连字符。 |
-| `--package` | 是 | 小写 Java 基础包名。 |
-| `--domain` | 是 | 领域名，可包含数字和连字符。 |
-| `--persistence` | 否 | `none`（默认）或 `mysql`。 |
-| `--messaging` | 否 | `none`（默认）、`rocketmq` 或 `rabbitmq`。 |
-| `--wuli3-version` | 否 | Wuli3 BOM 和 starter 版本，默认 `0.1.3-SNAPSHOT`。 |
-| `--build-logic-version` | 否 | Wuli3 约定插件版本，默认 `0.1.3-SNAPSHOT`。 |
-| `--output` | 否 | 生成父目录，默认当前目录。 |
+| 参数                    | 必填 | 可选值                             | 默认值           | 说明                                                         |
+|-------------------------|------|------------------------------------|------------------|--------------------------------------------------------------|
+| `--service`             | 是   | 小写字母开头，可含数字和单个连字符 | —                | 服务名，同时作为生成目录名                                   |
+| `--package`             | 是   | 合法的小写 Java 包名               | —                | 生成源码的基础包名                                           |
+| `--domain`              | 是   | 小写字母开头，可含数字和单个连字符 | —                | 领域名                                                       |
+| `--persistence`         | 否   | `none`、`mysql`                    | `none`           | `mysql` 额外生成 MyBatis-Plus PO/Mapper 并引入 MySQL starter |
+| `--messaging`           | 否   | `none`、`rocketmq`、`rabbitmq`     | `none`           | 非 `none` 时引入对应的 Wuli3 消息 starter                    |
+| `--wuli3-version`       | 否   | 已发布的 Wuli3 版本                | `0.1.3-SNAPSHOT` | Wuli3 BOM 与 starter 版本                                    |
+| `--build-logic-version` | 否   | 已发布的约定插件版本               | `0.1.3-SNAPSHOT` | Gradle 约定插件版本                                          |
+| `--output`              | 否   | 目录路径                           | `.`              | 服务的父目录                                                 |
 
-Gradle 任务使用 `--base-package`，其余参数与 CLI 一致。
+`--output` 是父目录不是工程目录：上例 `--output .` 生成的是 `./demo-web/`。目标目录必须不存在或为空，生成器不会覆盖已有业务文件。
 
-目标服务目录必须不存在或为空，生成器不会覆盖已有业务文件。
+### 示例
 
-CLI 和 Gradle 任务均会在生成工程根目录创建 `AGENTS.md`，包含模块边界、构建风格、编码风格、测试指南、提交规范、Git 使用、注释和配置安全约束。
-规范使用生成时的服务名、领域名和 Java 包名，随内置模板发布，不依赖运行目录中的 `AGENTS.md`，也不包含生成器仓库的本机路径或 OMX 配置。
+无外部基础设施的最小工程：
+
+```bash
+jbang com.kjs.wuli3:wuli3-ddd-generator:0.1.3-SNAPSHOT generate \
+  --service demo-web --package com.demo.web --domain order \
+  --persistence none --messaging none --output .
+```
+
+MySQL 持久化 + RocketMQ，生成到指定父目录：
+
+```bash
+jbang com.kjs.wuli3:wuli3-ddd-generator:0.1.3-SNAPSHOT generate \
+  --service order-service --package com.example.order --domain order \
+  --persistence mysql --messaging rocketmq --output ~/projects/order
+```
+
+RabbitMQ、固定 Wuli3 版本：
+
+```bash
+jbang com.kjs.wuli3:wuli3-ddd-generator:0.1.3-SNAPSHOT generate \
+  --service pay-service --package com.example.pay --domain payment \
+  --persistence mysql --messaging rabbitmq \
+  --wuli3-version 0.1.3-SNAPSHOT --output .
+```
+
+生成完成后进入工程目录验证：
+
+```bash
+cd demo-web
+./gradlew check
+```
 
 ## 模块边界
 
@@ -101,8 +99,8 @@ shared-kernel -> domain / api -> app -> infra
 
 根工程统一向子模块应用 Kotlin 约定插件：`domain`、`api`、`shared-kernel` 使用
 `com.kjs.wuli3.kotlin-conventions`，`app`、`infra`、`adapter`、`bootstrap` 使用
-`com.kjs.wuli3.kotlin-spring-conventions`。约定提供 Java/Kotlin 21、Wuli3 BOM、测试依赖、JaCoCo、
-Spotless + ktfmt 和静态质量门禁；Spring 约定额外配置 Kotlin Spring all-open 和 reflect。各模块构建文件只声明自己的业务依赖；
+`com.kjs.wuli3.kotlin-spring-conventions`。约定提供 Java/Kotlin 21、Wuli3 BOM、测试依赖、JaCoCo、 Spotless + ktfmt
+和静态质量门禁；Spring 约定额外配置 Kotlin Spring all-open 和 reflect。各模块构建文件只声明自己的业务依赖；
 `bootstrap` 再额外应用 `org.springframework.boot`。Java 与 Kotlin 可在 `src/main/{java,kotlin}` 和
 `src/test/{java,kotlin}` 中混编，Kotlin 编译先于 Java 编译。
 
@@ -122,7 +120,8 @@ Spotless + ktfmt 和静态质量门禁；Spring 约定额外配置 Kotlin Spring
 - 禁止 `app.internal`、`app.service` 或 `app.port.in`；
 - `new`、字段、方法参数、静态调用和继承等依赖形式都会被检查。
 
-因此不建议使用 `forbidden-apis` 实现该规则。`forbidden-apis` 适合固定类或方法黑名单，不能表达“App 只有输出端口可被 Infra 依赖”的包级白名单。应用服务实现默认放在 `app.internal` 且保持 package-private，形成 Java 可见性和 ArchUnit 的双重约束。
+因此不建议使用 `forbidden-apis` 实现该规则。`forbidden-apis` 适合固定类或方法黑名单，不能表达“App 只有输出端口可被 Infra
+依赖”的包级白名单。应用服务实现默认放在 `app.internal` 且保持 package-private，形成 Java 可见性和 ArchUnit 的双重约束。
 
 ## 验证
 
