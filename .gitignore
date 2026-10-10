@@ -8,13 +8,16 @@ out/
 *.iml
 .idea/
 .idea/modules/
+.kotlin
 
 *.class
 *.log
 *.tmp
 
 .DS_Store
-/.omc/
 
+## ai ##
+.claude/settings.local.json
+/.omc/
 /.omc/**
 /**/.omc/
