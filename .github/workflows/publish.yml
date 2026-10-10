@@ -1,0 +1,80 @@
+name: Publish
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Build and publish to central Maven
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      # 版本号以代码为准 gradle.properties 的 wuli3.version
+      # 这里校验 tag 与两个构建解析出的版本都一致，避免 tag 标称的版本和实际发布的版本分叉
+      - name: Verify tag matches code version
+        if: github.event_name == 'push'
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          expected="${TAG#v}"
+          main_version=$(./gradlew -q :properties | sed -n 's/^version: //p' | head -1)
+          build_logic_version=$(./gradlew -q :build-logic:properties | sed -n 's/^version: //p' | head -1)
+          status=0
+          if [ "$main_version" != "$expected" ]; then
+            echo "::error::tag 是 $TAG，但 gradle.properties 的 wuli3.version 是 $main_version"
+            status=1
+          fi
+          if [ "$build_logic_version" != "$expected" ]; then
+            echo "::error::tag 是 $TAG，但 build-logic 解析出的版本是 $build_logic_version"
+            status=1
+          fi
+          exit $status
+
+      # 未配置的 secret 会以空字符串注入，构建侧按未配置处理会让发布任务不存在
+      - name: Check publish secrets
+        env:
+          RELEASES_URL: ${{ secrets.CENTRAL_MAVEN_RELEASES_URL }}
+          SNAPSHOTS_URL: ${{ secrets.CENTRAL_MAVEN_SNAPSHOTS_URL }}
+          USERNAME: ${{ secrets.CENTRAL_MAVEN_USERNAME }}
+          PASSWORD: ${{ secrets.CENTRAL_MAVEN_PASSWORD }}
+        run: |
+          missing=""
+          for name in RELEASES_URL SNAPSHOTS_URL USERNAME PASSWORD; do
+            if [ -z "${!name}" ]; then missing="$missing $name"; fi
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::以下 secret 未配置:$missing"
+            exit 1
+          fi
+
+      # 先过全部质量门禁再发布，避免把未通过检查的产物推进仓库
+      - name: Publish
+        env:
+          CENTRAL_MAVEN_RELEASES_URL: ${{ secrets.CENTRAL_MAVEN_RELEASES_URL }}
+          CENTRAL_MAVEN_SNAPSHOTS_URL: ${{ secrets.CENTRAL_MAVEN_SNAPSHOTS_URL }}
+          CENTRAL_MAVEN_USERNAME: ${{ secrets.CENTRAL_MAVEN_USERNAME }}
+          CENTRAL_MAVEN_PASSWORD: ${{ secrets.CENTRAL_MAVEN_PASSWORD }}
+        run: |
+          ./gradlew --no-daemon check :build-logic:test \
+            :build-logic:publishAllPublicationsToCentralRepository \
+            publishAllPublicationsToCentralRepository

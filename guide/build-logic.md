@@ -105,10 +105,10 @@ wuli3.conventions.project-bom-path=:wuli3-dependencies
 com.kjs.wuli3:build-logic:0.1.3-SNAPSHOT
 ```
 
-默认版本配置在 `build-logic/gradle.properties`：
+默认版本与主构建共用同一个定义，配置在仓库根目录 `gradle.properties`：
 
 ```properties
-wuli3.build-logic.version=0.1.3-SNAPSHOT
+wuli3.version=0.1.3-SNAPSHOT
 ```
 
 发布到本地 Maven 仓库：
@@ -117,20 +117,20 @@ wuli3.build-logic.version=0.1.3-SNAPSHOT
 ./gradlew -p build-logic publishToMavenLocal
 ```
 
-发布到公司 Maven 仓库：
+发布到 central Maven 仓库：
 
 ```bash
 ./gradlew -p build-logic publish \
-  -PcompanyMavenSnapshotsUrl=https://maven.example.com/repository/snapshots \
-  -PcompanyMavenReleasesUrl=https://maven.example.com/repository/releases \
-  -PcompanyMavenUsername=your-username \
-  -PcompanyMavenPassword=your-password
+  -PcentralSnapshotsUrl=https://maven.example.com/repository/snapshots \
+  -PcentralReleasesUrl=https://maven.example.com/repository/releases \
+  -PcentralUsername=your-username \
+  -PcentralPassword=your-password
 ```
 
 也可以使用环境变量提供凭据：
 
 ```bash
-COMPANY_MAVEN_USERNAME=your-username COMPANY_MAVEN_PASSWORD=your-password ./gradlew -p build-logic publish
+CENTRAL_MAVEN_USERNAME=your-username CENTRAL_MAVEN_PASSWORD=your-password ./gradlew -p build-logic publish
 ```
 
 Maven 项目不能直接使用 Gradle 插件。后续如需统一 Maven 构建规则，应单独提供 parent POM。

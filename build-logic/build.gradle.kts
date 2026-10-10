@@ -1,4 +1,5 @@
 import org.gradle.api.publish.maven.MavenPublication
+import java.util.Properties
 
 plugins {
     `kotlin-dsl`
@@ -6,7 +7,11 @@ plugins {
 }
 
 group = "com.kjs.wuli3"
-version = providers.gradleProperty("wuli3.build-logic.version").get()
+// build-logic 是独立构建，读取 gradle.properties
+version = providers.fileContents(layout.projectDirectory.file("../gradle.properties"))
+    .asText
+    .map { text -> Properties().apply { load(text.reader()) }.getProperty("wuli3.version") }
+    .get()
 
 val kotlinVersion = "2.4.20"
 
@@ -70,9 +75,15 @@ publishing {
     }
 
     repositories {
-        val releaseRepository = providers.gradleProperty("companyMavenReleasesUrl")
-        val snapshotRepository = providers.gradleProperty("companyMavenSnapshotsUrl")
-        val fallbackRepository = providers.gradleProperty("companyMavenUrl")
+        val releaseRepository = providers.gradleProperty("centralReleasesUrl")
+            .orElse(providers.environmentVariable("CENTRAL_MAVEN_RELEASES_URL"))
+            .filter { it.isNotBlank() }
+        val snapshotRepository = providers.gradleProperty("centralSnapshotsUrl")
+            .orElse(providers.environmentVariable("CENTRAL_MAVEN_SNAPSHOTS_URL"))
+            .filter { it.isNotBlank() }
+        val fallbackRepository = providers.gradleProperty("centralUrl")
+            .orElse(providers.environmentVariable("CENTRAL_MAVEN_URL"))
+            .filter { it.isNotBlank() }
         val repositoryUrl = when {
             version.toString().endsWith("-SNAPSHOT") -> snapshotRepository.orElse(fallbackRepository)
             else -> releaseRepository.orElse(fallbackRepository)
@@ -80,15 +91,21 @@ publishing {
 
         if (repositoryUrl.isPresent) {
             maven {
-                name = "companyMaven"
+                name = "central"
                 url = uri(repositoryUrl.get())
-                credentials {
-                    username = providers.gradleProperty("companyMavenUsername")
-                        .orElse(providers.environmentVariable("COMPANY_MAVEN_USERNAME"))
-                        .orNull
-                    password = providers.gradleProperty("companyMavenPassword")
-                        .orElse(providers.environmentVariable("COMPANY_MAVEN_PASSWORD"))
-                        .orNull
+                // 凭据缺失时不注册 credentials 块，否则 Gradle 会因 username 未赋值而校验失败，
+                // 此时按匿名发布处理。属性与凭据约定见 PublishingConventionsPlugin。
+                val credentialsUsername = providers.gradleProperty("centralUsername")
+                    .orElse(providers.environmentVariable("CENTRAL_MAVEN_USERNAME"))
+                    .filter { it.isNotBlank() }
+                val credentialsPassword = providers.gradleProperty("centralPassword")
+                    .orElse(providers.environmentVariable("CENTRAL_MAVEN_PASSWORD"))
+                    .filter { it.isNotBlank() }
+                if (credentialsUsername.isPresent && credentialsPassword.isPresent) {
+                    credentials {
+                        username = credentialsUsername.get()
+                        password = credentialsPassword.get()
+                    }
                 }
             }
         }
