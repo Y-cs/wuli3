@@ -17,3 +17,13 @@ management:
       exposure:
         include: health,shutdown
       base-path: /__core
+
+wuli3:
+  logging:
+    enabled: true
+    file:
+      enabled: true
+
+logging:
+  level:
+    com.kjs.wuli3: info
