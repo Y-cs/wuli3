@@ -1,7 +1,6 @@
 package com.kjs.wuli3.redis;
 
 import com.kjs.wuli3.core.assertion.Asserts;
-import com.kjs.wuli3.redis.codec.JsonRedisCodec;
 import com.kjs.wuli3.redis.codec.RedisCodec;
 import com.kjs.wuli3.redis.operation.HashRedisOperations;
 import com.kjs.wuli3.redis.operation.ObjectRedisOperations;
@@ -11,37 +10,61 @@ import java.time.Duration;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
-import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.connection.RedisConnectionFactory;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.serializer.StringRedisSerializer;
 
-/** 聚合不同 Redis 数据结构操作，并承载整 key 的通用操作；结构化值默认使用标准 JSON Codec。
+/** 聚合不同 Redis 数据结构操作，并承载整 key 的通用操作。
+ *
+ * 注意：模板由本类按连接工厂、{@link RedisCodec} 和 {@link RedisKeyPrefix} 创建；key、field 的字节策略来自 Codec，
+ * 值统一按 UTF-8 字符串传输，服务前缀由 Codec 的 key 序列化器携带，因此不读取应用声明的 RedisTemplate 配置。
  *
  * @author GuoYang create on 2026/8/17 11:53
  */
 public final class RedisSupport {
 
-    private final StringRedisTemplate redisTemplate;
+    private final RedisTemplate<String, String> redisTemplate;
     private final RedisCodec codec;
     private final StringRedisOperations stringOperations;
     private final ObjectRedisOperations objectOperations;
     private final HashRedisOperations hashOperations;
     private final SetRedisOperations setOperations;
 
-    /** 使用标准 JSON Codec 创建 Redis 操作入口。 */
-    public RedisSupport(final StringRedisTemplate redisTemplate) {
-        this(redisTemplate, JsonRedisCodec.INSTANCE);
-    }
-
-    /** 使用指定 Codec 创建 Redis 操作入口，并向结构化值操作透传该 Codec。 */
-    public RedisSupport(final StringRedisTemplate redisTemplate, final RedisCodec codec) {
-        this.redisTemplate = Objects.requireNonNull(redisTemplate, "redisTemplate");
+    /**
+     * 使用连接工厂、Codec 和服务级 key 前缀创建 Redis 操作入口。
+     *
+     * 注意：值的格式由 Codec 的 {@code encode} 和 {@code decode} 承担；key 前缀由 {@link RedisKeyPrefix.KeySerializer} 叠加。
+     */
+    public RedisSupport(
+            final RedisConnectionFactory connectionFactory, final RedisCodec codec, final RedisKeyPrefix keyPrefix) {
         this.codec = Objects.requireNonNull(codec, "codec");
+        this.redisTemplate = RedisSupport.createRedisTemplate(connectionFactory, this.codec, keyPrefix);
         this.stringOperations = new StringRedisOperations(this.redisTemplate);
         this.objectOperations = new ObjectRedisOperations(this.redisTemplate, this.codec);
         this.hashOperations = new HashRedisOperations(this.redisTemplate, this.codec);
         this.setOperations = new SetRedisOperations(this.redisTemplate, this.codec);
     }
 
-    public StringRedisTemplate redisTemplate() {
+    /**
+     * 按 Codec 的 key、field 序列化器装配模板。
+     *
+     * 注意：值统一按 UTF-8 字符串传输，格式由 {@link RedisCodec#encode} 和 {@link RedisCodec#decode} 承担；
+     * key 前缀由 Codec 的 key 序列化器携带，本类不再叠加。
+     */
+    private static RedisTemplate<String, String> createRedisTemplate(
+            final RedisConnectionFactory connectionFactory, final RedisCodec codec, final RedisKeyPrefix keyPrefix) {
+        final RedisTemplate<String, String> template = new RedisTemplate<>();
+        template.setConnectionFactory(Objects.requireNonNull(connectionFactory, "connectionFactory"));
+        template.setKeySerializer(codec.keySerializer(Objects.requireNonNull(keyPrefix, "keyPrefix")));
+        template.setHashKeySerializer(codec.hashKeySerializer());
+        template.setValueSerializer(StringRedisSerializer.UTF_8);
+        template.setHashValueSerializer(StringRedisSerializer.UTF_8);
+        template.afterPropertiesSet();
+        return template;
+    }
+
+    /** 返回本入口使用的模板，key 已带服务前缀。 */
+    public RedisTemplate<String, String> redisTemplate() {
         return this.redisTemplate;
     }
 

@@ -11,8 +11,8 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
 import org.jspecify.annotations.Nullable;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.SetOperations;
-import org.springframework.data.redis.core.StringRedisTemplate;
 
 /** 基于字符串 RedisTemplate 执行 Set JSON 操作。
  *
@@ -20,17 +20,17 @@ import org.springframework.data.redis.core.StringRedisTemplate;
  */
 public final class SetRedisOperations {
 
-    private final StringRedisTemplate redisTemplate;
+    private final RedisTemplate<String, String> redisTemplate;
     private final SetOperations<String, String> setOperations;
     private final RedisCodec codec;
 
     /** 使用标准 JSON Codec 创建 Set 操作入口。 */
-    public SetRedisOperations(final StringRedisTemplate redisTemplate) {
+    public SetRedisOperations(final RedisTemplate<String, String> redisTemplate) {
         this(redisTemplate, JsonRedisCodec.INSTANCE);
     }
 
     /** 使用指定 Codec 创建 Set 操作入口。 */
-    public SetRedisOperations(final StringRedisTemplate redisTemplate, final RedisCodec codec) {
+    public SetRedisOperations(final RedisTemplate<String, String> redisTemplate, final RedisCodec codec) {
         this.redisTemplate = Objects.requireNonNull(redisTemplate, "redisTemplate");
         this.codec = Objects.requireNonNull(codec, "codec");
         this.setOperations = this.redisTemplate.opsForSet();

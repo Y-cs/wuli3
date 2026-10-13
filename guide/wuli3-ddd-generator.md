@@ -123,6 +123,23 @@ shared-kernel -> domain / api -> app -> infra
 因此不建议使用 `forbidden-apis` 实现该规则。`forbidden-apis` 适合固定类或方法黑名单，不能表达“App 只有输出端口可被 Infra
 依赖”的包级白名单。应用服务实现默认放在 `app.internal` 且保持 package-private，形成 Java 可见性和 ArchUnit 的双重约束。
 
+## Git 钩子
+
+生成工程自带 `.githooks/pre-commit`，通过 `core.hooksPath` 生效，不写入不参与版本管理的 `.git/hooks`。
+钩子对暂存文件执行 `spotlessApply` 并把格式化结果重新加入索引，随后执行 `forbiddenApis`；
+单元测试、Error Prone、NullAway 和架构门禁由 `./gradlew check` 承担，放在 CI。
+
+注意：`core.hooksPath` 保存在 `.git/config`，不随 clone 传输。为了让未手工配置的开发者也能用上钩子，
+根工程注册了 `installGitHooks` 任务并挂到 `check` 与 `assemble`，执行 `./gradlew check`、`./gradlew build`
+或 `./gradlew assemble` 时会自动对齐配置；也可单独执行：
+
+```bash
+./gradlew installGitHooks
+```
+
+任务只在 `.git` 存在且当前值不一致时写入，未找到 `.git` 时打印提示并跳过。生成器本身也会在生成时执行一次
+`git init` 与同样的配置。
+
 ## 验证
 
 ```bash

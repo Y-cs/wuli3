@@ -8,7 +8,7 @@ import com.kjs.wuli3.redis.codec.RedisCodec;
 import java.time.Duration;
 import java.util.Objects;
 import java.util.Optional;
-import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 
 /** 基于 Redis String 执行类型安全的结构化对象操作。
@@ -21,12 +21,12 @@ public final class ObjectRedisOperations {
     private final RedisCodec codec;
 
     /** 使用标准 JSON Codec 创建对象操作入口。 */
-    public ObjectRedisOperations(final StringRedisTemplate redisTemplate) {
+    public ObjectRedisOperations(final RedisTemplate<String, String> redisTemplate) {
         this(redisTemplate, JsonRedisCodec.INSTANCE);
     }
 
     /** 使用指定 Codec 创建对象操作入口。 */
-    public ObjectRedisOperations(final StringRedisTemplate redisTemplate, final RedisCodec codec) {
+    public ObjectRedisOperations(final RedisTemplate<String, String> redisTemplate, final RedisCodec codec) {
         this.codec = Objects.requireNonNull(codec, "codec");
         this.valueOperations =
                 Objects.requireNonNull(redisTemplate, "redisTemplate").opsForValue();

@@ -2,9 +2,14 @@ package com.kjs.wuli3.generator;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -74,7 +79,9 @@ final class DddGeneratorTest {
                 .contains(
                         "kotlin-conventions\") version \"4.5.6\"",
                         "com.kjs.wuli3.kotlin-spring-conventions",
-                        "com.kjs.wuli3.kotlin-conventions")
+                        "com.kjs.wuli3.kotlin-conventions",
+                        "core.hooksPath",
+                        "\".githooks\"")
                 .doesNotContain("JavaPluginExtension", "JavaLanguageVersion", "tasks.withType<JavaCompile>");
         assertThat(Files.readString(root.resolve("gradle.properties")))
                 .contains(
@@ -218,4 +225,96 @@ final class DddGeneratorTest {
                 .hasMessageContaining("目标目录非空");
         assertThat(root.resolve("owned-by-user.txt")).hasContent("keep");
     }
+
+    /** 验证生成结果已初始化为 git 仓库，钩子落盘可执行且 core.hooksPath 指向版本化目录。 */
+    @Test
+    void initializesGitRepositoryWithVersionedHooks() throws Exception {
+        assumeTrue(DddGeneratorTest.gitAvailable(), "本机无 git，跳过仓库与钩子断言");
+
+        DddGenerator.main(new String[] {
+            "generate",
+            "--service",
+            "order-service",
+            "--package",
+            "com.example.order",
+            "--domain",
+            "order",
+            "--output",
+            this.output.toString()
+        });
+
+        final Path root = this.output.resolve("order-service");
+        assertThat(root.resolve(".git")).isDirectory();
+        assertThat(root.resolve(".githooks/pre-commit")).isExecutable();
+        assertThat(DddGeneratorTest.git(root, "config", "--get", "core.hooksPath")
+                        .output())
+                .isEqualTo(".githooks");
+        assertThat(Files.readString(root.resolve(".githooks/pre-commit")))
+                .contains(
+                        "./gradlew spotlessApply",
+                        "./gradlew forbiddenApis",
+                        "git add --",
+                        "core.hooksPath",
+                        "--no-verify")
+                .doesNotContain("{{");
+    }
+
+    /** 验证祖先目录已是 git 仓库时不创建嵌套仓库，也不改写其 core.hooksPath。 */
+    @Test
+    void skipsGitInitializationInsideExistingRepository() throws Exception {
+        assumeTrue(DddGeneratorTest.gitAvailable(), "本机无 git，跳过仓库与钩子断言");
+
+        final Path outer = Files.createDirectories(this.output.resolve("outer"));
+        assertThat(DddGeneratorTest.git(outer, "init").exitCode()).isZero();
+
+        DddGenerator.main(new String[] {
+            "generate",
+            "--service",
+            "order-service",
+            "--package",
+            "com.example.order",
+            "--domain",
+            "order",
+            "--output",
+            outer.toString()
+        });
+
+        final Path root = outer.resolve("order-service");
+        assertThat(root.resolve(".git")).doesNotExist();
+        assertThat(root.resolve(".githooks/pre-commit")).isExecutable();
+        assertThat(DddGeneratorTest.git(outer, "config", "--get", "core.hooksPath")
+                        .output())
+                .isEmpty();
+    }
+
+    /** git 是否可用；缺失时相关断言跳过而非失败。 */
+    private static boolean gitAvailable() {
+        try {
+            return new ProcessBuilder("git", "--version")
+                            .redirectErrorStream(true)
+                            .start()
+                            .waitFor()
+                    == 0;
+        } catch (final IOException exception) {
+            return false;
+        } catch (final InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            return false;
+        }
+    }
+
+    /** 在指定目录执行 git，返回退出码与合并后的标准输出。 */
+    private static GitResult git(final Path directory, final String... arguments) throws Exception {
+        final List<String> command = new ArrayList<>();
+        command.add("git");
+        command.addAll(List.of(arguments));
+        final Process process = new ProcessBuilder(command)
+                .directory(directory.toFile())
+                .redirectErrorStream(true)
+                .start();
+        final String output = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8).strip();
+        return new GitResult(process.waitFor(), output);
+    }
+
+    private record GitResult(int exitCode, String output) {}
 }

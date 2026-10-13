@@ -1,7 +1,9 @@
 package com.kjs.wuli3.redis;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import com.kjs.wuli3.redis.autoconfigure.RedisAutoConfiguration;
 import com.kjs.wuli3.redis.autoconfigure.RedisProperties;
@@ -12,21 +14,28 @@ import com.kjs.wuli3.redis.operation.HashRedisOperations;
 import com.kjs.wuli3.redis.operation.ObjectRedisOperations;
 import com.kjs.wuli3.redis.operation.SetRedisOperations;
 import com.kjs.wuli3.redis.operation.StringRedisOperations;
+import java.nio.charset.StandardCharsets;
+import java.util.Objects;
 import org.junit.jupiter.api.Test;
 import org.redisson.api.RedissonClient;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
+import org.springframework.data.redis.connection.RedisConnectionFactory;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.serializer.RedisSerializer;
+import org.springframework.data.redis.serializer.StringRedisSerializer;
 
 class RedisAutoConfigurationTest {
 
-    private final ApplicationContextRunner contextRunner =
-            new ApplicationContextRunner().withConfiguration(AutoConfigurations.of(RedisAutoConfiguration.class));
+    private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
+            .withConfiguration(AutoConfigurations.of(RedisAutoConfiguration.class))
+            .withPropertyValues("spring.application.name=order-service");
 
     @Test
     void createsDefaultInfrastructureBeansWhenClientsAreAvailable() {
         this.contextRunner
-                .withBean(StringRedisTemplate.class, () -> mock(StringRedisTemplate.class))
+                .withBean(RedisConnectionFactory.class, () -> mock(RedisConnectionFactory.class))
                 .withBean(RedissonClient.class, () -> mock(RedissonClient.class))
                 .run(context -> {
                     assertThat(context).hasSingleBean(RedisProperties.class);
@@ -62,7 +71,7 @@ class RedisAutoConfigurationTest {
     @Test
     void allowsOperationsAndLockFeaturesToBeDisabledIndependently() {
         this.contextRunner
-                .withBean(StringRedisTemplate.class, () -> mock(StringRedisTemplate.class))
+                .withBean(RedisConnectionFactory.class, () -> mock(RedisConnectionFactory.class))
                 .withBean(RedissonClient.class, () -> mock(RedissonClient.class))
                 .withPropertyValues("wuli3.redis.operations.enabled=false", "wuli3.redis.lock.enabled=false")
                 .run(context -> {
@@ -84,7 +93,7 @@ class RedisAutoConfigurationTest {
         final RedisSupport redisSupport = mock(RedisSupport.class);
         final RedisLockExecutor lockExecutor = mock(RedisLockExecutor.class);
         this.contextRunner
-                .withBean(StringRedisTemplate.class, () -> mock(StringRedisTemplate.class))
+                .withBean(RedisConnectionFactory.class, () -> mock(RedisConnectionFactory.class))
                 .withBean(RedissonClient.class, () -> mock(RedissonClient.class))
                 .withBean(RedisSupport.class, () -> redisSupport)
                 .withBean(RedisLockExecutor.class, () -> lockExecutor)
@@ -97,12 +106,52 @@ class RedisAutoConfigurationTest {
     @Test
     void usesApplicationProvidedCodec() {
         final RedisCodec codec = mock(RedisCodec.class);
+        when(codec.keySerializer(any(RedisKeyPrefix.class))).thenReturn(StringRedisSerializer.UTF_8);
+        when(codec.hashKeySerializer()).thenReturn(StringRedisSerializer.UTF_8);
         this.contextRunner
-                .withBean(StringRedisTemplate.class, () -> mock(StringRedisTemplate.class))
+                .withBean(RedisConnectionFactory.class, () -> mock(RedisConnectionFactory.class))
                 .withBean(RedisCodec.class, () -> codec)
                 .run(context -> {
                     assertThat(context.getBean(RedisCodec.class)).isSameAs(codec);
                     assertThat(context.getBean(RedisSupport.class).codec()).isSameAs(codec);
                 });
+    }
+
+    @Test
+    void ignoresApplicationTemplateSerializersAndAppliesTheServicePrefix() {
+        final StringRedisTemplate applicationTemplate = new StringRedisTemplate(mock(RedisConnectionFactory.class));
+        applicationTemplate.setValueSerializer(new StringRedisSerializer(StandardCharsets.UTF_16));
+        final RedisConnectionFactory connectionFactory = mock(RedisConnectionFactory.class);
+        this.contextRunner
+                .withBean(StringRedisTemplate.class, () -> applicationTemplate)
+                .withBean(RedisConnectionFactory.class, () -> connectionFactory)
+                .run(context -> {
+                    final RedisTemplate<String, String> template =
+                            context.getBean(RedisSupport.class).redisTemplate();
+
+                    assertThat(template).isNotSameAs(applicationTemplate);
+                    assertThat(template.getConnectionFactory()).isSameAs(connectionFactory);
+                    assertThat(template.getValueSerializer()).isSameAs(StringRedisSerializer.UTF_8);
+                    assertThat(RedisAutoConfigurationTest.keySerializer(template)
+                                    .serialize("orders:1"))
+                            .isEqualTo("order-service:orders:1".getBytes(StandardCharsets.UTF_8));
+                    assertThat(RedisAutoConfigurationTest.keySerializer(applicationTemplate)
+                                    .serialize("orders:1"))
+                            .isEqualTo("orders:1".getBytes(StandardCharsets.UTF_8));
+                });
+    }
+
+    @Test
+    void failsWithoutAnApplicationName() {
+        new ApplicationContextRunner()
+                .withConfiguration(AutoConfigurations.of(RedisAutoConfiguration.class))
+                .withBean(RedisConnectionFactory.class, () -> mock(RedisConnectionFactory.class))
+                .run(context ->
+                        assertThat(context).hasFailed().getFailure().hasMessageContaining("spring.application.name"));
+    }
+
+    @SuppressWarnings("unchecked")
+    private static RedisSerializer<String> keySerializer(final RedisTemplate<String, String> template) {
+        return (RedisSerializer<String>) Objects.requireNonNull(template.getKeySerializer(), "keySerializer");
     }
 }

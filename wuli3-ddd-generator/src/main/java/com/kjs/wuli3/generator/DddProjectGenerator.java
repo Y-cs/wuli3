@@ -36,6 +36,7 @@ final class DddProjectGenerator {
             file("root/Dockerfile.tpl", "Dockerfile"),
             file("root/dockerignore.tpl", ".dockerignore"),
             file("root/gitignore.tpl", ".gitignore"),
+            file("root/githooks/pre-commit.tpl", ".githooks/pre-commit"),
             file("root/generation.properties.tpl", ".wuli3/generation.properties"),
             // shared-kernel
             file("shared-kernel/shared-kernel.gradle.kts.tpl", "shared-kernel/build.gradle.kts"),
@@ -114,6 +115,12 @@ final class DddProjectGenerator {
             "wrapper/gradle-wrapper.jar", "gradle/wrapper/gradle-wrapper.jar",
             "wrapper/gradle-wrapper.properties", "gradle/wrapper/gradle-wrapper.properties");
 
+    /** 生成后需要可执行位的脚本，相对生成根目录。 */
+    private static final List<String> EXECUTABLE_FILES = List.of("gradlew", ".githooks/pre-commit");
+
+    /** 版本化钩子目录，通过 core.hooksPath 生效，避免写入不参与版本管理的 .git/hooks。 */
+    private static final String GIT_HOOKS_PATH = ".githooks";
+
     /** 生成工程并返回工程根目录。 */
     Path generate(final GeneratorOptions options) throws IOException {
         final Path root = options.output().resolve(options.service()).normalize();
@@ -131,8 +138,66 @@ final class DddProjectGenerator {
         for (final Map.Entry<String, String> wrapper : DddProjectGenerator.WRAPPER_FILES.entrySet()) {
             this.copyResource(root, wrapper.getKey(), wrapper.getValue());
         }
-        this.makeExecutable(root.resolve("gradlew"));
+        for (final String script : DddProjectGenerator.EXECUTABLE_FILES) {
+            this.makeExecutable(root.resolve(script));
+        }
+        this.initGitRepository(root);
         return root;
+    }
+
+    /**
+     * 在生成根目录初始化 git 仓库并启用版本化钩子目录。
+     *
+     * 注意：祖先目录已是 git 仓库时不做任何写入，避免嵌套仓库或改写父仓库的 core.hooksPath；
+     * git 不可用或命令失败只提示，不影响已生成的工程内容。
+     */
+    private void initGitRepository(final Path root) {
+        if (this.hasAncestorRepository(root)) {
+            System.out.println("祖先目录已存在 git 仓库，跳过 git init 与钩子配置：" + root);
+            return;
+        }
+        if (this.runGit(root, "init")
+                && this.runGit(root, "config", "core.hooksPath", DddProjectGenerator.GIT_HOOKS_PATH)) {
+            return;
+        }
+        System.out.println(
+                "git 不可用或执行失败，请在 " + root + " 手动执行 git config core.hooksPath " + DddProjectGenerator.GIT_HOOKS_PATH);
+    }
+
+    /** 判断任一祖先目录是否已经是 git 仓库。 */
+    private boolean hasAncestorRepository(final Path root) {
+        for (Path current = root.toAbsolutePath().getParent(); current != null; current = current.getParent()) {
+            if (Files.isDirectory(current.resolve(".git"))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** 在指定目录执行 git 子命令，失败时打印命令输出并返回 false。 */
+    private boolean runGit(final Path directory, final String... arguments) {
+        final List<String> command = new ArrayList<>();
+        command.add("git");
+        command.addAll(List.of(arguments));
+        try {
+            final Process process = new ProcessBuilder(command)
+                    .directory(directory.toFile())
+                    .redirectErrorStream(true)
+                    .start();
+            final String output = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+            if (process.waitFor() != 0) {
+                System.out.println("git " + String.join(" ", arguments) + " 失败：" + output.strip());
+                return false;
+            }
+            return true;
+        } catch (final IOException exception) {
+            System.out.println("无法执行 git：" + exception.getMessage());
+            return false;
+        } catch (final InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            System.out.println("git 执行被中断");
+            return false;
+        }
     }
 
     private void requireWritableTarget(final Path root) throws IOException {
