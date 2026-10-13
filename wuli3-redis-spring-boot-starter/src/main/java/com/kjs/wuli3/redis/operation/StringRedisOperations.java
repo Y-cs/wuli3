@@ -5,19 +5,19 @@ import com.kjs.wuli3.redis.RedisKey;
 import java.time.Duration;
 import java.util.Objects;
 import java.util.Optional;
-import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 
-/** 基于 StringRedisTemplate 执行 Redis String 操作。
+/** 基于字符串 RedisTemplate 执行 Redis String 操作。
  *
  * @author GuoYang create on 2026/8/17 11:53
  */
 public final class StringRedisOperations {
 
-    private final StringRedisTemplate redisTemplate;
+    private final RedisTemplate<String, String> redisTemplate;
     private final ValueOperations<String, String> valueOperations;
 
-    public StringRedisOperations(final StringRedisTemplate redisTemplate) {
+    public StringRedisOperations(final RedisTemplate<String, String> redisTemplate) {
         this.redisTemplate = Objects.requireNonNull(redisTemplate, "redisTemplate");
         this.valueOperations = this.redisTemplate.opsForValue();
     }

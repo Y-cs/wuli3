@@ -11,7 +11,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import org.springframework.data.redis.core.HashOperations;
-import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.RedisTemplate;
 
 /** 基于字符串 RedisTemplate 执行 Hash JSON 操作。
  *
@@ -19,17 +19,17 @@ import org.springframework.data.redis.core.StringRedisTemplate;
  */
 public final class HashRedisOperations {
 
-    private final StringRedisTemplate redisTemplate;
+    private final RedisTemplate<String, String> redisTemplate;
     private final HashOperations<String, String, String> hashOperations;
     private final RedisCodec codec;
 
     /** 使用标准 JSON Codec 创建 Hash 操作入口。 */
-    public HashRedisOperations(final StringRedisTemplate redisTemplate) {
+    public HashRedisOperations(final RedisTemplate<String, String> redisTemplate) {
         this(redisTemplate, JsonRedisCodec.INSTANCE);
     }
 
     /** 使用指定 Codec 创建 Hash 操作入口。 */
-    public HashRedisOperations(final StringRedisTemplate redisTemplate, final RedisCodec codec) {
+    public HashRedisOperations(final RedisTemplate<String, String> redisTemplate, final RedisCodec codec) {
         this.redisTemplate = Objects.requireNonNull(redisTemplate, "redisTemplate");
         this.codec = Objects.requireNonNull(codec, "codec");
         this.hashOperations = this.redisTemplate.opsForHash();

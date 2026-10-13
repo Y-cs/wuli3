@@ -2,6 +2,8 @@ package com.kjs.wuli3.redis;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -11,30 +13,30 @@ import com.kjs.wuli3.redis.operation.HashRedisOperations;
 import com.kjs.wuli3.redis.operation.ObjectRedisOperations;
 import com.kjs.wuli3.redis.operation.SetRedisOperations;
 import com.kjs.wuli3.redis.operation.StringRedisOperations;
-import java.time.Duration;
-import java.util.List;
+import java.nio.charset.StandardCharsets;
+import java.util.Objects;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.data.redis.core.ValueOperations;
+import org.springframework.data.redis.connection.RedisConnectionFactory;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.serializer.RedisSerializer;
+import org.springframework.data.redis.serializer.StringRedisSerializer;
 
 @ExtendWith(MockitoExtension.class)
 class RedisSupportTest {
 
     @Mock
-    private StringRedisTemplate redisTemplate;
-
-    @Mock
-    private ValueOperations<String, String> valueOperations;
+    private RedisConnectionFactory connectionFactory;
 
     private RedisSupport redisSupport;
 
     @BeforeEach
     void setUp() {
-        this.redisSupport = new RedisSupport(this.redisTemplate);
+        this.redisSupport =
+                new RedisSupport(this.connectionFactory, JsonRedisCodec.INSTANCE, RedisKeyPrefix.of("order-service"));
     }
 
     @Test
@@ -46,55 +48,45 @@ class RedisSupportTest {
     }
 
     @Test
-    void propagatesTheConfiguredCodecToStructuredOperations() {
-        final RedisCodec codec = org.mockito.Mockito.mock(RedisCodec.class);
-        when(this.redisTemplate.opsForValue()).thenReturn(this.valueOperations);
-        final RedisSupport support = new RedisSupport(this.redisTemplate, codec);
+    void buildsItsOwnTemplateOnTheGivenConnectionFactoryWithPrefixedKeys() {
+        final RedisTemplate<String, String> template = this.redisSupport.redisTemplate();
 
-        assertThat(support.codec()).isSameAs(codec);
-        assertThat(support.objectOperations()).isNotNull();
-        assertThat(support.hashOperations()).isNotNull();
-        assertThat(support.setOperations()).isNotNull();
-
-        when(codec.encode("value")).thenReturn("encoded-value");
-        support.objectOperations().set(RedisKey.persistent("codec:key"), "value");
-        verify(codec).encode("value");
-        verify(this.valueOperations).set("codec:key", "encoded-value");
+        assertThat(template.getConnectionFactory()).isSameAs(this.connectionFactory);
+        assertThat(RedisSupportTest.keySerializer(template).serialize("orders:1"))
+                .isEqualTo("order-service:orders:1".getBytes(StandardCharsets.UTF_8));
     }
 
     @Test
-    void usesJsonCodecByDefault() {
+    void installsTheKeyAndFieldSerializersProvidedByTheCodec() {
+        final RedisSerializer<String> codecKeySerializer = new StringRedisSerializer(StandardCharsets.UTF_16);
+        final RedisSerializer<String> hashKeySerializer = new StringRedisSerializer(StandardCharsets.UTF_16);
+        final RedisCodec codec = mock(RedisCodec.class);
+        when(codec.keySerializer(any(RedisKeyPrefix.class))).thenReturn(codecKeySerializer);
+        when(codec.hashKeySerializer()).thenReturn(hashKeySerializer);
+
+        final RedisTemplate<String, String> template =
+                new RedisSupport(this.connectionFactory, codec, RedisKeyPrefix.of("order-service")).redisTemplate();
+
+        assertThat(template.getKeySerializer()).isSameAs(codecKeySerializer);
+        assertThat(template.getHashKeySerializer()).isSameAs(hashKeySerializer);
+        assertThat(template.getValueSerializer()).isSameAs(StringRedisSerializer.UTF_8);
+        assertThat(template.getHashValueSerializer()).isSameAs(StringRedisSerializer.UTF_8);
+        verify(codec).keySerializer(RedisKeyPrefix.of("order-service"));
+    }
+
+    @Test
+    void keepsTheCodecAvailableToStructuredOperations() {
         assertThat(this.redisSupport.codec()).isSameAs(JsonRedisCodec.INSTANCE);
-    }
-
-    @Test
-    void deletesSingleAndMultipleKeys() {
-        final RedisKey first = RedisKey.persistent("orders:1");
-        final RedisKey second = RedisKey.persistent("orders:2");
-        when(this.redisTemplate.delete(first.value())).thenReturn(Boolean.TRUE);
-        when(this.redisTemplate.delete(List.of(first.value(), second.value()))).thenReturn(2L);
-
-        assertThat(this.redisSupport.delete(first)).isTrue();
-        assertThat(this.redisSupport.delete(List.of(first, second))).isEqualTo(2L);
-    }
-
-    @Test
-    void checksExistenceAndUpdatesExpiration() {
-        final Duration timeToLive = Duration.ofMinutes(5);
-        final RedisKey key = RedisKey.expiring("orders:1", timeToLive);
-        when(this.redisTemplate.hasKey(key.value())).thenReturn(Boolean.TRUE);
-        when(this.redisTemplate.expire(key.value(), timeToLive)).thenReturn(Boolean.TRUE);
-
-        assertThat(this.redisSupport.exists(key)).isTrue();
-        assertThat(this.redisSupport.expire(key)).isTrue();
-        assertThat(this.redisSupport.expire(key.value(), timeToLive)).isTrue();
-
-        verify(this.redisTemplate, org.mockito.Mockito.times(2)).expire(key.value(), timeToLive);
     }
 
     @Test
     void rejectsExpiringPersistentKeys() {
         assertThatThrownBy(() -> this.redisSupport.expire(RedisKey.persistent("orders:1")))
                 .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static RedisSerializer<String> keySerializer(final RedisTemplate<String, String> template) {
+        return (RedisSerializer<String>) Objects.requireNonNull(template.getKeySerializer(), "keySerializer");
     }
 }

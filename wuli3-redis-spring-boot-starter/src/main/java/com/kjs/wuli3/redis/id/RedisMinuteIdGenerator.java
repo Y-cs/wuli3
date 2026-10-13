@@ -9,7 +9,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicLong;
-import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.data.redis.core.script.RedisScript;
 
@@ -32,7 +32,7 @@ public final class RedisMinuteIdGenerator implements IdGenerator<Long> {
             return sequence
             """, Long.class);
 
-    private final StringRedisTemplate redisTemplate;
+    private final RedisTemplate<String, String> redisTemplate;
     private final String namespace;
     private final Clock clock;
     private final long counterTtlMillis;
@@ -41,17 +41,18 @@ public final class RedisMinuteIdGenerator implements IdGenerator<Long> {
     private final AtomicLong latestEpochMinute = new AtomicLong(-1L);
 
     /** 使用默认 24 小时计数器 TTL 和 22 位分钟内序列创建生成器。 */
-    public RedisMinuteIdGenerator(final StringRedisTemplate redisTemplate, final String namespace) {
+    public RedisMinuteIdGenerator(final RedisTemplate<String, String> redisTemplate, final String namespace) {
         this(redisTemplate, namespace, Clock.systemUTC(), DEFAULT_COUNTER_TTL, DEFAULT_SEQUENCE_BITS);
     }
 
+    /** 使用 RedisSupport 的模板创建生成器，counter key 会带上 RedisSupport 的服务前缀。 */
     public RedisMinuteIdGenerator(final RedisSupport redisSupport, final String namespace) {
         this(redisSupport.redisTemplate(), namespace, Clock.systemUTC(), DEFAULT_COUNTER_TTL, DEFAULT_SEQUENCE_BITS);
     }
 
     /** 使用可配置时钟、计数器 TTL 和序列位数创建生成器。 */
     public RedisMinuteIdGenerator(
-            final StringRedisTemplate redisTemplate,
+            final RedisTemplate<String, String> redisTemplate,
             final String namespace,
             final Clock clock,
             final Duration counterTtl,

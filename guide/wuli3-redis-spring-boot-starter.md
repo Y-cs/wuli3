@@ -16,6 +16,8 @@ dependencies {
 
 ```yaml
 spring:
+  application:
+    name: order-service
   data:
     redis:
       host: localhost
@@ -30,9 +32,51 @@ wuli3:
       enabled: true
 ```
 
-数据结构操作和锁默认开启。存在 `StringRedisTemplate` 时创建 `RedisSupport` Bean，存在 `RedissonClient` 时创建 `RedisLockExecutor` Bean。应用可以关闭功能，也可以声明同类型 Bean 替换默认实现。
+`spring.application.name` 是必填项，`RedisSupport` 用它作为 key 前缀，缺失时启动失败。
 
-结构化值编码通过 `RedisCodec` 集中配置。默认注册 `JsonRedisCodec`，使用 `wuli3-json` 的标准 `Jsons`；应用可以声明自己的 `RedisCodec` Bean，`RedisSupport` 会将它透传给对象、Hash value 和 Set member 操作。String 操作仍然保存原始字符串，不经过该 Codec。
+数据结构操作和锁默认开启。存在 `RedisConnectionFactory` 时创建 `RedisSupport` Bean，存在 `RedissonClient` 时创建 `RedisLockExecutor` Bean。应用可以关闭功能，也可以声明同类型 Bean 替换默认实现。
+
+## 序列化策略
+
+`RedisCodec` 划分了两条线：
+
+- **值线**：`encode`/`decode` 定义值与字符串之间的格式，写入和读取都经过这两个方法。值统一按 UTF-8 字符串传输，因此接口不提供值序列化器，同一条 schema 不会出现"序列化器 + 手工编解码"两套实现。
+- **名字线**：`keySerializer(RedisKeyPrefix)` 返回携带服务前缀的 key 序列化器，`hashKeySerializer()` 返回不带前缀的 field 序列化器。`RedisSupport` 按连接工厂、`RedisCodec` 和服务前缀创建自己的 `RedisTemplate`，直接安装这两个序列化器，不读取应用声明的 `StringRedisTemplate` 或 `RedisTemplate` 的配置。
+
+默认注册 `JsonRedisCodec`，值使用 `wuli3-json` 的标准 `Jsons`，两个序列化器都是 UTF-8 字符串序列化器。应用可以声明自己的 `RedisCodec` Bean 替换它，需要实现 `encode`、两个 `decode`、`keySerializer`、`hashKeySerializer`：
+
+```java
+@Bean
+RedisCodec redisCodec() {
+    return new ApplicationRedisCodec(); // 应用自定义实现
+}
+```
+
+- 值的 `encode` 结果是直接写入 Redis 的字符串，`decode` 按调用方给出的类型还原；`decode` 的类型参数是必需的，因为模板序列化器无法承载目标类型。
+- `keySerializer` 由实现负责把传入的服务前缀叠加到 key 上；选择自定义 Codec 意味着前缀的叠加方式也由实现决定。
+- 当前模板是 `RedisTemplate<String, String>`，`decode` 也是字符串入口；二进制值格式需要同时改造 `encode`/`decode` 的载荷类型和 ops 读路径。
+
+## 服务级 key 前缀
+
+`RedisSupport` 读写的 key 全部带 `spring.application.name` 前缀，用于隔离共用同一 Redis 实例的多个服务，不可关闭。
+
+前缀由 Codec 的 key 序列化器携带：`JsonRedisCodec` 用 `RedisKeyPrefix.KeySerializer` 在字符串序列化器之上叠加前缀，只改写 key，不改变字节编码方式。
+
+- 前缀固定取 `spring.application.name`，末尾的 `:` 会自动补齐，因此 `RedisKey.persistent("orders:1")` 实际写入 `order-service:orders:1`。
+- 只改写 key。Hash field、Set member 和写入的 value 不受影响。
+- 读取按库中完整 key 匹配，修改服务名后旧 key 不会被新前缀读到。
+- 覆盖范围：四组 operation、`delete`/`exists`/`expire`、以及用 `new RedisMinuteIdGenerator(redisSupport, namespace)` 构造的 ID 生成器，其 counter key 形如 `order-service:wuli3:id:{order}:<epochMinute>`。
+- 不覆盖：应用自行注入的 `StringRedisTemplate` 或 `RedisTemplate` 写的 key（它们各自保留原配置；`RedisSupport` 只是复用同一个 `RedisConnectionFactory` 并持有自己的模板）、`RedisLockExecutor` 的锁 key、Spring Cache（用 `spring.cache.redis.key-prefix`）和 Spring Session（用 `spring.session.redis.namespace`）。
+
+`RedisSupport` 只接受 `(RedisConnectionFactory, RedisCodec, RedisKeyPrefix)` 构造，前缀是必填参数，不存在不加前缀的构造方式。
+
+- 前缀固定取 `spring.application.name`，末尾的 `:` 会自动补齐，因此 `RedisKey.persistent("orders:1")` 实际写入 `order-service:orders:1`。
+- 只改写 key。Hash field、Set member 和写入的 value 不受影响。
+- 读取按库中完整 key 匹配，修改服务名后旧 key 不会被新前缀读到。
+- 覆盖范围：四组 operation、`delete`/`exists`/`expire`、以及用 `new RedisMinuteIdGenerator(redisSupport, namespace)` 构造的 ID 生成器，其 counter key 形如 `order-service:wuli3:id:{order}:<epochMinute>`。
+- 不覆盖：应用自行注入的 `StringRedisTemplate` 或 `RedisTemplate` 写的 key（它们各自保留原配置；`RedisSupport` 只是复用同一个 `RedisConnectionFactory` 并持有自己的模板）、`RedisLockExecutor` 的锁 key、Spring Cache（用 `spring.cache.redis.key-prefix`）和 Spring Session（用 `spring.session.redis.namespace`）。
+
+`RedisSupport` 只接受 `(RedisConnectionFactory, RedisCodec, RedisKeyPrefix)` 构造，前缀是必填参数，不存在不加前缀的构造方式。
 
 ## 统一入口
 
@@ -60,16 +104,8 @@ redisSupport.delete(RedisKey.persistent("orders:" + orderId));
 
 `ObjectRedisOperations` 默认使用 `RedisCodec` 的 `JsonRedisCodec` 实现，将值保存为 UTF-8 JSON 字符串。JSON 中不写入 Java 类名，读取时必须显式提供目标类型。
 
-如需切换结构化值格式，可以提供自定义 Codec：
-
-```java
-@Bean
-RedisCodec redisCodec() {
-    return new ApplicationRedisCodec(); // 应用自定义实现
-}
-```
-
-`RedisCodec` 的编码结果是保存到 `StringRedisTemplate` 的字符串；二进制格式需要由自定义实现自行转换为可保存的字符串。
+如需切换结构化值格式，可以按「序列化策略」一节提供自定义 `RedisCodec`。
+`RedisCodec` 的编码结果是写入 Redis 的字符串，二进制格式需要由自定义实现自行转换为可保存的字符串。
 更换 Codec 会改变 Redis value 的数据协议，不会自动兼容已有 key；生产切换前应使用新命名空间、双读迁移或提供兼容解码策略。
 
 读取到 Redis 中的 JSON 顶层值 `null` 时，`get` 返回 `Optional.empty()`；Hash 的 `entries` 和 Set 的 `members`
@@ -107,12 +143,14 @@ Hash field 和 Set member 的值使用 `RedisCodec` 编码，默认是普通 JSO
 
 ```java
 @Bean
-IdGenerator<Long> orderIdGenerator(final StringRedisTemplate redisTemplate) {
-    return new RedisMinuteIdGenerator(redisTemplate, "order");
+IdGenerator<Long> orderIdGenerator(final RedisSupport redisSupport) {
+    return new RedisMinuteIdGenerator(redisSupport, "order");
 }
 ```
 
-默认使用 22 位分钟内序列，每分钟最多生成 4,194,303 个 ID。Redis counter key 形如 `wuli3:id:{order}:<epochMinute>`，默认保留 24 小时。Lua 脚本原子执行 `INCR`，并在 key 没有过期时间时设置 TTL；TTL 不会在每次分配时刷新。
+默认使用 22 位分钟内序列，每分钟最多生成 4,194,303 个 ID。Redis counter key 形如 `order-service:wuli3:id:{order}:<epochMinute>`，其中 `order-service` 是 `RedisSupport` 添加的服务前缀，默认保留 24 小时。Lua 脚本原子执行 `INCR`，并在 key 没有过期时间时设置 TTL；TTL 不会在每次分配时刷新。
+
+传入 `RedisTemplate` 的构造器使用调用方提供的模板，不添加服务前缀。
 
 不同分钟使用不同 ID 高位和不同 Redis key。历史 key 被删除不会影响当前分钟；当前分钟 key 被删除后序列可能从 1 重新开始，因此重复风险被限制在该分钟内，但没有被完全消除。生成器还会拒绝当前实例内检测到的时钟回拨，并在分钟内序列耗尽时抛出 `RedisIdGenerationException`。
 
@@ -139,7 +177,8 @@ final OrderResult result = redisLockExecutor.execute(request, () -> submit(order
 
 - Redis ID 生成器只提供分钟时间片算法，不提供业务 ID 格式化或业务 key 模板。
 - 不修改 Spring Cache、`CacheManager` 或全局 Jackson `ObjectMapper`。
-- 不创建 `RedisConnectionFactory`、`StringRedisTemplate` 或 `RedissonClient`。
+- 不创建或替换 `RedisConnectionFactory`、应用声明的 `StringRedisTemplate`/`RedisTemplate` 和 `RedissonClient`；`RedisSupport` 只创建一个自己持有的 `RedisTemplate`，不作为 Bean 注册。
+- 不支持二进制值格式：模板类型和 `decode` 都是字符串入口，需要连同 ops 读路径一起改造。
 - 不提供连接失败降级、重试、熔断或业务异常转换。
 - 当前测试不启动真实 Redis；集群、故障转移和网络异常仍需业务集成测试覆盖。
 
