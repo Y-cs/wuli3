@@ -1,4 +1,4 @@
-package {{basePackage}}.infra.persistence;
+package {{basePackage}}.infra.persistence.{{domainPackage}}.entity;
 
 import {{basePackage}}.domain.{{domainPackage}}.{{domainType}};
 import {{basePackage}}.sharedkernel.EntityId;

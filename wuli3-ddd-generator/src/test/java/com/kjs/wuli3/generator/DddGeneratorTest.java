@@ -44,6 +44,13 @@ final class DddGeneratorTest {
         });
 
         final Path root = this.output.resolve("order-service");
+        assertThat(Files.readString(root.resolve("lombok.config")))
+                .isEqualTo("# 全局设置@EqualsAndHashCode的callSuper属性为true\n"
+                        + "lombok.equalsAndHashCode.callSuper = CALL\n"
+                        + "# 全局设置@ToString的callSuper属性为true\n"
+                        + "lombok.toString.callSuper = CALL\n"
+                        + "# 链式编程\n"
+                        + "lombok.accessors.chain=TRUE");
         assertThat(Files.readString(root.resolve("AGENTS.md")))
                 .contains(
                         "# order-service 项目协作规范",
@@ -59,7 +66,7 @@ final class DddGeneratorTest {
                         "./gradlew clean check",
                         "git add <path>",
                         "yyyy/M/d HH:mm")
-                .doesNotContain("{{", "/Users/", "OMX", "com.kjs.wuli3.generator");
+                .doesNotContain("{{", "/Users/", "OMX", "com.kjs.wuli3.generator", "kotlin", "Kotlin");
         assertThat(root.resolve("gradlew")).isExecutable();
         assertThat(Files.readString(root.resolve("settings.gradle.kts")))
                 .contains(
@@ -71,41 +78,51 @@ final class DddGeneratorTest {
                         "\"adapter\"",
                         "\"bootstrap\"");
         assertThat(Files.readString(root.resolve("shared-kernel/build.gradle.kts")))
-                .contains("wuli3-core", "verifySharedKernelDependencies", "allowedSharedKernelDependencies")
-                .doesNotContain("spring", "project(\"", "`java-library`");
+                .contains("wuli3-core")
+                .doesNotContain(
+                        "spring",
+                        "project(\"",
+                        "`java-library`",
+                        "kotlin",
+                        "tasks.register",
+                        "allowedSharedKernelDependencies");
+        assertThat(Files.readString(root.resolve("shared-kernel/build.gradle.kts")))
+                .doesNotContain("ddd-conventions");
+        assertThat(Files.readString(root.resolve("build.gradle.kts"))).contains("ddd-conventions");
         assertThat(root.resolve("shared-kernel/src/test/java/com/example/order/sharedkernel/SharedKernelTest.java"))
                 .exists();
+        assertThat(root.resolve(
+                        "shared-kernel/src/test/java/com/example/order/architecture/SharedKernelArchitectureTest.java"))
+                .doesNotExist();
         assertThat(Files.readString(root.resolve("build.gradle.kts")))
                 .contains(
-                        "kotlin-conventions\") version \"4.5.6\"",
-                        "com.kjs.wuli3.kotlin-spring-conventions",
-                        "com.kjs.wuli3.kotlin-conventions",
+                        "java-conventions\") version \"4.5.6\"",
+                        "com.kjs.wuli3.spring-conventions",
+                        "com.kjs.wuli3.java-conventions",
                         "core.hooksPath",
                         "\".githooks\"")
-                .doesNotContain("JavaPluginExtension", "JavaLanguageVersion", "tasks.withType<JavaCompile>");
+                .doesNotContain("JavaPluginExtension", "JavaLanguageVersion", "tasks.withType<JavaCompile>", "kotlin");
         assertThat(Files.readString(root.resolve("gradle.properties")))
                 .contains(
                         "wuli3.version=1.2.3",
                         "wuli3.conventions.bom-coordinates=com.kjs.wuli3:wuli3-dependencies:1.2.3",
                         "wuli3.conventions.jacoco.verification.enabled=false");
         assertThat(Files.readString(root.resolve("README.md")))
-                .contains("src/main/kotlin", "spotlessKotlinCheck", "kotlin-spring-conventions");
+                .contains("src/main/java", "src/test/java", "java-conventions", "spring-conventions")
+                .doesNotContain("kotlin", "Kotlin");
         assertThat(Files.readString(root.resolve("domain/build.gradle.kts")))
                 .contains("api(project(\":shared-kernel\"))")
                 .doesNotContain("plugins", "java-library");
         assertThat(Files.readString(root.resolve("infra/build.gradle.kts")))
-                .contains("project(\":app\")", "project(\":domain\")", "archunit-junit5")
+                .contains("project(\":app\")", "project(\":domain\")")
                 .doesNotContain("wuli3-mysql");
+        assertThat(root.resolve("infra/src/test/java/com/example/order/architecture/InfraArchitectureTest.java"))
+                .doesNotExist();
         assertThat(Files.readString(
-                        root.resolve("infra/src/test/java/com/example/order/architecture/InfraArchitectureTest.java")))
-                .contains("..app.port.out..", "onlyDependOnClassesThat()", "APP_OUTPUT_PORTS_ARE_INTERFACES")
-                .doesNotContain("..app.internal..");
-        assertThat(Files.readString(
-                        root.resolve("app/src/main/java/com/example/order/app/internal/OrderApplicationService.java")))
-                .contains("final class OrderApplicationService")
-                .doesNotContain("public final class OrderApplicationService");
+                        root.resolve("app/src/main/java/com/example/order/app/service/order/OrderQueryService.java")))
+                .contains("public class OrderQueryService");
         assertThat(Files.readString(root.resolve(".wuli3/generation.properties")))
-                .contains("template.version=1.0.0", "persistence=none", "messaging=none");
+                .contains("template.version=2.0.0", "persistence=none", "messaging=none");
     }
 
     /** 验证基础设施选项只修改 Infra 组合并生成对应持久化类型。 */
@@ -130,31 +147,131 @@ final class DddGeneratorTest {
         final Path root = this.output.resolve("catalog-service");
         assertThat(Files.readString(root.resolve("infra/build.gradle.kts")))
                 .contains("wuli3-mysql-spring-boot-starter", "wuli3-rocketmq-spring-boot-starter");
-        assertThat(root.resolve("infra/src/main/java/com/example/catalog/infra/persistence/ProductCatalogMapper.java"))
+        assertThat(root.resolve("infra/src/main/java/com/example/catalog/infra/persistence/product_catalog/"
+                        + "mapper/ProductCatalogMapper.java"))
                 .exists();
         assertThat(root.resolve("domain/src/main/java/com/example/catalog/domain/product_catalog/ProductCatalog.java"))
                 .exists();
-        assertThat(
-                        Files.readString(
-                                root.resolve(
-                                        "infra/src/main/java/com/example/catalog/infra/persistence/ProductCatalogRepositoryAdapter.java")))
+        assertThat(Files.readString(
+                        root.resolve("infra/src/main/java/com/example/catalog/infra/persistence/product_catalog/"
+                                + "ProductCatalogRepositoryImpl.java")))
                 .contains(
-                        "public class ProductCatalogRepositoryAdapter",
+                        "public class ProductCatalogRepositoryImpl",
                         "private final ProductCatalogMapper mapper",
                         "this.mapper.selectById")
-                .doesNotContain("public final class ProductCatalogRepositoryAdapter");
+                .doesNotContain("public final class ProductCatalogRepositoryImpl");
+        assertThat(Files.readString(root.resolve("infra/src/main/java/com/example/catalog/infra/config/"
+                        + "ProductCatalogPersistenceConfiguration.java")))
+                .contains(
+                        "@MapperScan(basePackageClasses = ProductCatalogMapper.class)",
+                        "@Configuration(proxyBeanMethods = false)");
+        assertThat(Files.readString(
+                        root.resolve("infra/src/main/java/com/example/catalog/infra/persistence/product_catalog/"
+                                + "ProductCatalogQueryRepositoryImpl.java")))
+                .contains("implements ProductCatalogQueryRepository", "this.mapper.selectById")
+                .doesNotContain("domain.product_catalog", "ProductCatalogRepository");
         assertThat(Files.readString(root.resolve("bootstrap/src/main/resources/application.yml")))
                 .contains("name: catalog-service", "service-code: catalog-service")
                 .doesNotContain("generator:", "messaging:");
         assertThat(Files.readString(
                         root.resolve("bootstrap/src/test/java/com/example/catalog/BootstrapApplicationTest.java")))
                 .contains(
-                        "import com.example.catalog.infra.persistence.ProductCatalogMapper;",
+                        "import com.example.catalog.infra.persistence.product_catalog.mapper.ProductCatalogMapper;",
                         "@MockitoBean(types = ProductCatalogMapper.class)",
+                        "application.persistence.enabled=false",
                         "@ImportAutoConfiguration(",
                         "exclude = {",
                         "DataSourceAutoConfiguration.class",
                         "JdbcTemplateAutoConfiguration.class");
+    }
+
+    /** 验证所有基础设施组合都保留包契约，且旧端口结构与模板占位符不再泄漏。 */
+    @ParameterizedTest
+    @CsvSource({"none, none", "none, rocketmq", "none, rabbitmq", "mysql, none", "mysql, rocketmq", "mysql, rabbitmq"})
+    void generatesDocumentedPackagesForEveryInfrastructureCombination(final String persistence, final String messaging)
+            throws Exception {
+        DddGenerator.main(new String[] {
+            "generate",
+            "--service",
+            "order-service",
+            "--package",
+            "com.example.order",
+            "--domain",
+            "order",
+            "--persistence",
+            persistence,
+            "--messaging",
+            messaging,
+            "--output",
+            this.output.toString()
+        });
+        final Path root = this.output.resolve("order-service");
+        for (final String packagePath : List.of(
+                "api/facade",
+                "api/dto/order",
+                "app/facade/order",
+                "app/service/order",
+                "app/repository/order",
+                "app/acl",
+                "adapter/api/order",
+                "adapter/mq",
+                "adapter/job",
+                "domain/order",
+                "infra/config",
+                "infra/acl",
+                "infra/persistence/order",
+                "sharedkernel")) {
+            final int separator = packagePath.indexOf('/');
+            final String module =
+                    packagePath.equals("sharedkernel") ? "shared-kernel" : packagePath.substring(0, separator);
+            final Path description =
+                    root.resolve(module + "/src/main/java/com/example/order/" + packagePath + "/package-info.java");
+            assertThat(description).isRegularFile();
+            assertThat(Files.readString(description))
+                    .contains("/**", "@author", "package com.example.order." + packagePath.replace('/', '.') + ";")
+                    .doesNotContain("{{");
+        }
+        assertThat(root.resolve("app/src/main/java/com/example/order/app/port")).doesNotExist();
+        assertThat(root.resolve("app/src/main/java/com/example/order/app/internal"))
+                .doesNotExist();
+        assertThat(root.resolve("adapter/src/main/java/com/example/order/adapter/in"))
+                .doesNotExist();
+        assertThat(root.resolve("api/src/main/java/com/example/order/api/facade/OrderFacade.java"))
+                .isRegularFile();
+        assertThat(root.resolve("app/src/main/java/com/example/order/app/facade/order/OrderFacadeImpl.java"))
+                .isRegularFile();
+        assertThat(Files.readString(
+                        root.resolve("app/src/main/java/com/example/order/app/facade/order/OrderFacadeImpl.java")))
+                .contains("implements OrderFacade", "this.service.status()")
+                .doesNotContain("QueryRepository", "Request", "Response");
+        assertThat(Files.readString(
+                        root.resolve("adapter/src/main/java/com/example/order/adapter/api/order/OrderApi.java")))
+                .contains("OrderQueryService", "this.service.status()")
+                .doesNotContain("OrderFacade", "QueryRepository");
+        assertThat(root.resolve("domain/src/main/java/com/example/order/domain/order/OrderRepository.java"))
+                .isRegularFile();
+        assertThat(root.resolve("adapter/src/main/java/com/example/order/adapter/api/order/OrderApi.java"))
+                .isRegularFile();
+        try (final var paths = Files.walk(root)) {
+            for (final Path path : paths.filter(Files::isRegularFile)
+                    .filter(file -> !file.startsWith(root.resolve(".git")))
+                    .filter(file -> !file.toString().endsWith(".jar"))
+                    .toList()) {
+                assertThat(Files.readString(path))
+                        .as("rendered file %s", root.relativize(path))
+                        .doesNotContain("{{", "}}");
+                if (path.toString().contains("/src/main/java/")
+                        && path.toString().endsWith(".java")) {
+                    assertThat(path.resolveSibling("package-info.java"))
+                            .as("package contract for %s", root.relativize(path))
+                            .isRegularFile();
+                }
+            }
+        }
+        final String infraBuild = Files.readString(root.resolve("infra/build.gradle.kts"));
+        assertThat(infraBuild.contains("wuli3-mysql-spring-boot-starter")).isEqualTo(persistence.equals("mysql"));
+        assertThat(infraBuild.contains("wuli3-rocketmq-spring-boot-starter")).isEqualTo(messaging.equals("rocketmq"));
+        assertThat(infraBuild.contains("wuli3-rabbitmq-spring-boot-starter")).isEqualTo(messaging.equals("rabbitmq"));
     }
 
     /** 验证关键字和字面量不能用于包名，且拒绝输入时不创建工程。 */

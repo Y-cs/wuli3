@@ -1,6 +1,6 @@
 package com.example.order;
 
-import com.example.order.infra.persistence.OrderMapper;
+import com.example.order.infra.persistence.order.mapper.OrderMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.ImportAutoConfiguration;
 import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
@@ -14,7 +14,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
  *
  * @author GuoYang create on 2026/9/7 15:30
  */
-@SpringBootTest
+@SpringBootTest(properties = "application.persistence.enabled=false")
 @MockitoBean(types = OrderMapper.class)
 @ImportAutoConfiguration(
         exclude = {

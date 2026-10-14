@@ -1,5 +1,7 @@
 # wuli3-ddd-generator 使用指南
 
+模块职责、业务开发与审查规范见 [DDD 领域驱动约定指南](ddd-conventions.md)。
+
 ## 用途
 
 `wuli3-ddd-generator` 用于生成单体多模块 DDD 服务。新工程通过制品库以命令行方式初始化，无需检出本仓库源码。生成结果是普通
@@ -89,39 +91,63 @@ shared-kernel -> domain / api -> app -> infra
                     infra / adapter -> bootstrap
 ```
 
-- `shared-kernel` 只依赖 `wuli3-core`，放置跨领域共享的状态、标识和类型约束。
-- `domain` 保存聚合、实体和值对象，只依赖 `shared-kernel`。
-- `api` 保存对外 Facade、Command/Query 和响应 DTO，只依赖 `shared-kernel`。
-- `app` 保存用例、应用服务以及 `port.in` / `port.out`。
-- `infra` 依赖 `app` 和 `domain`，但只能使用 `app.port.out`，实现仓储和外部系统适配。
-- `adapter` 依赖 `api` 和 `app`，负责 HTTP 等入站协议。
-- `bootstrap` 依赖 `infra` 和 `adapter`，只负责 Spring Boot 启动和组装。
+- `shared-kernel` 放置共享的状态、标识和稳定约定，允许 Wuli3 Core、必要的 JSpecify 注解与编译期 Lombok。
+- `domain` 按领域组织聚合、实体、值对象、规则与聚合仓储。
+- `api` 是内部 RPC 契约包，包含 `facade` 与按领域组织的 `dto`。
+- `app.service` 按领域分包、按业务职责拆类；`app.facade` 实现 Facade 并委托 Service。
+- `app.repository` 只定义 QueryRepository；`app.acl` 定义本地语义的外部业务能力。
+- `infra` 实现两类仓储与 ACL；`infra.config` 管理 Mapper 扫描和技术 Bean。
+- `adapter.api` 提供 HTTP 入口，类名以 Api 结尾；`adapter.mq`、`adapter.job` 提供消息消费与任务入口。
+- `bootstrap` 负责启动、配置选择和最终组装；RPC 发布机制由接入/组装层配置。
 
-根工程统一向子模块应用 Kotlin 约定插件：`domain`、`api`、`shared-kernel` 使用
-`com.kjs.wuli3.kotlin-conventions`，`app`、`infra`、`adapter`、`bootstrap` 使用
-`com.kjs.wuli3.kotlin-spring-conventions`。约定提供 Java/Kotlin 21、Wuli3 BOM、测试依赖、JaCoCo、 Spotless + ktfmt
-和静态质量门禁；Spring 约定额外配置 Kotlin Spring all-open 和 reflect。各模块构建文件只声明自己的业务依赖；
-`bootstrap` 再额外应用 `org.springframework.boot`。Java 与 Kotlin 可在 `src/main/{java,kotlin}` 和
-`src/test/{java,kotlin}` 中混编，Kotlin 编译先于 Java 编译。
+HTTP Api 和 FacadeImpl 复用 Service 中的完整业务用例及事务边界。Service 不按内部/外部或 Command/Query 强制拆分。
+查询通过 app QueryRepository 返回投影，写入通过 domain Repository 加载聚合、执行业务行为并保存。
+不因分层机械复制 Request/Response/Command/Result；语义一致时可复用 DTO，真实契约差异出现时才转换。
+
+`app.acl` 与 `infra.acl` 隔离外部系统的模型、状态和错误；跨系统查询也属于 ACL，不归入本地查询仓储。
+所有约定包（包括空的 mq/job/acl）均生成中文 `package-info.java`，明确职责、依赖与禁止事项。
+
+根工程统一应用 Java 约定插件：`domain`、`api` 使用 `com.kjs.wuli3.java-conventions`，
+Spring 模块使用 `com.kjs.wuli3.spring-conventions`，各模块先应用 `com.kjs.wuli3.ddd-conventions`。
+各模块共享 Java 21、BOM、测试和质量门禁；`bootstrap` 额外应用 Spring Boot 插件。
+构建脚本继续使用 Gradle DSL 的 `.gradle.kts`，不向业务模块应用 Kotlin 编译插件。
 
 ## 架构门禁
 
-生成工程使用两类互补门禁：
+DDD 架构检查由 `DddConventionsPlugin` 统一提供并接入 `check`，生成工程不复制门禁实现。
 
-- `shared-kernel` 的 `verifySharedKernelDependencies` Gradle 任务检查生产依赖声明，只允许 `wuli3-core`；
-- `SharedKernelArchitectureTest` 使用 ArchUnit 检查 Shared Kernel 字节码只能依赖自身、JDK 和 `wuli3-core`；
-- `InfraArchitectureTest` 使用 ArchUnit 的依赖白名单检查 `infra` 字节码依赖。
+`verifyDddDependencies` 和 `verifyDddTypes` 对全部七模块检查生产依赖声明和字节码引用，按可达方向允许：
 
-`InfraArchitectureTest` 的规则如下：
+| 模块 | 允许依赖的业务模块 |
+| --- | --- |
+| shared-kernel | 无；仅允许 Core、JSpecify、编译期 Lombok、版本平台及必要编译检查器 |
+| domain | shared-kernel |
+| api | shared-kernel |
+| app | api、domain、shared-kernel |
+| infra | app、domain、api、shared-kernel |
+| adapter | app、api、domain、shared-kernel |
+| bootstrap | 其余业务模块 |
 
-- 允许 `infra`、`domain`、`sharedkernel` 和 `app.port.out`；
-- 要求 `app.port.out` 只能包含接口，避免 Infra 实例化 App 类型；
-- 允许必要的 JDK、Spring、MyBatis 类型；
-- 禁止 `app.internal`、`app.service` 或 `app.port.in`；
-- `new`、字段、方法参数、静态调用和继承等依赖形式都会被检查。
+- domain 禁止声明 Spring 依赖或引用 Spring 类型。
+- infra 引用 app 类型必须严格以 `QueryRepository`、`Query`、`DTO` 或 `Acl` 结尾，大小写敏感；引用 api 只允许 dto 包。
+- app.repository 的顶层类型必须为接口，包说明不作为实现类检查。
+- shared-kernel 保留生产依赖和类型白名单；违规依赖直接失败，不自动移除，不自动引入日志；允许编译期 Lombok 与生成的 lombok.Generated 注解，但禁止将 Lombok 声明为运行时依赖。
+- 插件按标准模块名识别角色，先于 Java/Spring 约定应用；项目内类型依赖以 `wuli3.ddd.base-package` 为边界。
 
-因此不建议使用 `forbidden-apis` 实现该规则。`forbidden-apis` 适合固定类或方法黑名单，不能表达“App 只有输出端口可被 Infra
-依赖”的包级白名单。应用服务实现默认放在 `app.internal` 且保持 package-private，形成 Java 可见性和 ArchUnit 的双重约束。
+```properties
+wuli3.ddd.base-package=com.example.order
+wuli3.ddd.transaction-review.enabled=false
+```
+
+基础包未配置时兼容回退到 `wuli3.conventions.nullaway.annotated-packages`，要求单一有效包名，拒绝空值和多个包。
+
+可选任务 `verifyDddTransactions` 默认关闭。开启后仅允许 `app.service` 以及 `infra.persistence` 中以 `RepositoryImpl` 结尾的仓储实现，在类或方法上直接声明 Spring `@Transactional`。不要求所有 Service 声明事务。
+该审查检查直接注解位置，不推断组合注解、继承事务、编程式事务、事务传播语义或运行时代理行为。
+
+类型检查基于编译后字节码，不能识别反射字符串形成的动态依赖；声明检查不等同于完整传递依赖树扫描。
+
+模板版本为 2.0.0，包结构不兼容旧模板；仅生成新项目，不覆盖或自动迁移已有项目。
+使用时需要先发布包含 DDD 约定检查插件的 build-logic 版本，再通过 `--build-logic-version` 指定。
 
 ## Git 钩子
 
@@ -144,10 +170,10 @@ shared-kernel -> domain / api -> app -> infra
 
 ```bash
 ./gradlew check
-./gradlew spotlessKotlinCheck
-./gradlew spotlessKotlinApply
+./gradlew spotlessCheck
+./gradlew spotlessApply
 ./gradlew :bootstrap:bootRun
 ```
 
-MySQL 选项会额外生成 MyBatis-Plus PO/Mapper；消息选项会加入对应 Wuli3 消息 starter，未选择的基础设施不会生成。
+MySQL 选项会额外生成 MyBatis-Plus PO/Mapper 和显式 Mapper 扫描配置；消息选项会加入对应 Wuli3 消息 starter，未选择的基础设施不会生成。
 消息中间件的连接和认证配置不会由生成器猜测，请按对应 starter 文档补充 `application.yml`。

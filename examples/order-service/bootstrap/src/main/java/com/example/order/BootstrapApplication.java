@@ -9,7 +9,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  * @author GuoYang create on 2026/9/7 15:30
  */
 @SpringBootApplication(scanBasePackages = "com.example.order")
-public final class BootstrapApplication {
+public class BootstrapApplication {
     private BootstrapApplication() {}
 
     /** 启动完整的单体应用。 */

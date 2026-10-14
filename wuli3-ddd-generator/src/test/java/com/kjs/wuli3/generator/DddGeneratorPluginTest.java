@@ -80,5 +80,12 @@ final class DddGeneratorPluginTest {
         assertThat(generatedTask.getOutcome()).isEqualTo(TaskOutcome.SUCCESS);
         assertThat(output.resolve("order-service/settings.gradle.kts")).exists();
         assertThat(output.resolve("order-service/AGENTS.md")).isRegularFile();
+        assertThat(output.resolve(
+                        "order-service/app/src/main/java/com/example/order/app/facade/order/OrderFacadeImpl.java"))
+                .isRegularFile();
+        assertThat(output.resolve("order-service/adapter/src/main/java/com/example/order/adapter/mq/package-info.java"))
+                .isRegularFile();
+        assertThat(Files.readString(output.resolve("order-service/.wuli3/generation.properties")))
+                .contains("template.version=2.0.0");
     }
 }
