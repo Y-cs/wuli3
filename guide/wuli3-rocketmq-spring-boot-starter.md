@@ -85,8 +85,8 @@ eventPublisher.publish(options, envelope);
 
 `ContextPropagator` 读取可选的 `ContextReader`，并按显式白名单把传播字段写入 `RocketMessageWrapper.headers`。`EventEnvelope` 不承载传输 header，其 JSON body 只包含事件语义字段。
 
-默认自动配置使用 `ContextPropagator.standardContextEncoder()`，当前会传播 `X-Request-Id`、`X-Origin-Ip`、
-`X-Principal-Type`、`X-Principal-Id` 和 `X-Principal-Name`。因此该 starter 应只用于允许传播认证信息的可信消息边界。
+默认自动配置使用 `ContextPropagator.standardContextEncoder()`，当前会传播 `X-Wuli3-Request-Id`、`X-Wuli3-Origin-Ip`、
+`X-Wuli3-Principal-Type`、`X-Wuli3-Principal-Id` 和 `X-Wuli3-Principal-Name`。因此该 starter 应只用于允许传播认证信息的可信消息边界。
 
 若边界只允许传播调用标识，应显式覆盖该 Bean：
 
@@ -159,3 +159,10 @@ wuli3:
 ```
 
 业务代码只需使用 `RocketV5PublishOptions`，不再负责连接地址、凭据和主题列表。凭据建议通过环境变量占位符注入。若需要自定义认证、事务检查器、多个 Producer 或特殊生命周期，业务可以声明自己的 `Producer` Bean；Starter 会自动让位。
+
+### 可信权限主体码
+
+`AuthContext` 另携带 `X-Wuli3-Principal-Permission-Token`，表示可信入口确定的可轮换授权版本。
+缺码时仍可恢复认证身份，但权限模块拒绝鉴权；非空码必须非空白。
+所有标准传播字段现使用 `X-Wuli3-*`，不读取旧字段。Higress 外部入口须先按前缀（忽略大小写）删除全部伪造头，再写入认证结果。
+具体清洗插件及配置在网关工程部署，参见 [权限模块的入口契约](wuli3-permission.md#higress-可信入口契约)。

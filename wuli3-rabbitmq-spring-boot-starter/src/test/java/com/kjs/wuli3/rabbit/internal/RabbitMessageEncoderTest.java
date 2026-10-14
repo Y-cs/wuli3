@@ -35,13 +35,13 @@ class RabbitMessageEncoderTest {
         final MessageProperties properties = message.getMessageProperties();
 
         assertThat(properties.getHeaders())
-                .containsEntry("X-Request-Id", "request-42")
-                .containsEntry("X-Origin-Ip", "10.0.0.8");
+                .containsEntry("X-Wuli3-Request-Id", "request-42")
+                .containsEntry("X-Wuli3-Origin-Ip", "10.0.0.8");
         assertThat(properties.getContentType()).isEqualTo(MessageProperties.CONTENT_TYPE_JSON);
         assertThat(properties.getMessageId()).isEqualTo("event-1");
         assertThat(properties.getType()).isEqualTo("order.paid.v1");
         assertThat(body).contains("\"topic\":\"orders\"");
-        assertThat(body).doesNotContain("headers", "X-Request-Id", "request-42");
+        assertThat(body).doesNotContain("headers", "X-Wuli3-Request-Id", "request-42");
     }
 
     @Test

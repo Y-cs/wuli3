@@ -78,8 +78,8 @@ class RabbitRemoteEventTransportTest {
         final ArgumentCaptor<Message> messageCaptor = ArgumentCaptor.forClass(Message.class);
         verify(template).send(eq("orders"), eq("order.paid.v1"), messageCaptor.capture());
         assertThat(messageCaptor.getValue().getMessageProperties().getHeaders())
-                .containsEntry("X-Request-Id", "request-42")
-                .containsEntry("X-Origin-Ip", "10.0.0.8");
+                .containsEntry("X-Wuli3-Request-Id", "request-42")
+                .containsEntry("X-Wuli3-Origin-Ip", "10.0.0.8");
     }
 
     @Test

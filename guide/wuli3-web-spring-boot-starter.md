@@ -20,7 +20,7 @@ dependencies {
 ```properties
 wuli3.web.context.enabled=true
 wuli3.web.context.filter-order=-2147483638
-wuli3.web.context.request-id-header-name=X-Request-Id
+wuli3.web.context.request-id-header-name=X-Wuli3-Request-Id
 wuli3.web.context.accept-external-request-id=true
 wuli3.web.context.request-id-max-length=128
 wuli3.web.context.trusted-proxy-cidrs=10.0.0.0/8,192.168.0.0/16
@@ -28,15 +28,15 @@ wuli3.web.context.client-ip-header-priority=X-Forwarded-For,X-Real-IP,Forwarded
 ```
 
 只有直接 peer 命中 `trusted-proxy-cidrs` 时才读取转发头；列表为空时忽略所有转发头。默认的
-`TrustedHttpAuthContextResolver` 从可信内部 HTTP 请求的 `X-Principal-Type`、`X-Principal-Id` 和
-`X-Principal-Name` 恢复 `AuthContext`。三个字段必须完整、非空白，且主体类型必须是 `CUSTOMER`、`ADMIN` 或
+`TrustedHttpAuthContextResolver` 从可信内部 HTTP 请求的 `X-Wuli3-Principal-Type`、`X-Wuli3-Principal-Id` 和
+`X-Wuli3-Principal-Name` 恢复 `AuthContext`。三个字段必须完整、非空白，且主体类型必须是 `CUSTOMER`、`ADMIN` 或
 `SYSTEM`；否则会整体拒绝该认证上下文。
 适用于统一网关完成身份认证、业务服务只恢复认证上下文的微服务架构。直接接收外部请求或使用 token、session、
 安全框架 principal 等其他认证来源的应用，应提供自己的 `AuthContextResolver` Bean 替换默认实现。
 
 Boot 管理的 `RestClient.Builder` 和 `RestTemplateBuilder` 会自动安装出站拦截器。当前拦截器使用
 `ContextPropagator.standardContextEncoder()`（包含 `InvocationContextCodec` 和 `AuthContextCodec`），
-会传播 `X-Request-Id`、`X-Origin-Ip`、`X-Principal-Type`、`X-Principal-Id` 和 `X-Principal-Name`；
+会传播 `X-Wuli3-Request-Id`、`X-Wuli3-Origin-Ip`、`X-Wuli3-Principal-Type`、`X-Wuli3-Principal-Id` 和 `X-Wuli3-Principal-Name`；
 现有自动配置没有提供缩小该 HTTP 白名单的扩展点，因此出站目标必须是可信内部服务。
 
 应用可以通过 Bean 替换以下默认 SPI：
@@ -147,7 +147,7 @@ final class BizErrorAlertNotifier implements ErrorAlertNotifier {
 | `code` | 外部错误码。成功固定为 `0`；失败由 `ErrorResolver` 解析。 |
 | `message` | 成功时使用 `wuli3.web.response.success-message`；失败时使用错误消息或框架映射消息。 |
 | `timestamp` | 响应生成时间，Unix 毫秒时间戳。 |
-| `requestId` | 当前请求 ID，来自 `X-Request-Id` 或 starter 自动生成的 ID；上下文缺失时可能为 `null`。 |
+| `requestId` | 当前请求 ID，来自 `X-Wuli3-Request-Id` 或 starter 自动生成的 ID；上下文缺失时可能为 `null`。 |
 | `data` | 成功数据；失败时一般为 `null`，参数校验失败时可为 `ValidationErrorDetails`。 |
 
 ## 成功返回规则
@@ -406,3 +406,10 @@ wuli3.web.response.validation-detail-enabled=false
 ./gradlew :wuli3-web-spring-boot-starter:test
 ./gradlew :wuli3-web-spring-boot-starter:check
 ```
+
+### 可信权限主体码
+
+`AuthContext` 另携带 `X-Wuli3-Principal-Permission-Token`，表示可信入口确定的可轮换授权版本。
+缺码时仍可恢复认证身份，但权限模块拒绝鉴权；非空码必须非空白。
+所有标准传播字段现使用 `X-Wuli3-*`，不读取旧字段。Higress 外部入口须先按前缀（忽略大小写）删除全部伪造头，再写入认证结果。
+具体清洗插件及配置在网关工程部署，参见 [权限模块的入口契约](wuli3-permission.md#higress-可信入口契约)。

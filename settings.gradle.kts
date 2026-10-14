@@ -22,6 +22,8 @@ include(
     "wuli3-core",
     "wuli3-json",
     "wuli3-event-core",
+    "wuli3-permission",
+    "wuli3-permission-spring-boot-starter",
     "wuli3-event-spring-boot-starter",
     "wuli3-context-propagation",
     "wuli3-core-spring-boot-starter",

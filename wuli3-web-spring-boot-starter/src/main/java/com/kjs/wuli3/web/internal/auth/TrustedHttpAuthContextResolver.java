@@ -1,8 +1,12 @@
 package com.kjs.wuli3.web.internal.auth;
 
+import com.kjs.wuli3.core.assertion.Asserts;
 import com.kjs.wuli3.propagation.internal.AuthContext;
 import com.kjs.wuli3.web.auth.AuthContextResolver;
 import jakarta.servlet.http.HttpServletRequest;
+import java.util.Enumeration;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -18,9 +22,21 @@ public final class TrustedHttpAuthContextResolver implements AuthContextResolver
 
     private final AuthContext.Codec authContextCodec = new AuthContext.Codec();
 
+    @SuppressWarnings("NullAway")
     @Override
     public Optional<AuthContext> resolve(final HttpServletRequest request) {
         final HttpServletRequest actualRequest = Objects.requireNonNull(request, "request");
-        return this.authContextCodec.decode(actualRequest::getHeader);
+        final Map<String, String> fields = new HashMap<>();
+        // 认证字段不支持多值；先验证所有字段，避免缺失身份字段掩盖重复权限主体码。
+        for (final String field : this.authContextCodec.fieldNames()) {
+            final Enumeration<String> values = actualRequest.getHeaders(field);
+            if (values != null && values.hasMoreElements()) {
+                final String value = values.nextElement();
+                Asserts.whenTrue(values.hasMoreElements())
+                        .throwIllegalArgumentException("duplicate authentication header: " + field);
+                fields.put(field, value);
+            }
+        }
+        return this.authContextCodec.decode(fields::get);
     }
 }

@@ -3,6 +3,7 @@ package com.kjs.wuli3.web.internal.context;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.kjs.wuli3.propagation.internal.InvocationContext;
 import com.kjs.wuli3.web.context.WebContextProperties;
 import java.util.ArrayList;
 import java.util.List;
@@ -60,6 +61,16 @@ class DefaultClientIpResolverTest {
         assertThatThrownBy(() -> DefaultClientIpResolverTest.resolver("10.0.0.0/99"))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("10.0.0.0/99");
+    }
+
+    @Test
+    void standardOriginIpIsPreferredOnlyForTrustedPeers() {
+        final MockHttpServletRequest request = DefaultClientIpResolverTest.request("10.0.0.3");
+        request.addHeader(InvocationContext.ORIGIN_IP, "203.0.113.20");
+        request.addHeader("X-Forwarded-For", "203.0.113.30");
+        assertThat(DefaultClientIpResolverTest.resolver("10.0.0.0/8").resolve(request))
+                .isEqualTo("203.0.113.20");
+        assertThat(DefaultClientIpResolverTest.resolver().resolve(request)).isEqualTo("10.0.0.3");
     }
 
     private static DefaultClientIpResolver resolver(final String... trustedProxyCidrs) {

@@ -1,5 +1,6 @@
 package com.kjs.wuli3.propagation.context;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.kjs.wuli3.core.error.ErrorCodeException;
@@ -24,6 +25,14 @@ class AuthContextTest {
         assertThatThrownBy(() -> new AuthContext(PrincipalType.CUSTOMER, " ", "alice"))
                 .isInstanceOf(ErrorCodeException.class);
         assertThatThrownBy(() -> new AuthContext(PrincipalType.CUSTOMER, "7", "\t"))
+                .isInstanceOf(ErrorCodeException.class);
+    }
+
+    @Test
+    void allowsMissingCodeButRejectsBlankCode() {
+        assertThat(new AuthContext(PrincipalType.CUSTOMER, "7", "alice").principalPermissionToken())
+                .isNull();
+        assertThatThrownBy(() -> new AuthContext(PrincipalType.CUSTOMER, "7", "alice", " "))
                 .isInstanceOf(ErrorCodeException.class);
     }
 }

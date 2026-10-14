@@ -23,12 +23,14 @@
 | [wuli3-core](wuli3-core.md) | 错误模型、断言、ID、时间和 Stream 工具。 |
 | [wuli3-json](wuli3-json.md) | Jackson facade、Mapper 装配、资源路径和脱敏。 |
 | [wuli3-context-propagation](wuli3-context-propagation.md) | 固定上下文、线程存储、异步快照和出站编码。 |
+| [wuli3-permission](wuli3-permission.md) | 资源动作位图、注解与判断契约。 |
 | [wuli3-event-core](wuli3-event-core.md) | 事件信封、发布选项和传输端口。 |
 
 ## Spring Boot Starter
 
 | 文档 | 用途 |
 | --- | --- |
+| [wuli3-permission-spring-boot-starter](wuli3-permission.md) | 权限目录提取、主体适配与方法授权。 |
 | [wuli3-event-spring-boot-starter](wuli3-event-spring-boot-starter.md) | LOCAL/REMOTE 事件路由和事务提交后发布。 |
 | [wuli3-core-spring-boot-starter](wuli3-core-spring-boot-starter.md) | 日志、配置加密与分阶段优雅关闭基础设施。 |
 | [wuli3-aliyun-spring-boot-starter](wuli3-aliyun-spring-boot-starter.md) | AliYun OSS SDK V2 多套命名客户端配置。 |
