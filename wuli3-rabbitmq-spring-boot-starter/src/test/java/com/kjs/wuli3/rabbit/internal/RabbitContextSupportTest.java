@@ -29,13 +29,14 @@ class RabbitContextSupportTest {
                             InvocationContext.ORIGIN_IP, "10.0.0.8",
                             AuthContext.PRINCIPAL_TYPE, "CUSTOMER",
                             AuthContext.PRINCIPAL_ID, "7",
-                            AuthContext.PRINCIPAL_NAME, "alice");
+                            AuthContext.PRINCIPAL_NAME, "alice",
+                            AuthContext.PRINCIPAL_PERMISSION_TOKEN, "permissions-v2");
 
                     support.callInScope(headers, () -> {
                         assertThat(threadLocalContextStore.get(ContextKey.of(InvocationContext.class)))
                                 .contains(new InvocationContext("10.0.0.8", "request-42"));
                         assertThat(threadLocalContextStore.get(ContextKey.of(AuthContext.class)))
-                                .contains(new AuthContext(PrincipalType.CUSTOMER, "7", "alice"));
+                                .contains(new AuthContext(PrincipalType.CUSTOMER, "7", "alice", "permissions-v2"));
                         return null;
                     });
                     assertThat(threadLocalContextStore.get(ContextKey.of(InvocationContext.class)))

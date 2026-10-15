@@ -33,7 +33,10 @@ public final class ContextPropagationInterceptor implements ClientHttpRequestInt
             final HttpRequest request, final byte[] body, final ClientHttpRequestExecution execution)
             throws IOException {
         final HttpHeaders headers = request.getHeaders();
-        this.contextPropagator.reservedFieldNames().forEach(headers::remove);
+        headers.keySet().stream()
+                .filter(this.contextPropagator::isReservedFieldName)
+                .toList()
+                .forEach(headers::remove);
         this.contextPropagator.inject(ContextSnapshot.from(this.contextReader.state()), headers::set);
         return execution.execute(request, body);
     }

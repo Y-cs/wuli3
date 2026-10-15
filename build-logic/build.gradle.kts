@@ -44,6 +44,10 @@ gradlePlugin {
             id = "com.kjs.wuli3.java-conventions"
             implementationClass = "com.kjs.wuli3.JavaConventionsPlugin"
         }
+        register("dddConventions") {
+            id = "com.kjs.wuli3.ddd-conventions"
+            implementationClass = "com.kjs.wuli3.DddConventionsPlugin"
+        }
         register("qualityConventions") {
             id = "com.kjs.wuli3.quality-conventions"
             implementationClass = "com.kjs.wuli3.QualityConventionsPlugin"

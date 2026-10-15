@@ -10,7 +10,9 @@ import com.kjs.wuli3.propagation.ContextManager;
 import com.kjs.wuli3.propagation.codec.ContextPropagator;
 import com.kjs.wuli3.propagation.context.ContextKey;
 import com.kjs.wuli3.propagation.context.ContextState;
+import com.kjs.wuli3.propagation.internal.AuthContext;
 import com.kjs.wuli3.propagation.internal.InvocationContext;
+import com.kjs.wuli3.propagation.internal.PrincipalType;
 import com.kjs.wuli3.propagation.store.ThreadLocalContextBackend;
 import org.apache.dubbo.rpc.AppResponse;
 import org.apache.dubbo.rpc.Invocation;
@@ -30,7 +32,9 @@ class DubboContextFilterTest {
     @Test
     void consumerWritesCurrentContextToInvocationAttachments() {
         final ThreadLocalContextBackend store = new ThreadLocalContextBackend();
-        final ContextState state = ContextState.of(new InvocationContext("10.0.0.8", "request-42"));
+        final ContextState state = ContextState.of(
+                new InvocationContext("10.0.0.8", "request-42"),
+                new AuthContext(PrincipalType.CUSTOMER, "7", "alice", "permissions-v2"));
         final Invocation invocation = mock(Invocation.class);
         final Invoker<?> invoker = mock(Invoker.class);
         when(invoker.invoke(invocation)).thenReturn(new AppResponse());
@@ -43,6 +47,7 @@ class DubboContextFilterTest {
 
         verify(invocation).setAttachment(InvocationContext.REQUEST_ID, "request-42");
         verify(invocation).setAttachment(InvocationContext.ORIGIN_IP, "10.0.0.8");
+        verify(invocation).setAttachment(AuthContext.PRINCIPAL_PERMISSION_TOKEN, "permissions-v2");
     }
 
     /** 验证 provider 只在服务调用作用域内使用远程上下文，结束后恢复原上下文。 */
@@ -55,10 +60,17 @@ class DubboContextFilterTest {
                     final Invocation invocation = mock(Invocation.class);
                     when(invocation.getAttachment(InvocationContext.REQUEST_ID)).thenReturn("request-42");
                     when(invocation.getAttachment(InvocationContext.ORIGIN_IP)).thenReturn("10.0.0.8");
+                    when(invocation.getAttachment(AuthContext.PRINCIPAL_TYPE)).thenReturn("CUSTOMER");
+                    when(invocation.getAttachment(AuthContext.PRINCIPAL_ID)).thenReturn("7");
+                    when(invocation.getAttachment(AuthContext.PRINCIPAL_NAME)).thenReturn("alice");
+                    when(invocation.getAttachment(AuthContext.PRINCIPAL_PERMISSION_TOKEN))
+                            .thenReturn("permissions-v2");
                     final Invoker<?> invoker = mock(Invoker.class);
                     when(invoker.invoke(invocation)).thenAnswer(ignored -> {
                         assertThat(store.get(ContextKey.of(InvocationContext.class)))
                                 .contains(new InvocationContext("10.0.0.8", "request-42"));
+                        assertThat(store.get(ContextKey.of(AuthContext.class)))
+                                .contains(new AuthContext(PrincipalType.CUSTOMER, "7", "alice", "permissions-v2"));
                         return new AppResponse();
                     });
                     final DubboContextProviderFilter filter = new DubboContextProviderFilter();
@@ -70,6 +82,7 @@ class DubboContextFilterTest {
 
                     assertThat(store.get(ContextKey.of(InvocationContext.class)))
                             .contains(new InvocationContext("127.0.0.1", "previous"));
+                    assertThat(store.get(ContextKey.of(AuthContext.class))).isEmpty();
                 });
     }
 }

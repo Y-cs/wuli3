@@ -23,7 +23,7 @@ import java.util.Set;
  */
 final class DddProjectGenerator {
     private static final String TEMPLATE_ROOT = "/ddd-template/";
-    private static final String TEMPLATE_VERSION = "1.0.0";
+    private static final String TEMPLATE_VERSION = "2.0.0";
 
     /** 模板文件与生成路径的映射，按生成工程的模块顺序排列。 */
     private static final List<TemplateFile> BASE_FILES = List.of(
@@ -31,6 +31,7 @@ final class DddProjectGenerator {
             file("root/settings.gradle.kts.tpl", "settings.gradle.kts"),
             file("root/build.gradle.kts.tpl", "build.gradle.kts"),
             file("root/gradle.properties.tpl", "gradle.properties"),
+            file("root/lombok.config.tpl", "lombok.config"),
             file("root/README.md.tpl", "README.md"),
             file("root/AGENTS.md.tpl", "AGENTS.md"),
             file("root/Dockerfile.tpl", "Dockerfile"),
@@ -47,9 +48,6 @@ final class DddProjectGenerator {
                     "shared-kernel/EntityId.java.tpl",
                     "shared-kernel/src/main/java/{{packagePath}}/sharedkernel/EntityId.java"),
             file(
-                    "shared-kernel/SharedKernelArchitectureTest.java.tpl",
-                    "shared-kernel/src/test/java/{{packagePath}}/architecture/SharedKernelArchitectureTest.java"),
-            file(
                     "shared-kernel/SharedKernelTest.java.tpl",
                     "shared-kernel/src/test/java/{{packagePath}}/sharedkernel/SharedKernelTest.java"),
             // domain
@@ -62,34 +60,43 @@ final class DddProjectGenerator {
                     "domain/src/test/java/{{packagePath}}/domain/{{domainPackage}}/{{domainType}}Test.java"),
             // api
             file("api/api.gradle.kts.tpl", "api/build.gradle.kts"),
-            file("api/DomainApi.java.tpl", "api/src/main/java/{{packagePath}}/api/{{domainType}}Api.java"),
+            file("api/DomainFacade.java.tpl", "api/src/main/java/{{packagePath}}/api/facade/{{domainType}}Facade.java"),
             file(
-                    "api/DomainStatusView.java.tpl",
-                    "api/src/main/java/{{packagePath}}/api/{{domainType}}StatusView.java"),
+                    "api/DomainStatusDto.java.tpl",
+                    "api/src/main/java/{{packagePath}}/api/dto/{{domainPackage}}/{{domainType}}StatusDto.java"),
             // app
             file("app/app.gradle.kts.tpl", "app/build.gradle.kts"),
             file(
-                    "app/DomainUseCase.java.tpl",
-                    "app/src/main/java/{{packagePath}}/app/port/in/{{domainType}}UseCase.java"),
+                    "app/DomainFacadeImpl.java.tpl",
+                    "app/src/main/java/{{packagePath}}/app/facade/{{domainPackage}}/{{domainType}}FacadeImpl.java"),
             file(
-                    "app/DomainRepository.java.tpl",
-                    "app/src/main/java/{{packagePath}}/app/port/out/{{domainType}}Repository.java"),
+                    "app/DomainQueryService.java.tpl",
+                    "app/src/main/java/{{packagePath}}/app/service/{{domainPackage}}/{{domainType}}QueryService.java"),
             file(
-                    "app/DomainApplicationService.java.tpl",
-                    "app/src/main/java/{{packagePath}}/app/internal/{{domainType}}ApplicationService.java"),
+                    "app/DomainQueryRepository.java.tpl",
+                    "app/src/main/java/{{packagePath}}/app/repository/{{domainPackage}}/{{domainType}}QueryRepository.java"),
+            file(
+                    "domain/DomainRepository.java.tpl",
+                    "domain/src/main/java/{{packagePath}}/domain/{{domainPackage}}/{{domainType}}Repository.java"),
             // infra
             file("infra/infra.gradle.kts.tpl", "infra/build.gradle.kts"),
             file(
-                    "infra/DomainRepositoryAdapter.java.tpl",
-                    "infra/src/main/java/{{packagePath}}/infra/persistence/{{domainType}}RepositoryAdapter.java"),
+                    "infra/DomainRepositoryImpl.java.tpl",
+                    "infra/src/main/java/{{packagePath}}/infra/persistence/{{domainPackage}}/{{domainType}}RepositoryImpl.java"),
             file(
-                    "infra/InfraArchitectureTest.java.tpl",
-                    "infra/src/test/java/{{packagePath}}/architecture/InfraArchitectureTest.java"),
+                    "infra/DomainQueryRepositoryImpl.java.tpl",
+                    "infra/src/main/java/{{packagePath}}/infra/persistence/{{domainPackage}}/{{domainType}}QueryRepositoryImpl.java"),
             // adapter
             file("adapter/adapter.gradle.kts.tpl", "adapter/build.gradle.kts"),
             file(
-                    "adapter/DomainController.java.tpl",
-                    "adapter/src/main/java/{{packagePath}}/adapter/in/web/{{domainType}}Controller.java"),
+                    "adapter/DomainApi.java.tpl",
+                    "adapter/src/main/java/{{packagePath}}/adapter/api/{{domainPackage}}/{{domainType}}Api.java"),
+            file(
+                    "app/DomainFacadeImplTest.java.tpl",
+                    "app/src/test/java/{{packagePath}}/app/facade/{{domainPackage}}/{{domainType}}FacadeImplTest.java"),
+            file(
+                    "adapter/DomainApiTest.java.tpl",
+                    "adapter/src/test/java/{{packagePath}}/adapter/api/{{domainPackage}}/{{domainType}}ApiTest.java"),
             // bootstrap
             file("bootstrap/bootstrap.gradle.kts.tpl", "bootstrap/build.gradle.kts"),
             file(
@@ -104,10 +111,13 @@ final class DddProjectGenerator {
     private static final List<TemplateFile> MYSQL_FILES = List.of(
             file(
                     "infra/mysql/DomainPo.java.tpl",
-                    "infra/src/main/java/{{packagePath}}/infra/persistence/{{domainType}}Po.java"),
+                    "infra/src/main/java/{{packagePath}}/infra/persistence/{{domainPackage}}/entity/{{domainType}}Po.java"),
             file(
                     "infra/mysql/DomainMapper.java.tpl",
-                    "infra/src/main/java/{{packagePath}}/infra/persistence/{{domainType}}Mapper.java"));
+                    "infra/src/main/java/{{packagePath}}/infra/persistence/{{domainPackage}}/mapper/{{domainType}}Mapper.java"),
+            file(
+                    "infra/mysql/DomainPersistenceConfiguration.java.tpl",
+                    "infra/src/main/java/{{packagePath}}/infra/config/{{domainType}}PersistenceConfiguration.java"));
 
     private static final Map<String, String> WRAPPER_FILES = Map.of(
             "wrapper/gradlew", "gradlew",
@@ -135,6 +145,7 @@ final class DddProjectGenerator {
         for (final TemplateFile template : files) {
             this.render(root, template, variables);
         }
+        this.renderPackageDocumentation(root, options, variables);
         for (final Map.Entry<String, String> wrapper : DddProjectGenerator.WRAPPER_FILES.entrySet()) {
             this.copyResource(root, wrapper.getKey(), wrapper.getValue());
         }
@@ -228,6 +239,11 @@ final class DddProjectGenerator {
         result.put("buildLogicVersion", options.buildLogicVersion());
         result.put("templateVersion", DddProjectGenerator.TEMPLATE_VERSION);
         result.put("infraDependencies", this.infraDependencies(options));
+        result.put("repositoryImports", this.repositoryImports(options));
+        result.put(
+                "queryRepositoryConstructor",
+                this.repositoryConstructor(options).replace("RepositoryImpl(", "QueryRepositoryImpl("));
+        result.put("queryRepositoryStatus", this.queryRepositoryStatus(options));
         result.put("repositoryFields", this.repositoryFields(options));
         result.put("repositoryConstructor", this.repositoryConstructor(options));
         result.put("repositoryLoad", this.repositoryLoad(options));
@@ -252,6 +268,28 @@ final class DddProjectGenerator {
         return result.toString();
     }
 
+    /** MySQL 仓储显式导入所属领域的持久化类型。 */
+    private String repositoryImports(final GeneratorOptions options) {
+        if (!options.persistence().equals("mysql")) {
+            return "";
+        }
+        final String prefix =
+                options.basePackage() + ".infra.persistence." + options.domain().replace('-', '_');
+        return "import " + prefix + ".entity." + options.domainType() + "Po;\n" + "import " + prefix + ".mapper."
+                + options.domainType() + "Mapper;\n";
+    }
+
+    /** 查询仓储直接构建投影，不经过聚合仓储或领域模型转换。 */
+    private String queryRepositoryStatus(final GeneratorOptions options) {
+        final String constructor = "new " + options.domainType() + "StatusDto";
+        if (!options.persistence().equals("mysql")) {
+            return "        return " + constructor + "(new EntityId(\"sample-1\"), Status.ACTIVE);";
+        }
+        return "        final " + options.domainType() + "Po stored = this.mapper.selectById(\"sample-1\");\n"
+                + "        final String id = stored == null ? \"sample-1\" : stored.id();\n"
+                + "        return " + constructor + "(new EntityId(id), Status.ACTIVE);";
+    }
+
     /** 仓储适配器的 Mapper 字段声明，非 MySQL 时为空。 */
     private String repositoryFields(final GeneratorOptions options) {
         if (!options.persistence().equals("mysql")) {
@@ -265,7 +303,7 @@ final class DddProjectGenerator {
         if (!options.persistence().equals("mysql")) {
             return "";
         }
-        return "\n    public " + options.domainType() + "RepositoryAdapter(final " + options.domainType()
+        return "\n    public " + options.domainType() + "RepositoryImpl(final " + options.domainType()
                 + "Mapper mapper) {\n        this.mapper = mapper;\n    }\n";
     }
 
@@ -290,7 +328,8 @@ final class DddProjectGenerator {
         }
         return String.join(
                 "\n",
-                "import " + options.basePackage() + ".infra.persistence." + options.domainType() + "Mapper;",
+                "import " + options.basePackage() + ".infra.persistence."
+                        + options.domain().replace('-', '_') + ".mapper." + options.domainType() + "Mapper;",
                 "import org.junit.jupiter.api.Test;",
                 "import org.springframework.boot.autoconfigure.ImportAutoConfiguration;",
                 "import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;",
@@ -305,7 +344,7 @@ final class DddProjectGenerator {
         if (!options.persistence().equals("mysql")) {
             return "";
         }
-        return "\n"
+        return "(properties = \"application.persistence.enabled=false\")\n"
                 + String.join(
                         "\n",
                         "@MockitoBean(types = " + options.domainType() + "Mapper.class)",
@@ -315,6 +354,70 @@ final class DddProjectGenerator {
                         "            DataSourceTransactionManagerAutoConfiguration.class,",
                         "            JdbcTemplateAutoConfiguration.class",
                         "        })");
+    }
+
+    /** 为约定包生成可版本管理的中文职责与依赖边界说明。 */
+    private void renderPackageDocumentation(
+            final Path root, final GeneratorOptions options, final Map<String, String> variables) throws IOException {
+        final Map<String, String> packages = new LinkedHashMap<>();
+        packages.put("api", "内部 RPC 契约；只依赖共享内核，不依赖应用实现或 RPC 框架。");
+        packages.put("api.facade", "内部调用 Facade 契约；传播对象使用 DTO，业务实现位于 app.facade。");
+        packages.put("api.dto", "可传播的内部契约对象；按业务组织，不直接暴露聚合或持久化实体。");
+        packages.put("adapter", "HTTP、消息与任务接入；只负责协议和身份转换，业务编排交由应用服务。");
+        packages.put("adapter.api", "HTTP 接口入口；类名以 Api 结尾，复用应用用例，避免重复业务流程。");
+        packages.put("adapter.mq", "消息消费者入口；处理消息协议与幂等触发，发送消息的基础设施实现不放在此包。");
+        packages.put("adapter.job", "定时任务入口；负责调度参数适配，完整业务操作委托应用服务。");
+        packages.put("app", "应用用例核心；组织领域行为与事务，查询和聚合写入使用独立仓储契约。");
+        packages.put("app.facade", "内部 Facade 实现；委托核心 Service，不重复业务编排或绑定 RPC 发布框架。");
+        packages.put("app.service", "业务用例服务；按业务领域分包，按内聚职责拆类，不强制按调用方或读写拆分。");
+        packages.put("app.repository", "应用查询仓储契约；只定义查询投影能力，聚合加载与保存契约归 domain。");
+        packages.put("app.acl", "外部业务能力的防腐契约；供 infra 实现的接口以 Acl 结尾，使用本地语义，禁止泄漏外部 SDK、RPC DTO 和协议类型。");
+        packages.put("domain", "领域模型；按业务概念和聚合组织，领域规则不依赖应用层或基础设施。");
+        packages.put("infra", "基础设施实现；实现领域仓储、查询仓储与 ACL，不反向依赖应用 Service 或 Facade。");
+        packages.put("infra.config", "基础设施技术配置；显式限定扫描范围，运行凭据通过外部环境提供。");
+        packages.put("infra.persistence", "持久化实现；分别实现查询投影与聚合仓储，按业务领域组织。");
+        packages.put("infra.acl", "外部能力防腐实现；转换外部模型、状态和错误，实现 app.acl 中以 Acl 结尾的契约。");
+        packages.put("sharedkernel", "稳定共享类型与约定；保持无框架依赖，由构建插件检查纯净边界。");
+        final String domain = options.domain().replace('-', '_');
+        for (final String parent : List.of(
+                "api.dto",
+                "adapter.api",
+                "app.facade",
+                "app.service",
+                "app.repository",
+                "domain",
+                "infra.persistence")) {
+            packages.put(parent + "." + domain, options.domainType() + " 业务包。" + packages.get(parent));
+        }
+        if (options.persistence().equals("mysql")) {
+            packages.put("infra.persistence." + domain + ".mapper", "当前领域的数据库 Mapper；只由基础设施调用，扫描配置位于 infra.config。");
+            packages.put("infra.persistence." + domain + ".entity", "当前领域的持久化映射对象；不得直接作为 HTTP 或 RPC 传播对象。");
+        }
+        final Map<String, String> bootstrapVariables = new LinkedHashMap<>(variables);
+        bootstrapVariables.put("packageName", options.basePackage());
+        bootstrapVariables.put("packageDescription", "应用启动与最终组装；负责启用基础设施和接入配置，不承载业务规则。");
+        this.render(
+                root,
+                DddProjectGenerator.file(
+                        "package-info.java.tpl", "bootstrap/src/main/java/{{packagePath}}/package-info.java"),
+                bootstrapVariables);
+        for (final Map.Entry<String, String> entry : packages.entrySet()) {
+            final String packageName = entry.getKey();
+            final String module = packageName.equals("sharedkernel")
+                    ? "shared-kernel"
+                    : packageName.substring(
+                            0, packageName.contains(".") ? packageName.indexOf('.') : packageName.length());
+            final Map<String, String> packageVariables = new LinkedHashMap<>(variables);
+            packageVariables.put("packageName", options.basePackage() + "." + packageName);
+            packageVariables.put("packageDescription", entry.getValue());
+            this.render(
+                    root,
+                    DddProjectGenerator.file(
+                            "package-info.java.tpl",
+                            module + "/src/main/java/{{packagePath}}/" + packageName.replace('.', '/')
+                                    + "/package-info.java"),
+                    packageVariables);
+        }
     }
 
     private void render(final Path root, final TemplateFile template, final Map<String, String> variables)

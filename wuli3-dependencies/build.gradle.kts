@@ -14,6 +14,8 @@ dependencies {
     constraints {
         api("com.kjs.wuli3:wuli3-core:${project.version}")
         api("com.kjs.wuli3:wuli3-json:${project.version}")
+        api("com.kjs.wuli3:wuli3-permission:${project.version}")
+        api("com.kjs.wuli3:wuli3-permission-spring-boot-starter:${project.version}")
         api("com.kjs.wuli3:wuli3-event-core:${project.version}")
         api("com.kjs.wuli3:wuli3-event-spring-boot-starter:${project.version}")
         api("com.kjs.wuli3:wuli3-context-propagation:${project.version}")

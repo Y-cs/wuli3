@@ -6,12 +6,12 @@ import com.kjs.wuli3.propagation.internal.AuthContext;
 import com.kjs.wuli3.propagation.internal.InvocationContext;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -35,10 +35,14 @@ public final class ContextPropagator {
      */
     public ContextPropagator(final Collection<? extends ContextCodec<? extends PropagationContext>> codecs) {
         this.codecs = List.copyOf(Objects.requireNonNull(codecs, "encoders"));
-        this.reservedFieldNames = codecs.stream()
-                .map(ContextCodec::fieldNames)
-                .flatMap(Collection::stream)
-                .collect(Collectors.toSet());
+        final Set<String> reservedFields = new HashSet<>();
+        for (final ContextCodec<? extends PropagationContext> codec : ContextPropagator.standardContextEncoder()) {
+            reservedFields.addAll(codec.fieldNames());
+        }
+        for (final ContextCodec<? extends PropagationContext> codec : this.codecs) {
+            reservedFields.addAll(codec.fieldNames());
+        }
+        this.reservedFieldNames = Set.copyOf(reservedFields);
     }
 
     public static List<ContextCodec<? extends PropagationContext>> standardContextEncoder() {
@@ -58,6 +62,20 @@ public final class ContextPropagator {
      */
     public Set<String> reservedFieldNames() {
         return this.reservedFieldNames;
+    }
+
+    /**
+     * 判断字段是否属于可信传播命名空间或已注册的保留字段，忽略大小写。
+     *
+     * 注意：前缀预留包含尚未注册的字段，防止业务字段伪造未来的可信元数据。
+     *
+     * @param name 待检查的协议字段名
+     * @return 是否需要由传播层独占写入
+     */
+    public boolean isReservedFieldName(final String name) {
+        Objects.requireNonNull(name, "name");
+        return name.regionMatches(true, 0, "X-Wuli3-", 0, "X-Wuli3-".length())
+                || this.reservedFieldNames.stream().anyMatch(field -> field.equalsIgnoreCase(name));
     }
 
     /**

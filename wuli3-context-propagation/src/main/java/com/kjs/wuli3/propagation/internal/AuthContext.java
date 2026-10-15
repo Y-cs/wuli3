@@ -17,15 +17,22 @@ import org.jspecify.annotations.Nullable;
  * @param principalType 认证主体类型
  * @param principalId 认证主体的唯一标识
  * @param principalName 认证主体的显示名称
+ * @param principalPermissionToken 可信入口提供的可轮换权限主体码；缺失时不具备权限鉴权凭据
  *
  * @author GuoYang create on 2026/8/17 11:53
  */
-public record AuthContext(PrincipalType principalType, String principalId, String principalName)
+public record AuthContext(
+        PrincipalType principalType,
+        String principalId,
+        String principalName,
+        @Nullable String principalPermissionToken)
         implements PropagationContext {
 
-    public static final String PRINCIPAL_TYPE = "X-Principal-Type";
-    public static final String PRINCIPAL_ID = "X-Principal-Id";
-    public static final String PRINCIPAL_NAME = "X-Principal-Name";
+    public static final String PRINCIPAL_TYPE = "X-Wuli3-Principal-Type";
+    public static final String PRINCIPAL_ID = "X-Wuli3-Principal-Id";
+    public static final String PRINCIPAL_NAME = "X-Wuli3-Principal-Name";
+
+    public static final String PRINCIPAL_PERMISSION_TOKEN = "X-Wuli3-Principal-Permission-Token";
 
     private static final ContextCodec<AuthContext> CODEC = new Codec();
 
@@ -34,6 +41,14 @@ public record AuthContext(PrincipalType principalType, String principalId, Strin
         Asserts.whenNull(principalType).throwIllegalArgumentException("principalType must not be null");
         AuthContext.requireNonBlank(principalId, "principalId");
         AuthContext.requireNonBlank(principalName, "principalName");
+        if (principalPermissionToken != null) {
+            AuthContext.requireNonBlank(principalPermissionToken, "principalPermissionToken");
+        }
+    }
+
+    /** 创建不携带权限鉴权凭据的认证上下文。 */
+    public AuthContext(final PrincipalType principalType, final String principalId, final String principalName) {
+        this(principalType, principalId, principalName, null);
     }
 
     /**
@@ -48,7 +63,7 @@ public record AuthContext(PrincipalType principalType, String principalId, Strin
 
     @Override
     public ContextCodec<AuthContext> contentCodec() {
-        return CODEC;
+        return AuthContext.CODEC;
     }
 
     private static void requireNonBlank(final String value, final String name) {
@@ -64,22 +79,30 @@ public record AuthContext(PrincipalType principalType, String principalId, Strin
 
         @Override
         public Set<String> fieldNames() {
-            return Set.of(AuthContext.PRINCIPAL_TYPE, AuthContext.PRINCIPAL_ID, AuthContext.PRINCIPAL_NAME);
+            return Set.of(
+                    AuthContext.PRINCIPAL_TYPE,
+                    AuthContext.PRINCIPAL_ID,
+                    AuthContext.PRINCIPAL_NAME,
+                    AuthContext.PRINCIPAL_PERMISSION_TOKEN);
         }
 
         @Override
-        public void encode(AuthContext context, BiConsumer<String, String> fieldWriter) {
+        public void encode(final AuthContext context, final BiConsumer<String, String> fieldWriter) {
             final AuthContext actualContext = Objects.requireNonNull(context, "context");
             final BiConsumer<String, String> actualFieldWriter = Objects.requireNonNull(fieldWriter, "fieldWriter");
             actualFieldWriter.accept(
                     AuthContext.PRINCIPAL_TYPE, actualContext.principalType().name());
             actualFieldWriter.accept(AuthContext.PRINCIPAL_ID, actualContext.principalId());
             actualFieldWriter.accept(AuthContext.PRINCIPAL_NAME, actualContext.principalName());
+            final String principalPermissionToken = actualContext.principalPermissionToken();
+            if (principalPermissionToken != null) {
+                actualFieldWriter.accept(AuthContext.PRINCIPAL_PERMISSION_TOKEN, principalPermissionToken);
+            }
         }
 
         @SuppressWarnings("NullAway")
         @Override
-        public Optional<AuthContext> decode(Function<String, @Nullable String> fieldReader) {
+        public Optional<AuthContext> decode(final Function<String, @Nullable String> fieldReader) {
             Objects.requireNonNull(fieldReader, "fieldReader");
             final String principalTypeStr = fieldReader.apply(AuthContext.PRINCIPAL_TYPE);
             final String principalId = fieldReader.apply(AuthContext.PRINCIPAL_ID);
@@ -88,7 +111,11 @@ public record AuthContext(PrincipalType principalType, String principalId, Strin
                 return Optional.empty();
             }
             final PrincipalType principalType = PrincipalType.parse(principalTypeStr);
-            return Optional.of(new AuthContext(principalType, principalId, principalName));
+            return Optional.of(new AuthContext(
+                    principalType,
+                    principalId,
+                    principalName,
+                    fieldReader.apply(AuthContext.PRINCIPAL_PERMISSION_TOKEN)));
         }
     }
 }

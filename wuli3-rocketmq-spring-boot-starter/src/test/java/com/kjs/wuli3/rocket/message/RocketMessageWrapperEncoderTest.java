@@ -31,9 +31,9 @@ class RocketMessageWrapperEncoderTest {
         final String body = new String(wrapper.body(), StandardCharsets.UTF_8);
 
         assertThat(wrapper.headers())
-                .containsEntry("X-Request-Id", "request-42")
-                .containsEntry("X-Origin-Ip", "10.0.0.8");
+                .containsEntry("X-Wuli3-Request-Id", "request-42")
+                .containsEntry("X-Wuli3-Origin-Ip", "10.0.0.8");
         assertThat(body).contains("\"topic\":\"orders\"");
-        assertThat(body).doesNotContain("headers", "X-Request-Id", "request-42");
+        assertThat(body).doesNotContain("headers", "X-Wuli3-Request-Id", "request-42");
     }
 }

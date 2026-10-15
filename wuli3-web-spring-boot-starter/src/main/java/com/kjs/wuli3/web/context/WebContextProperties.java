@@ -1,5 +1,6 @@
 package com.kjs.wuli3.web.context;
 
+import com.kjs.wuli3.propagation.internal.InvocationContext;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -61,5 +62,5 @@ public class WebContextProperties {
      */
     @NotEmpty
     private List<@NotBlank String> clientIpHeaderPriority =
-            new ArrayList<>(List.of("X-Forwarded-For", "X-Real-IP", "Forwarded"));
+            new ArrayList<>(List.of(InvocationContext.ORIGIN_IP, "X-Forwarded-For", "X-Real-IP", "Forwarded"));
 }

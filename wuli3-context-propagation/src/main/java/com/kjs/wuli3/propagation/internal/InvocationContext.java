@@ -20,8 +20,8 @@ import org.jspecify.annotations.Nullable;
  */
 public record InvocationContext(String originIp, String requestId) implements PropagationContext {
 
-    public static final String REQUEST_ID = "X-Request-Id";
-    public static final String ORIGIN_IP = "X-Origin-Ip";
+    public static final String REQUEST_ID = "X-Wuli3-Request-Id";
+    public static final String ORIGIN_IP = "X-Wuli3-Origin-Ip";
 
     private static final ContextCodec<InvocationContext> CODEC = new Codec();
 
@@ -60,6 +60,7 @@ public record InvocationContext(String originIp, String requestId) implements Pr
             actualFieldWriter.accept(InvocationContext.ORIGIN_IP, actualContext.originIp());
         }
 
+        @SuppressWarnings("NullAway")
         @Override
         public Optional<InvocationContext> decode(final Function<String, @Nullable String> fieldReader) {
             Objects.requireNonNull(fieldReader, "fieldReader");

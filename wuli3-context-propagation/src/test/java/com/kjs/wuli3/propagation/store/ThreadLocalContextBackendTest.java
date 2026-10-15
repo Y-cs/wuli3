@@ -3,6 +3,7 @@ package com.kjs.wuli3.propagation.store;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.kjs.wuli3.propagation.ContextManager;
+import com.kjs.wuli3.propagation.accessor.AuthContextAccessor;
 import com.kjs.wuli3.propagation.context.Context;
 import com.kjs.wuli3.propagation.context.ContextKey;
 import com.kjs.wuli3.propagation.context.ContextSnapshot;
@@ -61,6 +62,27 @@ class ThreadLocalContextBackendTest {
                 assertThat(store.get(ContextKey.of(AuthContext.class))).contains(caller);
             });
         });
+    }
+
+    @Test
+    void permissionCodeFollowsAuthenticationScopeAndRestoresAfterRotation() {
+        final ThreadLocalContextBackend store = new ThreadLocalContextBackend();
+        final ContextManager manager = new ContextManager(store, store);
+        final AuthContextAccessor accessor = new AuthContextAccessor(store);
+        final AuthContext original = new AuthContext(PrincipalType.CUSTOMER, "7", "alice", "version-1");
+        final AuthContext rotated = new AuthContext(PrincipalType.CUSTOMER, "7", "alice", "version-2");
+        manager.with(original).run(() -> {
+            assertThat(accessor.principalPermissionToken()).contains("version-1");
+            manager.with(rotated).run(() -> {
+                assertThat(accessor.principalPermissionToken()).contains("version-2");
+                assertThat(manager.capture().get(ContextKey.of(AuthContext.class)))
+                        .contains(rotated);
+            });
+            assertThat(accessor.principalPermissionToken()).contains("version-1");
+        });
+        assertThat(accessor.principalPermissionToken()).isEmpty();
+        manager.with(new AuthContext(PrincipalType.CUSTOMER, "7", "alice"))
+                .run(() -> assertThat(accessor.principalPermissionToken()).isEmpty());
     }
 
     private record LocalContext(String value) implements Context {

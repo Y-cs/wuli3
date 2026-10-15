@@ -28,6 +28,7 @@ class JavaConventionsPlugin : Plugin<Project> {
                 ConventionProperties.JAVA_VERSION,
                 ConventionProperties.DEFAULT_JAVA_VERSION,
             )
+            val sharedKernel = extensions.extraProperties.has("wuli3.sharedKernel")
             val lombokEnabled = booleanProperty(ConventionProperties.LOMBOK_ENABLED, true)
             val jacocoVerificationEnabled = booleanProperty(
                 ConventionProperties.JACOCO_VERIFICATION_ENABLED,
@@ -98,7 +99,9 @@ class JavaConventionsPlugin : Plugin<Project> {
                 "testImplementation"(platform(bomDependency))
                 "annotationProcessor"(platform(bomDependency))
                 "testAnnotationProcessor"(platform(bomDependency))
-                slf4jApi()
+                if (!sharedKernel) {
+                    slf4jApi()
+                }
                 if (lombokEnabled) {
                     lombok()
                 }

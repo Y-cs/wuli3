@@ -75,3 +75,15 @@ ScopedValueContextBackend 使用相同的 ContextReader、ContextBinder 接口�
 StructuredTaskScope 会继承 ScopedValue 全部绑定。需要过滤本地 Context 时，应先 capture/from，并在过滤后的作用域内创建结构化任务作用域；不能把自动继承视为快照过滤。
 
 作用域只覆盖同步回调，不延长到回调返回的 Future 完成时。线程池与普通虚拟线程使用显式包装传播。
+
+## 可信身份与权限版本
+
+`AuthContext` 的四参构造器为 `(principalType, principalId, principalName, principalPermissionToken)`。
+三参构造器仅表示已认证但未提供权限主体码；该状态不能通过权限鉴权。非 null 的码不得空白。
+`AuthContextAccessor.principalPermissionToken()` 返回可选码，权限模块不从用户 ID 推导该码。
+
+统一标准协议字段为 `X-Wuli3-Request-Id`、`X-Wuli3-Origin-Ip`、`X-Wuli3-Principal-Type`、
+`X-Wuli3-Principal-Id`、`X-Wuli3-Principal-Name`、`X-Wuli3-Principal-Permission-Token`。
+旧字段不参与解码。`reservedFieldNames()` 始终包含标准字段及注册的自定义字段；
+`isReservedFieldName()` 额外按大小写无关方式预留整个 `X-Wuli3-` 命名空间。
+网关应清洗外部全部此前缀字段后重新注入，服务间传播仍依赖可信网络边界。

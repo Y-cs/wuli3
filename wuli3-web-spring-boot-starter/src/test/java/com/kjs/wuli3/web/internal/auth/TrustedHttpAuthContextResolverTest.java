@@ -70,6 +70,29 @@ class TrustedHttpAuthContextResolverTest {
         }
     }
 
+    @Test
+    void resolvesPrincipalPermissionTokenAndRejectsDuplicateFields() {
+        final MockHttpServletRequest request = TrustedHttpAuthContextResolverTest.validRequest();
+        request.addHeader(AuthContext.PRINCIPAL_PERMISSION_TOKEN, "permissions-v2");
+        assertThat(this.resolver.resolve(request))
+                .contains(new AuthContext(PrincipalType.CUSTOMER, "42", "alice", "permissions-v2"));
+        for (final String field : new AuthContext.Codec().fieldNames()) {
+            final MockHttpServletRequest duplicate = TrustedHttpAuthContextResolverTest.validRequest();
+            duplicate.addHeader(AuthContext.PRINCIPAL_PERMISSION_TOKEN, "permissions-v2");
+            duplicate.addHeader(field, "forged");
+            assertThatThrownBy(() -> this.resolver.resolve(duplicate))
+                    .isInstanceOf(ErrorCodeException.class)
+                    .hasMessageContaining("duplicate authentication header");
+        }
+    }
+
+    @Test
+    void rejectsBlankPrincipalPermissionToken() {
+        final MockHttpServletRequest request = TrustedHttpAuthContextResolverTest.validRequest();
+        request.addHeader(AuthContext.PRINCIPAL_PERMISSION_TOKEN, " ");
+        assertThatThrownBy(() -> this.resolver.resolve(request)).isInstanceOf(ErrorCodeException.class);
+    }
+
     /** 构造字段完整的可信认证请求，供各协议边界用例独立修改。 */
     private static MockHttpServletRequest validRequest() {
         final MockHttpServletRequest request = new MockHttpServletRequest("GET", "/orders");

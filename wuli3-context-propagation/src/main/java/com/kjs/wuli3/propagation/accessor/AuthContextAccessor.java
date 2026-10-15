@@ -51,4 +51,13 @@ public class AuthContextAccessor {
     public Optional<String> principalName() {
         return this.current().map(AuthContext::principalName);
     }
+
+    /**
+     * 获取可信入口提供的权限主体码，用于定位当前授权版本。
+     *
+     * @return 当前权限主体码；未认证或未携带权限凭据时为空
+     */
+    public Optional<String> principalPermissionToken() {
+        return this.current().map(AuthContext::principalPermissionToken);
+    }
 }
