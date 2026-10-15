@@ -14,7 +14,8 @@ import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
 import org.gradle.process.ExecOperations
-import org.gradle.work.DisableCachingByDefault
+import org.gradle.api.tasks.CacheableTask
+import org.gradle.api.tasks.OutputFile
 
 /**
  * 按需检查直接声明的 Spring 事务注解只出现在应用服务边界。
@@ -23,8 +24,14 @@ import org.gradle.work.DisableCachingByDefault
  *
  * @author 国杨 create on 2026/10/14 18:45
  */
-@DisableCachingByDefault(because = "事务位置审查只验证字节码，没有输出产物")
+@CacheableTask
 abstract class VerifyDddTransactions @Inject constructor(private val exec: ExecOperations) : DefaultTask() {
+    @get:OutputFile
+    abstract val reportFile: RegularFileProperty
+
+    @get:Input
+    abstract val toolchainFingerprint: Property<String>
+
     @get:Classpath
     abstract val classes: ConfigurableFileCollection
 
@@ -38,46 +45,62 @@ abstract class VerifyDddTransactions @Inject constructor(private val exec: ExecO
     /** 读取实际注解段，避免把常量池中的类型引用误判为事务声明。 */
     @TaskAction
     fun verify() {
+        DddReports.clear(reportFile)
         if (!Regex("[A-Za-z_$][\\w$]*(\\.[A-Za-z_$][\\w$]*)*").matches(basePackage.get())) {
             throw GradleException("wuli3.ddd.base-package 必须是单一有效基础包：${basePackage.get()}")
         }
         val violations = mutableListOf<String>()
         val annotationName = "org.springframework.transaction.annotation.Transactional"
         val declaration = Regex("^\\s+${Regex.escape(annotationName)}(?:\\(.*)?$")
-        classes.files.filter { it.exists() }.forEach { directory ->
-            directory.walkTopDown().filter { it.extension == "class" }.forEach { file ->
-                val type = file.relativeTo(directory).path.removeSuffix(".class").replace('/', '.')
-                val appService = type.startsWith("${basePackage.get()}.app.service.")
-                val repositoryImplementation = type.startsWith("${basePackage.get()}.infra.persistence.") &&
-                    type.substringAfterLast('.').endsWith("RepositoryImpl")
-                if (!appService && !repositoryImplementation) {
-                    val output = ByteArrayOutputStream()
-                    exec.exec {
-                        executable = javap.get().asFile.absolutePath
-                        args("-v", "-p", file.absolutePath)
-                        standardOutput = output
-                    }.assertNormalExitValue()
-                    var annotationIndent: Int? = null
-                    val found = output.toString(Charsets.UTF_8).lineSequence().any { line ->
-                        val indent = line.takeWhile(Char::isWhitespace).length
-                        if (line.trim() in setOf("RuntimeVisibleAnnotations:", "RuntimeInvisibleAnnotations:")) {
-                            annotationIndent = indent
-                            false
-                        } else {
-                            val activeIndent = annotationIndent
-                            if (line.isNotBlank() && activeIndent != null && indent <= activeIndent) {
-                                annotationIndent = null
-                            }
-                            annotationIndent != null && declaration.matches(line)
-                        }
+        val candidates = classes.files.filter { it.exists() }.flatMap { directory ->
+            directory.walkTopDown().filter { it.extension == "class" }.map { file ->
+                file to file.relativeTo(directory).path.removeSuffix(".class").replace('/', '.')
+            }.filter { (_, type) ->
+                !type.startsWith("${basePackage.get()}.app.service.") &&
+                    !(type.startsWith("${basePackage.get()}.infra.persistence.") &&
+                        type.substringAfterLast('.').endsWith("RepositoryImpl"))
+            }.toList()
+        }.sortedBy { it.second }
+        candidates.chunked(100).forEach { batch ->
+            val output = ByteArrayOutputStream()
+            exec.exec {
+                executable = javap.get().asFile.absolutePath
+                args("-v", "-p")
+                args(batch.map { it.first.absolutePath })
+                standardOutput = output
+            }.assertNormalExitValue()
+            var type: String? = null
+            var annotationIndent: Int? = null
+            val visited = mutableSetOf<String>()
+            output.toString(Charsets.UTF_8).lineSequence().forEach { line ->
+                if (line.startsWith("Classfile ")) {
+                    type = null
+                    annotationIndent = null
+                }
+                if (line.trimStart().startsWith("this_class:")) {
+                    type = line.substringAfter("//", "").trim().replace('/', '.')
+                    visited.add(type!!)
+                }
+                val indent = line.takeWhile(Char::isWhitespace).length
+                if (line.trim() in setOf("RuntimeVisibleAnnotations:", "RuntimeInvisibleAnnotations:")) {
+                    annotationIndent = indent
+                } else {
+                    val activeIndent = annotationIndent
+                    if (line.isNotBlank() && activeIndent != null && indent <= activeIndent) {
+                        annotationIndent = null
                     }
-                    if (found) violations.add(type)
+                    if (annotationIndent != null && declaration.matches(line)) {
+                        violations.add(type ?: throw GradleException("无法识别 javap 注解所属类型"))
+                    }
                 }
             }
+            val missing = batch.map { it.second }.filter { it !in visited }
+            if (missing.isNotEmpty()) throw GradleException("无法识别 javap 类型输出：${missing.joinToString()}")
         }
         if (violations.isNotEmpty()) {
             throw GradleException("DDD 事务边界违规：Spring @Transactional 只允许声明在 app.service 或 infra.persistence.*RepositoryImpl：\n" +
-                violations.sorted().joinToString("\n"))
+                violations.distinct().sorted().joinToString("\n"))
         }
+        DddReports.success(reportFile)
     }
 }

@@ -16,7 +16,8 @@ import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputFile
 import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
-import org.gradle.work.DisableCachingByDefault
+import org.gradle.api.tasks.CacheableTask
+import org.gradle.api.tasks.OutputFile
 import org.gradle.api.tasks.TaskAction
 import org.gradle.api.tasks.SourceSetContainer
 import org.gradle.jvm.toolchain.JavaToolchainService
@@ -47,6 +48,7 @@ class DddConventionsPlugin : Plugin<Project> {
         val main = project.extensions.getByType<SourceSetContainer>().named("main")
         val declarations = project.tasks.register<VerifyDddDependencies>("verifyDddDependencies") {
             group = "verification"
+            reportFile.convention(project.layout.buildDirectory.file("reports/ddd/verifyDddDependencies.txt"))
             description = "校验 DDD 七模块的生产依赖方向与领域纯净性。"
             violations.set(project.providers.provider {
                 listOf("compileClasspath", "runtimeClasspath", "annotationProcessor").flatMap { name ->
@@ -84,9 +86,17 @@ class DddConventionsPlugin : Plugin<Project> {
 
         val toolchains = project.extensions.getByType<JavaToolchainService>()
         val java = project.extensions.getByType<org.gradle.api.plugins.JavaPluginExtension>()
+        val launcher = toolchains.launcherFor(java.toolchain)
+        val fingerprint = launcher.map {
+            val metadata = it.metadata
+            "${metadata.languageVersion}|${metadata.vendor}|${metadata.javaRuntimeVersion}|${metadata.jvmVersion}"
+        }
         val types = project.tasks.register<VerifyDddTypes>("verifyDddTypes") {
             group = "verification"
             role.set(project.name)
+            reportFile.convention(project.layout.buildDirectory.file("reports/ddd/verifyDddTypes.txt"))
+            toolchainFingerprint.set(fingerprint)
+            javap.set(launcher.map { it.metadata.installationPath.file("bin/javap") })
             basePackage.set(project.providers.gradleProperty("wuli3.ddd.base-package")
                 .orElse(project.providers.gradleProperty(ConventionProperties.NULL_AWAY_ANNOTATED_PACKAGES))
                 .orElse(ConventionProperties.DEFAULT_NULL_AWAY_ANNOTATED_PACKAGES))
@@ -100,6 +110,8 @@ class DddConventionsPlugin : Plugin<Project> {
         val transactions = project.tasks.register<VerifyDddTransactions>("verifyDddTransactions") {
             group = "verification"
             description = "可选校验 Spring 事务注解只声明在应用服务或基础设施仓储实现。"
+            reportFile.convention(project.layout.buildDirectory.file("reports/ddd/verifyDddTransactions.txt"))
+            toolchainFingerprint.set(fingerprint)
             enabled = project.booleanProperty("wuli3.ddd.transaction-review.enabled", false)
             basePackage.set(types.flatMap { it.basePackage })
             classes.from(main.map { it.output.classesDirs })
@@ -113,22 +125,37 @@ class DddConventionsPlugin : Plugin<Project> {
 }
 
 /** 显式报告非法依赖，避免自动删除声明掩盖架构错误。 */
-@DisableCachingByDefault(because = "依赖门禁只验证声明，没有输出产物")
+@CacheableTask
 abstract class VerifyDddDependencies : DefaultTask() {
+    @get:OutputFile
+    abstract val reportFile: RegularFileProperty
+
     @get:Input
     abstract val violations: ListProperty<String>
 
     @TaskAction
     fun verify() {
+        DddReports.clear(reportFile)
         if (violations.get().isNotEmpty()) {
             throw GradleException(violations.get().joinToString("\n"))
         }
+        DddReports.success(reportFile)
     }
 }
 
 /** 使用编译工具链的 jdeps 检查字节码，包括签名、注解和方法体引用。 */
-@DisableCachingByDefault(because = "字节码门禁只验证类型引用，没有输出产物")
+@CacheableTask
 abstract class VerifyDddTypes @Inject constructor(private val exec: ExecOperations) : DefaultTask() {
+    @get:OutputFile
+    abstract val reportFile: RegularFileProperty
+
+    @get:Input
+    abstract val toolchainFingerprint: Property<String>
+
+    @get:InputFile
+    @get:PathSensitive(PathSensitivity.NONE)
+    abstract val javap: RegularFileProperty
+
     @get:Input
     abstract val role: Property<String>
 
@@ -144,6 +171,7 @@ abstract class VerifyDddTypes @Inject constructor(private val exec: ExecOperatio
 
     @TaskAction
     fun verify() {
+        DddReports.clear(reportFile)
         if (!Regex("[A-Za-z_$][\\w$]*(\\.[A-Za-z_$][\\w$]*)*").matches(basePackage.get())) {
             throw GradleException("wuli3.ddd.base-package 必须是单一有效基础包，不能包含多个包：${basePackage.get()}")
         }
@@ -153,7 +181,10 @@ abstract class VerifyDddTypes @Inject constructor(private val exec: ExecOperatio
                 it.relativeTo(directory).path.removeSuffix(".class").replace('/', '.')
             }.toList()
         }.toSet()
-        if (ownTypes.isEmpty()) return
+        if (ownTypes.isEmpty()) {
+            DddReports.success(reportFile)
+            return
+        }
         if (role.get() == "app") {
             verifyQueryInterfaces(directories, ownTypes)
         }
@@ -198,6 +229,7 @@ abstract class VerifyDddTypes @Inject constructor(private val exec: ExecOperatio
         if (violations.isNotEmpty()) {
             throw GradleException(violations.joinToString("\n"))
         }
+        DddReports.success(reportFile)
     }
 
     /** 查询仓储只定义接口；package-info 和接口内部的辅助类型不参与此规则。 */
@@ -206,15 +238,18 @@ abstract class VerifyDddTypes @Inject constructor(private val exec: ExecOperatio
             it.startsWith("${basePackage.get()}.app.repository.") &&
                 !it.endsWith(".package-info") && '$' !in it
         }
-        repositories.forEach { type ->
+        repositories.sorted().chunked(100).forEach { batch ->
             val output = ByteArrayOutputStream()
             exec.exec {
-                executable = jdeps.get().asFile.resolveSibling("javap").absolutePath
-                args("-classpath", directories.joinToString(java.io.File.pathSeparator), type)
+                executable = javap.get().asFile.absolutePath
+                args("-classpath", directories.joinToString(java.io.File.pathSeparator))
+                args(batch)
                 standardOutput = output
             }.assertNormalExitValue()
-            if (!Regex("(?m)^.*\\binterface\\s").containsMatchIn(output.toString(Charsets.UTF_8))) {
-                throw GradleException("app.repository 只允许查询仓储接口：$type")
+            val interfaces = Regex("(?m)^.*\\binterface\\s+([^\\s<{]+)")
+                .findAll(output.toString(Charsets.UTF_8)).map { it.groupValues[1] }.toSet()
+            batch.firstOrNull { it !in interfaces }?.let {
+                throw GradleException("app.repository 只允许查询仓储接口：$it")
             }
         }
     }

@@ -2,6 +2,7 @@ package com.kjs.wuli3
 
 import org.assertj.core.api.Assertions.assertThat
 import org.gradle.testkit.runner.GradleRunner
+import org.gradle.testkit.runner.TaskOutcome
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import org.junit.jupiter.params.ParameterizedTest
@@ -278,6 +279,102 @@ class DddConventionsPluginTest {
         compile(full.replace('.', '/') + ".java", source)
         assertThat(runner("verifyDddTransactions").buildAndFail().output)
             .contains("DDD 事务边界违规", full)
+    }
+
+    @Test
+    fun `all gates reuse unchanged reports and restore reports from build cache`() {
+        transactionFixture(enabled = true)
+        val buildFile = directory.resolve("build.gradle.kts")
+        Files.writeString(buildFile, Files.readString(buildFile) + "\n" + bytecodeConfiguration())
+        val settings = directory.resolve("settings.gradle.kts")
+        Files.writeString(settings, Files.readString(settings) +
+            "\nbuildCache { local { directory = file(\"local-build-cache\") } }")
+        compile("example/app/service/OrderService.java", "package example.app.service; public class OrderService {}")
+        val tasks = arrayOf("verifyDddDependencies", "verifyDddTypes", "verifyDddTransactions")
+        val first = runner(*tasks, "--build-cache").build()
+        tasks.forEach { assertThat(first.task(":$it")!!.outcome).isEqualTo(TaskOutcome.SUCCESS) }
+        val second = runner(*tasks, "--build-cache").build()
+        tasks.forEach {
+            assertThat(second.task(":$it")!!.outcome).isEqualTo(TaskOutcome.UP_TO_DATE)
+            Files.delete(directory.resolve("build/reports/ddd/$it.txt"))
+        }
+        val restored = runner(*tasks, "--build-cache").build()
+        tasks.forEach { assertThat(restored.task(":$it")!!.outcome).isEqualTo(TaskOutcome.FROM_CACHE) }
+        compile("example/app/facade/Invalid.java", "package example.app.facade; @org.springframework.transaction.annotation.Transactional public class Invalid {}")
+        assertThat(runner(*tasks, "--build-cache").buildAndFail().output)
+            .contains("DDD 事务边界违规", "example.app.facade.Invalid")
+        assertThat(directory.resolve("build/reports/ddd/verifyDddTransactions.txt")).doesNotExist()
+    }
+
+    @Test
+    fun `bytecode and architecture configuration changes invalidate cached verdict`() {
+        fixture(bytecodeConfiguration(), "infra")
+        compileReference("app.service.Service", "Reference")
+        val properties = directory.resolve("gradle.properties")
+        Files.writeString(properties, "wuli3.ddd.base-package=unrelated")
+        assertThat(runner("verifyDddTypes", "--build-cache").build().task(":verifyDddTypes")!!.outcome)
+            .isEqualTo(TaskOutcome.SUCCESS)
+        Files.writeString(properties, "wuli3.ddd.base-package=example")
+        assertThat(runner("verifyDddTypes", "--build-cache").buildAndFail().output)
+            .contains("example.app.service.Service")
+        val build = directory.resolve("build.gradle.kts")
+        val original = Files.readString(build)
+        Files.writeString(build, original + "\ntasks.named<com.kjs.wuli3.VerifyDddTypes>(\"verifyDddTypes\") { role.set(\"bootstrap\") }")
+        assertThat(runner("verifyDddTypes", "--build-cache").build().task(":verifyDddTypes")!!.outcome)
+            .isEqualTo(TaskOutcome.SUCCESS)
+        Files.writeString(build, original)
+        assertThat(runner("verifyDddTypes", "--build-cache").buildAndFail().output)
+            .contains("example.app.service.Service")
+    }
+
+    @Test
+    fun `batched transaction inspection retains class boundaries beyond first chunk`() {
+        transactionFixture(enabled = true)
+        val annotation = "@org.springframework.transaction.annotation.Transactional"
+        val sources = (0 until 101).associate { index ->
+            val name = "Reference" + index.toString().padStart(3, '0')
+            "example/app/facade/$name.java" to
+                "package example.app.facade; public class $name { public Class<?> type() { return org.springframework.transaction.annotation.Transactional.class; } }"
+        }.toMutableMap()
+        sources["example/app/facade/ZClassViolation.java"] =
+            "package example.app.facade; $annotation public class ZClassViolation {}"
+        sources["example/app/facade/ZMethodViolation.java"] =
+            "package example.app.facade; public class ZMethodViolation { $annotation public void execute() {} }"
+        compileBatch(sources)
+        val output = runner("verifyDddTransactions").buildAndFail().output
+        assertThat(output).contains("example.app.facade.ZClassViolation", "example.app.facade.ZMethodViolation")
+            .doesNotContain("DDD 事务边界违规：example.app.facade.Reference")
+        Files.delete(directory.resolve("bytecode/example/app/facade/ZClassViolation.class"))
+        Files.delete(directory.resolve("bytecode/example/app/facade/ZMethodViolation.class"))
+        assertThat(runner("verifyDddTransactions").build().output).contains("BUILD SUCCESSFUL")
+    }
+
+    @Test
+    fun `batched repository inspection rejects non interface beyond first chunk`() {
+        fixture(bytecodeConfiguration(), "app")
+        val sources = (0 until 101).associate { index ->
+            val name = "Order" + index.toString().padStart(3, '0') + "QueryRepository"
+            "example/app/repository/$name.java" to "package example.app.repository; public interface $name {}"
+        }.toMutableMap()
+        sources["example/app/repository/ZBad.java"] = "package example.app.repository; public class ZBad {}"
+        compileBatch(sources)
+        assertThat(runner("verifyDddTypes").buildAndFail().output)
+            .contains("app.repository 只允许查询仓储接口", "example.app.repository.ZBad")
+        Files.delete(directory.resolve("bytecode/example/app/repository/ZBad.class"))
+        assertThat(runner("verifyDddTypes").build().output).contains("BUILD SUCCESSFUL")
+    }
+
+    private fun compileBatch(sources: Map<String, String>) {
+        val files = sources.map { (path, source) ->
+            val file = directory.resolve("sources/$path")
+            Files.createDirectories(file.parent)
+            Files.writeString(file, source)
+            file.toString()
+        }
+        val classes = directory.resolve("bytecode")
+        Files.createDirectories(classes)
+        val arguments = listOf("-classpath", classes.toString(), "-d", classes.toString()) + files
+        assertThat(ToolProvider.getSystemJavaCompiler().run(null, null, null, *arguments.toTypedArray())).isZero()
     }
 
     private fun transactionFixture(enabled: Boolean, role: String = "app") {
