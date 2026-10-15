@@ -1,7 +1,6 @@
 package com.kjs.wuli3.permission.model;
 
 import com.kjs.wuli3.core.assertion.Asserts;
-
 import java.time.Duration;
 import java.util.Map;
 

@@ -11,6 +11,7 @@ import org.jspecify.annotations.Nullable;
  *
  * @author GuoYang create on 2026/8/17 11:53
  */
+@SuppressWarnings("ArrayRecordComponent")
 public record RocketMessageWrapper(
         String topic,
         byte[] body,

@@ -8,10 +8,9 @@ import com.kjs.wuli3.core.assertion.Asserts;
 import com.kjs.wuli3.permission.model.PermissionToken;
 import com.kjs.wuli3.permission.model.PrincipalPermissions;
 import com.kjs.wuli3.permission.model.TtlPrincipalPermissions;
-import org.jspecify.annotations.NullMarked;
-
 import java.time.Duration;
 import java.util.Map;
+import org.jspecify.annotations.NullMarked;
 
 /**
  * AbstractPrincipalPermissionCacheLoader
