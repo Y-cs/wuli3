@@ -38,6 +38,7 @@ final class DddProjectGenerator {
             file("root/Dockerfile.tpl", "Dockerfile"),
             file("root/dockerignore.tpl", ".dockerignore"),
             file("root/gitignore.tpl", ".gitignore"),
+            file("root/logs.gitkeep.tpl", "logs/.gitkeep"),
             file("root/githooks/pre-commit.tpl", ".githooks/pre-commit"),
             file("root/generation.properties.tpl", ".wuli3/generation.properties"),
             // shared-kernel

@@ -44,6 +44,7 @@ final class DddGeneratorTest {
         });
 
         final Path root = this.output.resolve("order-service");
+        assertThat(root.resolve("logs/.gitkeep")).isRegularFile();
         assertThat(Files.readString(root.resolve("lombok.config")))
                 .isEqualTo("# 全局设置@EqualsAndHashCode的callSuper属性为true\n"
                         + "lombok.equalsAndHashCode.callSuper = CALL\n"

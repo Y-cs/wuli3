@@ -84,6 +84,9 @@ cd demo-web
 ./gradlew check
 ```
 
+生成工程会创建并保留 `logs/.gitkeep`，Docker 镜像也会预创建 `logs` 目录。模板默认启用文件日志，
+这可保证 Spring Boot 回退到 JUL `FileHandler` 时日志锁文件能够创建；Wuli3 Core Starter 也会在日志初始化阶段创建配置文件的父目录。
+
 ## 模块边界
 
 生成工程包含七个 Gradle 模块：

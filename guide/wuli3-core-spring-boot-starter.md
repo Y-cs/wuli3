@@ -77,6 +77,7 @@ wuli3:
 - `logstash`：Logstash 兼容格式。
 
 结构化格式由 Spring Boot 3.5 的标准属性驱动，不需要额外 JSON 编码器。文件输出开启后，Wuli3 会设置 Spring Boot 的滚动归档默认值；也可以直接使用 `logging.file.*` 和 `logging.logback.rollingpolicy.*` 覆盖它们。
+日志初始化阶段会预创建文件日志的父目录，兼容没有 Logback、回退到 JUL `FileHandler` 的运行环境，避免 `logs/*.lck` 因父目录不存在而初始化失败。
 
 ### 3.3 使用边界
 
