@@ -62,7 +62,7 @@ rabbitContextSupport.runInScope(message.getMessageProperties().getHeaders(), () 
 });
 ```
 
-`runInScope` 不会自动注册或包装 RabbitMQ Listener。实际 Listener 仍应根据消息来源、线程模型、重试和死信策略决定调用时机。
+`runInScope` 不会自动注册或包装 RabbitMQ Listener。实际 Listener 仍应根据消息来源、线程模型、重试和死信策略决定调用时机。回调期间同时把 `requestId` 写入日志 MDC，作用域退出后按消费线程进入前的值还原。
 
 ## 验证
 

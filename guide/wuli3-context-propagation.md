@@ -64,6 +64,8 @@ contexts.from(snapshot).run(handler);
 
 ContextPropagator 不读取 Store、不绑定线程、不执行 handler。协议适配器负责组合流程并确定来源信任策略，Codec 负责字段校验与转换。入站需补充本地信息时，显式使用 `snapshot.toState().with(localContext)` 再创建 Proxy。
 
+入站适配器还应把快照中的 `requestId` 绑定到日志 MDC，使服务端日志能关联调用链；绑定窗口必须与上下文作用域重合，退出时还原线程进入前的值，因为入站线程来自线程池。core starter 的 `RequestIdMdc` 提供该绑定。
+
 ## 底层绑定与 ScopedValue
 
 ThreadLocalContextBackend 直接持有 ThreadLocal，在回调前绑定状态，在 finally 中恢复。状态替换是后端的私有方法，不再设置独立 Store 或 ContextWriter 接口。

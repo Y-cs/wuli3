@@ -42,8 +42,8 @@ WORKDIR $BASE_HOME
 # JUL FileHandler 和 Spring Boot 文件日志都要求日志目录在启动前存在。
 RUN mkdir -p logs
 
-COPY bootstrap/build/libs/bootstrap.jar app.jar
+COPY bootstrap/build/libs/bootstrap.jar bootstrap.jar
 
 EXPOSE 8080 8099
 
-ENTRYPOINT ["sh", "-c", "exec java $JVM_OPTS -javaagent:/opt/otel/opentelemetry-javaagent.jar -jar app.jar ${OPTIONS}"]
+ENTRYPOINT ["sh", "-c", "exec java $JVM_OPTS -javaagent:/opt/otel/opentelemetry-javaagent.jar -jar bootstrap.jar ${OPTIONS}"]

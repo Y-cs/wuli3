@@ -3,6 +3,8 @@ package com.kjs.wuli3.dubbo.context;
 import com.kjs.wuli3.dubbo.autoconfigure.DubboProperties;
 import com.kjs.wuli3.propagation.ContextManager;
 import com.kjs.wuli3.propagation.codec.ContextPropagator;
+import com.kjs.wuli3.propagation.context.ContextSnapshot;
+import com.kjs.wuli3.spring.logging.RequestIdMdc;
 import lombok.Setter;
 import org.apache.dubbo.common.constants.CommonConstants;
 import org.apache.dubbo.common.extension.Activate;
@@ -16,7 +18,8 @@ import org.jspecify.annotations.Nullable;
 /**
  * 在 Dubbo provider 调用服务方法期间恢复请求 attachments 中的 Wuli3 上下文。
  *
- * 注意：作用域只覆盖当前调用线程，业务自行创建的异步任务仍需显式传播上下文。
+ * 注意：作用域只覆盖当前调用线程，业务自行创建的异步任务仍需显式传播上下文；该作用域同时把 requestId 写入 MDC，
+ * 并在退出时还原 provider 线程进入前的值。
  *
  * @author GuoYang create on 2026/8/28 17:59
  */
@@ -39,7 +42,7 @@ public final class DubboContextProviderFilter implements Filter {
      */
     private @Nullable ContextManager contextManager;
 
-    /** 在服务方法调用期间恢复远程上下文，并在当前线程中可靠关闭作用域。 */
+    /** 在服务方法调用期间恢复远程上下文并写入 requestId，并在当前线程中可靠关闭作用域。 */
     @Override
     public Result invoke(final Invoker<?> invoker, final Invocation invocation) throws RpcException {
         final DubboProperties properties = this.dubboProperties;
@@ -49,7 +52,10 @@ public final class DubboContextProviderFilter implements Filter {
             return invoker.invoke(invocation);
         }
         try {
-            return propagator.from(encoder.extract(invocation::getAttachment)).call(() -> invoker.invoke(invocation));
+            final ContextSnapshot snapshot = encoder.extract(invocation::getAttachment);
+            try (final RequestIdMdc ignored = RequestIdMdc.open(snapshot)) {
+                return propagator.from(snapshot).call(() -> invoker.invoke(invocation));
+            }
         } catch (final RuntimeException exception) {
             throw exception;
         } catch (final Exception exception) {

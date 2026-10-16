@@ -36,10 +36,14 @@ import org.springframework.web.servlet.HandlerExceptionResolver;
 @EnableConfigurationProperties(WebContextProperties.class)
 public class WebContextAutoConfiguration {
 
-    /** 创建同时提供读取与作用域绑定能力的默认线程后端。 */
+    /**
+     * 创建同时提供读取与作用域绑定能力的默认线程后端。
+     *
+     * 注意：Bean 名须为 contextReader，Dubbo Filter 依赖按 setter 属性名注入同一个上下文后端时使用该名称。
+     */
     @Bean
     @ConditionalOnMissingBean({ContextReader.class, ContextBinder.class})
-    ThreadLocalContextBackend contextBinder() {
+    ThreadLocalContextBackend contextReader() {
         return new ThreadLocalContextBackend();
     }
 

@@ -14,10 +14,12 @@ import com.kjs.wuli3.propagation.internal.AuthContext;
 import com.kjs.wuli3.propagation.internal.InvocationContext;
 import com.kjs.wuli3.propagation.internal.PrincipalType;
 import com.kjs.wuli3.propagation.store.ThreadLocalContextBackend;
+import com.kjs.wuli3.spring.logging.LogMdcKeys;
 import org.apache.dubbo.rpc.AppResponse;
 import org.apache.dubbo.rpc.Invocation;
 import org.apache.dubbo.rpc.Invoker;
 import org.junit.jupiter.api.Test;
+import org.slf4j.MDC;
 
 /**
  * 验证 Dubbo consumer/provider Filter 的上下文附件传播和作用域恢复。
@@ -50,7 +52,7 @@ class DubboContextFilterTest {
         verify(invocation).setAttachment(AuthContext.PRINCIPAL_PERMISSION_TOKEN, "permissions-v2");
     }
 
-    /** 验证 provider 只在服务调用作用域内使用远程上下文，结束后恢复原上下文。 */
+    /** 验证 provider 只在服务调用作用域内使用远程上下文并把 requestId 写入 MDC，结束后恢复原上下文。 */
     @Test
     void providerRestoresRemoteContextOnlyForInvocationScope() {
         final ThreadLocalContextBackend store = new ThreadLocalContextBackend();
@@ -71,6 +73,7 @@ class DubboContextFilterTest {
                                 .contains(new InvocationContext("10.0.0.8", "request-42"));
                         assertThat(store.get(ContextKey.of(AuthContext.class)))
                                 .contains(new AuthContext(PrincipalType.CUSTOMER, "7", "alice", "permissions-v2"));
+                        assertThat(MDC.get(LogMdcKeys.REQUEST_ID)).isEqualTo("request-42");
                         return new AppResponse();
                     });
                     final DubboContextProviderFilter filter = new DubboContextProviderFilter();
@@ -83,6 +86,7 @@ class DubboContextFilterTest {
                     assertThat(store.get(ContextKey.of(InvocationContext.class)))
                             .contains(new InvocationContext("127.0.0.1", "previous"));
                     assertThat(store.get(ContextKey.of(AuthContext.class))).isEmpty();
+                    assertThat(MDC.get(LogMdcKeys.REQUEST_ID)).isNull();
                 });
     }
 }

@@ -11,8 +11,10 @@ import com.kjs.wuli3.propagation.internal.InvocationContext;
 import com.kjs.wuli3.propagation.internal.PrincipalType;
 import com.kjs.wuli3.propagation.store.ThreadLocalContextBackend;
 import com.kjs.wuli3.rocket.RocketContextSupport;
+import com.kjs.wuli3.spring.logging.LogMdcKeys;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
+import org.slf4j.MDC;
 
 class RocketContextSupportTest {
 
@@ -38,12 +40,14 @@ class RocketContextSupportTest {
                                 .contains(new InvocationContext("10.0.0.8", "request-42"));
                         assertThat(threadLocalContextStore.get(ContextKey.of(AuthContext.class)))
                                 .contains(new AuthContext(PrincipalType.CUSTOMER, "7", "alice", "permissions-v2"));
+                        assertThat(MDC.get(LogMdcKeys.REQUEST_ID)).isEqualTo("request-42");
                         return null;
                     });
                     assertThat(threadLocalContextStore.get(ContextKey.of(InvocationContext.class)))
                             .contains(new InvocationContext("127.0.0.1", "previous"));
                     assertThat(threadLocalContextStore.get(ContextKey.of(AuthContext.class)))
                             .isEmpty();
+                    assertThat(MDC.get(LogMdcKeys.REQUEST_ID)).isNull();
                     return null;
                 });
     }
