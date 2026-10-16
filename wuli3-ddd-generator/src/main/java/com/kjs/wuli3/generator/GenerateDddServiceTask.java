@@ -45,6 +45,21 @@ public abstract class GenerateDddServiceTask extends DefaultTask {
     @Option(option = "messaging", description = "设置消息实现：none、rocketmq 或 rabbitmq。")
     public abstract Property<String> getMessaging();
 
+    /** 返回 RPC 实现选项。 */
+    @Input
+    @Option(option = "rpc", description = "设置 RPC 实现：none 或 dubbo。")
+    public abstract Property<String> getRpc();
+
+    /** 返回 RPC 注册中心选项。 */
+    @Input
+    @Option(option = "registry", description = "设置注册中心：none 或 nacos；需要启用 dubbo。")
+    public abstract Property<String> getRegistry();
+
+    /** 返回查询排序白名单。 */
+    @Input
+    @Option(option = "sort-fields", description = "设置可排序数据库字段，使用逗号分隔。")
+    public abstract Property<String> getSortFields();
+
     /** 返回生成工程使用的 Wuli3 BOM 和 Starter 版本。 */
     @Input
     @Option(option = "wuli3-version", description = "设置 Wuli3 BOM 和 Starter 版本。")
@@ -75,6 +90,12 @@ public abstract class GenerateDddServiceTask extends DefaultTask {
             this.getPersistence().get(),
             "--messaging",
             this.getMessaging().get(),
+            "--rpc",
+            this.getRpc().get(),
+            "--registry",
+            this.getRegistry().get(),
+            "--sort-fields",
+            this.getSortFields().get(),
             "--wuli3-version",
             this.getWuli3Version().get(),
             "--build-logic-version",

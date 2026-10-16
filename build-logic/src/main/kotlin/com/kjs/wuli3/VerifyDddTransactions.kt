@@ -7,6 +7,7 @@ import org.gradle.api.GradleException
 import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.provider.Property
+import org.gradle.api.provider.ListProperty
 import org.gradle.api.tasks.Classpath
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputFile
@@ -42,6 +43,14 @@ abstract class VerifyDddTransactions @Inject constructor(private val exec: ExecO
     @get:Input
     abstract val basePackage: Property<String>
 
+    /** 允许声明事务的相对包；infra.persistence 包仍受仓储实现后缀约束。 */
+    @get:Input
+    abstract val allowedPackages: ListProperty<String>
+
+    /** 基础设施包中允许声明事务的类型后缀。 */
+    @get:Input
+    abstract val allowedInfrastructureTypeSuffixes: ListProperty<String>
+
     /** 读取实际注解段，避免把常量池中的类型引用误判为事务声明。 */
     @TaskAction
     fun verify() {
@@ -52,13 +61,24 @@ abstract class VerifyDddTransactions @Inject constructor(private val exec: ExecO
         val violations = mutableListOf<String>()
         val annotationName = "org.springframework.transaction.annotation.Transactional"
         val declaration = Regex("^\\s+${Regex.escape(annotationName)}(?:\\(.*)?$")
+        val root = basePackage.get()
+        val packages = allowedPackages.get().map { it.trim().trim('.') }.filter { it.isNotEmpty() }.toSet()
+        val infrastructureSuffixes = allowedInfrastructureTypeSuffixes.get().map { it.trim() }.filter { it.isNotEmpty() }.toSet()
+        fun allowed(type: String): Boolean {
+            if (!type.startsWith("$root.")) return false
+            val relative = type.removePrefix("$root.")
+            val packageName = relative.substringBeforeLast('.', "")
+            val matched = packages.any { packageName == it || packageName.startsWith("$it.") }
+            if (!matched) return false
+            return if (packageName == "infra.persistence" || packageName.startsWith("infra.persistence.")) {
+                infrastructureSuffixes.any { relative.substringAfterLast('.').endsWith(it) }
+            } else true
+        }
         val candidates = classes.files.filter { it.exists() }.flatMap { directory ->
             directory.walkTopDown().filter { it.extension == "class" }.map { file ->
                 file to file.relativeTo(directory).path.removeSuffix(".class").replace('/', '.')
             }.filter { (_, type) ->
-                !type.startsWith("${basePackage.get()}.app.service.") &&
-                    !(type.startsWith("${basePackage.get()}.infra.persistence.") &&
-                        type.substringAfterLast('.').endsWith("RepositoryImpl"))
+                !allowed(type)
             }.toList()
         }.sortedBy { it.second }
         candidates.chunked(100).forEach { batch ->

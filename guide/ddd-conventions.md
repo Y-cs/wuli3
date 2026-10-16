@@ -29,7 +29,7 @@ MQ Consumer ───────────┤
 Job ──────────────────┼──> app.service.<领域>
 RPC -> app.FacadeImpl ─┘          ├── 查询：app.QueryRepository ← infra 实现
         实现 api.Facade           ├── 写入：domain.Repository ← infra 实现
-                                └── 外部能力：app.Acl ← infra 实现
+                                └── 外部能力：domain.CustomerGateway ← infra 实现
 ```
 
 ## 2. 目录与命名
@@ -48,11 +48,11 @@ adapter
 
 app
 ├── facade/order/OrderFacadeImpl
-├── service/order/OrderQueryService
-├── repository/order/OrderQueryRepository
-└── acl/CustomerAcl
+├── service/order/OrderService
+└── repository/order/OrderQueryRepository
 
 domain
+├── gateway/CustomerGateway
 └── order
     ├── Order
     ├── OrderItem
@@ -72,7 +72,7 @@ infra
 以上是组织示例，不要求一次性创建所有类。生成器只提供初始领域的查询样例；聚合仓储当前示例只有加载方法，
 真实写用例需要按聚合语义补充保存契约与实现，不应把示例理解为完整订单系统。
 
-所有约定包都保留中文 `package-info.java`，即使暂时没有实现，例如 `adapter.mq`、`adapter.job`、`app.acl` 和 `infra.acl`。
+所有约定包都保留中文 `package-info.java`，即使暂时没有实现，例如 `adapter.mq`、`adapter.job`、`domain.gateway` 和 `infra.acl`。
 包说明应包含职责、依赖边界、命名约束和禁止事项，并按仓库规范记录作者、创建时间。外部系统子包按实际需求增加。
 
 ## 3. Service 是完整用例的核心
@@ -114,10 +114,9 @@ infra 引用 app 类型时，简单类型名必须严格以以下后缀之一结
 | QueryRepository | OrderQueryRepository | 本应用查询契约 |
 | Query | OrderPageQuery | 查询条件 |
 | DTO | OrderSummaryDTO | 应用层查询传播对象 |
-| Acl | CustomerAcl | 外部业务能力契约 |
 
 例如 `OrderService`、`OrderFacadeImpl`、`CustomerGateway`、`OrderDto` 都不会因为位于 app 而获准被 infra 引用。
-放行依据是类型后缀，不是 `app.repository` 或 `app.acl` 整包豁免。不要靠改名规避职责边界。
+放行依据是类型后缀，不是 `app.repository` 整包豁免。不要靠改名规避职责边界。
 
 这里的 `DTO` 是 infra → app 的严格后缀规则；api 模块中既有 `OrderStatusDto` 可以继续使用，infra 对 api 的限制是
 只能访问 `api.dto` 包，不能访问 `api.facade`。两种规则的作用范围不同。
@@ -155,8 +154,25 @@ Lombok 不作为运行时依赖引入；shared-kernel 不自动注入 SLF4J，�
 
 ## 8. ACL 与基础设施配置
 
-app.acl 定义本应用需要的外部业务能力，以 `Acl` 结尾，使用本地业务语义；infra.acl 负责远程调用、模型、状态和错误转换。
+domain.gateway 定义本应用需要的外部业务能力，使用本地业务语义；infra.acl 负责远程调用、模型、状态和错误转换。
 外部 SDK、远端 RPC DTO 不穿透为应用契约。跨系统查询也属于 ACL，与本地查询仓储不同。
+
+外部服务的 API 制品只在 `infra` 声明依赖和引用类型；不要通过 `api` 依赖导出给 app。
+app Service 调用 `domain.gateway` 本地接口，infra 实现接口并将远端 DTO 转为本地结果或值对象；
+不要直接将远端 DTO 映射为聚合来绕过领域不变量。本服务自己的 `api` 模块仍可供 app 实现 Facade。
+
+门禁需要显式登记外部 API，不能根据制品名包含 api 自动判断：
+
+```properties
+# 精确 group:artifact，多个值用逗号分隔，不带版本
+wuli3.ddd.external-api.coordinates=com.example.customer:customer-api
+# 完整外部 Java 包前缀，包含子包；应与上述制品同步登记
+wuli3.ddd.external-api.packages=com.example.customer.api
+```
+
+坐标检查直接生产依赖声明，包检查字节码引用。未登记的外部制品不会被自动识别；
+bootstrap 可通过 infra 的传递依赖完成运行时组装，但不得直接声明或引用已登记的外部 API。
+旧项目将 `app.acl` 接口迁移到 `domain.gateway`，同步迁移本地模型并调整 app/infra 导入。
 
 MQ 消费属于 adapter.mq；业务执行过程中的消息发送属于出站基础设施能力。RPC FacadeImpl 在 app，RPC 发布机制由接入或组装层配置。
 
@@ -171,6 +187,11 @@ bootstrap 负责选择配置并最终组装，地址、凭据和运行参数通�
 ```properties
 wuli3.ddd.base-package=com.example.order
 wuli3.ddd.transaction-review.enabled=false
+# 可选：扩展事务包和基础设施仓储实现后缀（逗号分隔）
+wuli3.ddd.transaction-review.allowed-packages=app.service,infra.persistence
+wuli3.ddd.transaction-review.allowed-infrastructure-type-suffixes=RepositoryImpl
+# 可选：扩展 infra 引用 app 类型的后缀白名单（逗号分隔）
+wuli3.ddd.types.infra-app-allowed-suffixes=QueryRepository,Query,DTO
 ```
 
 `verifyDddTransactions` 默认关闭；开启后，仅允许以下位置直接声明 Spring `@Transactional`，类和方法均适用：
@@ -183,6 +204,10 @@ Api、FacadeImpl、Job、Mapper、infra.config、infra.acl 不在事务白名单
 
 该审查仅检查直接注解位置，不推断组合注解、继承事务、编程式事务、传播行为、回滚规则、跨服务一致性或 Spring 自调用代理问题。
 这些行为需要用例测试和代码审查验证。
+
+事务允许包和基础设施实现类后缀可以通过 Gradle 属性扩展。属性使用相对基础包的包名，
+例如 `app.service.order` 会匹配 `app.service`；`infra.persistence` 下的类型仍需匹配
+`wuli3.ddd.transaction-review.allowed-infrastructure-type-suffixes`。未配置时保持上述默认规则。
 
 ## 10. 构建门禁及检查边界
 
@@ -205,13 +230,17 @@ Api、FacadeImpl、Job、Mapper、infra.config、infra.acl 不在事务白名单
 基础包优先读取 `wuli3.ddd.base-package`，兼容回退到 `wuli3.conventions.nullaway.annotated-packages`，要求单个有效包名。
 模块角色依据标准模块名识别，不应通过改模块名或把代码搬出项目基础包绕过门禁。
 
+`infra` 引用 `app` 类型的后缀白名单可通过 `wuli3.ddd.types.infra-app-allowed-suffixes` 扩展，
+适用于项目需要使用 `Projection`、`Assembler` 等明确应用层查询契约的场景。扩展白名单前应确认
+该类型确实是基础设施所需的稳定契约，避免用配置掩盖错误的依赖方向。
+
 声明检查覆盖生产 compile/runtime/annotationProcessor 配置，不等于完整传递依赖树审计；字节码检查不能发现反射字符串形成的动态依赖。
 测试源码不作为生产架构边界扫描对象。插件也不验证业务命名是否诚实、查询 SQL 是否只读、领域规则是否完整、入口是否重复编排。
 
 ## 11. 开发与审查顺序
 
 1. 明确业务语义、聚合边界和不变量，先选择承担职责的领域包。
-2. 明确是查询投影、聚合操作还是外部系统能力，再选择 QueryRepository、Repository 或 Acl。
+2. 明确是查询投影、聚合操作还是外部系统能力，再选择 QueryRepository、Repository 或 Gateway。
 3. 在 Service 实现完整用例，HTTP/RPC/MQ/Job 复用；仅在真实契约差异处转换对象。
 4. 选择事务边界并测试失败回滚，不让入口层拼装原子操作。
 5. 补齐中文 package-info、公共 API 边界说明及业务测试，执行受影响模块 check；提交前执行完整 check。

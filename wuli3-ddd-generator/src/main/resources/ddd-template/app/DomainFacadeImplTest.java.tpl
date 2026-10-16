@@ -1,26 +1,41 @@
 package {{basePackage}}.app.facade.{{domainPackage}};
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import {{basePackage}}.api.dto.{{domainPackage}}.{{domainType}}StatusDto;
-import {{basePackage}}.app.service.{{domainPackage}}.{{domainType}}QueryService;
+import {{basePackage}}.app.service.{{domainPackage}}.{{domainType}}Service;
 import {{basePackage}}.sharedkernel.EntityId;
 import {{basePackage}}.sharedkernel.Status;
+import com.kjs.wuli3.pagination.PageQuery;
+import com.kjs.wuli3.pagination.PageResult;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 
 /**
- * 验证入口复用应用查询服务并保持结果契约。
+ * 验证入口将增改、查询、删除和分页交给同一应用用例。
  *
- * @author GuoYang create on 2026/10/14 15:30
+ * @author GuoYang create on 2026/10/16 10:00
  */
 final class {{domainType}}FacadeImplTest {
-    /** 入口直接返回共享用例结果，不重复转换或业务编排。 */
+    /** 保持输入标识、分页参数和结果对象，不重复编排。 */
     @Test
-    void delegatesToQueryService() {
-        final var expected = new {{domainType}}StatusDto(new EntityId("sample-1"), Status.ACTIVE);
-        final var service = new {{domainType}}QueryService(() -> expected);
+    void delegatesCrudAndPage() {
+        final var service = mock({{domainType}}Service.class);
         final var entry = new {{domainType}}FacadeImpl(service);
-
-        assertThat(entry.status()).isSameAs(expected);
+        final var id = new EntityId("sample-1");
+        final var value = new {{domainType}}StatusDto(id, Status.INACTIVE);
+        final var query = new PageQuery(1, 20);
+        final var result = new PageResult<>(List.of(value), 1, 1, 20);
+        when(service.save(value)).thenReturn(value);
+        when(service.findById(id)).thenReturn(value);
+        when(service.page(query)).thenReturn(result);
+        assertThat(entry.save(value)).isSameAs(value);
+        assertThat(entry.findById(id)).isSameAs(value);
+        assertThat(entry.page(query)).isSameAs(result);
+        entry.deleteById(id);
+        verify(service).deleteById(id);
     }
 }

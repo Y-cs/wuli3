@@ -17,12 +17,16 @@ record GeneratorOptions(
         String domain,
         String persistence,
         String messaging,
+        String rpc,
+        String registry,
+        List<String> sortFields,
         String wuli3Version,
         String buildLogicVersion,
         Path output,
         String domainType) {
     static final String DEFAULT_PERSISTENCE = "none";
     static final String DEFAULT_MESSAGING = "none";
+    static final String DEFAULT_SORT_FIELDS = "id,status";
     static final String DEFAULT_WULI3_VERSION = "0.1.3-SNAPSHOT";
     static final String DEFAULT_BUILD_LOGIC_VERSION = "0.1.3-SNAPSHOT";
     private static final List<String> KEYS = List.of(
@@ -31,6 +35,9 @@ record GeneratorOptions(
             "domain",
             "persistence",
             "messaging",
+            "rpc",
+            "registry",
+            "sort-fields",
             "wuli3-version",
             "build-logic-version",
             "output");
@@ -69,11 +76,24 @@ record GeneratorOptions(
 
         final String persistence = values.getOrDefault("persistence", GeneratorOptions.DEFAULT_PERSISTENCE);
         final String messaging = values.getOrDefault("messaging", GeneratorOptions.DEFAULT_MESSAGING);
+        final String rpc = values.getOrDefault("rpc", "none");
+        final String registry = values.getOrDefault("registry", "none");
+        final List<String> sortFields = GeneratorOptions.parseSortFields(
+                values.getOrDefault("sort-fields", GeneratorOptions.DEFAULT_SORT_FIELDS));
         if (!List.of("none", "mysql").contains(persistence)) {
             throw new IllegalArgumentException("不支持的 persistence: " + persistence);
         }
         if (!List.of("none", "rocketmq", "rabbitmq").contains(messaging)) {
             throw new IllegalArgumentException("不支持的 messaging: " + messaging);
+        }
+        if (!List.of("none", "dubbo").contains(rpc)) {
+            throw new IllegalArgumentException("不支持的 rpc: " + rpc);
+        }
+        if (!List.of("none", "nacos").contains(registry)) {
+            throw new IllegalArgumentException("不支持的 registry: " + registry);
+        }
+        if ("nacos".equals(registry) && !"dubbo".equals(rpc)) {
+            throw new IllegalArgumentException("registry=nacos 必须同时启用 rpc=dubbo");
         }
         final Path output =
                 Path.of(values.getOrDefault("output", ".")).toAbsolutePath().normalize();
@@ -83,6 +103,9 @@ record GeneratorOptions(
                 domain,
                 persistence,
                 messaging,
+                rpc,
+                registry,
+                sortFields,
                 values.getOrDefault("wuli3-version", GeneratorOptions.DEFAULT_WULI3_VERSION),
                 values.getOrDefault("build-logic-version", GeneratorOptions.DEFAULT_BUILD_LOGIC_VERSION),
                 output,
@@ -95,6 +118,14 @@ record GeneratorOptions(
             throw new IllegalArgumentException("缺少 --" + key);
         }
         return value;
+    }
+
+    private static List<String> parseSortFields(final String value) {
+        final List<String> fields = List.of(value.split(","));
+        if (fields.stream().anyMatch(field -> !field.matches("[a-z][a-zA-Z0-9_]*"))) {
+            throw new IllegalArgumentException("sort-fields 必须是逗号分隔的数据库字段名");
+        }
+        return fields;
     }
 
     private static String toTypeName(final String value) {

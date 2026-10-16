@@ -89,7 +89,7 @@ class DddConventionsPluginTest {
     @Test
     fun `infra allows only query contracts dto and domain references`() {
         fixture(bytecodeConfiguration(), "infra")
-        listOf("app.repository.OrderQueryRepository", "app.query.OrderQuery", "app.dto.OrderDTO", "app.acl.CustomerAcl", "api.dto.ResultDto", "domain.Order").forEachIndexed { index, name ->
+        listOf("app.repository.OrderQueryRepository", "app.query.OrderQuery", "app.dto.OrderDTO", "domain.gateway.CustomerGateway", "api.dto.ResultDto", "domain.Order").forEachIndexed { index, name ->
             compileReference(name, "Allowed$index")
         }
         assertThat(runner("verifyDddTypes").build().output).contains("BUILD SUCCESSFUL")
@@ -103,6 +103,77 @@ class DddConventionsPluginTest {
         }
         val output = runner("verifyDddTypes").buildAndFail().output
         assertThat(output).contains("infra 引用 app 类型必须以", "app.acl.Gateway", "app.dto.OrderDto", "app.service.Service", "app.facade.FacadeImpl", "api.facade.Facade", "adapter.api.Api", "app.other.Other")
+    }
+
+    @Test
+    fun `infra app reference suffixes are configurable`() {
+        fixture(bytecodeConfiguration(), "infra")
+        Files.writeString(directory.resolve("gradle.properties"), Files.readString(directory.resolve("gradle.properties")) +
+            "\nwuli3.ddd.types.infra-app-allowed-suffixes=Projection")
+        compileReference("app.read.OrderProjection", "Reference")
+        assertThat(runner("verifyDddTypes").build().output).contains("BUILD SUCCESSFUL")
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = ["app", "api", "domain", "adapter", "bootstrap", "shared-kernel"])
+    fun `external service API declarations are restricted to infra`(role: String) {
+        fixture("dependencies { implementation(\"external.customer:customer-api:1.0\") }", role)
+        appendProperties("wuli3.ddd.external-api.coordinates=external.customer:customer-api")
+        assertThat(runner("verifyDddDependencies").buildAndFail().output)
+            .contains("外部服务 API 只能由 infra 引入", "external.customer:customer-api")
+    }
+
+    @Test
+    fun `infra accepts declared external APIs and app accepts unrelated libraries`() {
+        fixture("dependencies { implementation(\"external.customer:customer-api:1.0\") }", "infra")
+        appendProperties("wuli3.ddd.external-api.coordinates=external.customer:customer-api")
+        assertThat(runner("verifyDddDependencies").build().output).contains("BUILD SUCCESSFUL")
+        fixture("dependencies { implementation(\"other:some-api:1.0\") }", "app")
+        appendProperties("wuli3.ddd.external-api.coordinates=external.customer:customer-api")
+        assertThat(runner("verifyDddDependencies").build().output).contains("BUILD SUCCESSFUL")
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = ["app", "api", "domain", "adapter", "bootstrap", "shared-kernel", "infra"])
+    fun `external API bytecode references only pass in infra`(role: String) {
+        fixture(bytecodeConfiguration(), role)
+        appendProperties("wuli3.ddd.external-api.packages=external.customer.api")
+        compile("external/customer/api/Customer.java", "package external.customer.api; public class Customer {}")
+        compile("example/$role/Client.java".replace("shared-kernel", "sharedkernel"),
+            "package example.${role.replace("shared-kernel", "sharedkernel")}; public class Client { public external.customer.api.Customer value; }")
+        Files.delete(directory.resolve("bytecode/external/customer/api/Customer.class"))
+        if (role == "infra") {
+            assertThat(runner("verifyDddTypes").build().output).contains("BUILD SUCCESSFUL")
+        } else {
+            assertThat(runner("verifyDddTypes").buildAndFail().output)
+                .contains("外部服务 API 类型只能由 infra 引用", "external.customer.api.Customer")
+        }
+    }
+
+    @Test
+    fun `external API prefixes do not match sibling packages or local API`() {
+        fixture(bytecodeConfiguration(), "app")
+        appendProperties("wuli3.ddd.external-api.packages=external.customer.api")
+        compileReference("api.dto.OrderDTO", "Local", "app")
+        compileReference("api2.Customer", "Sibling", "app", "external.customer")
+        assertThat(runner("verifyDddTypes").build().output).contains("BUILD SUCCESSFUL")
+    }
+
+    @Test
+    fun `app acl declarations and references are forbidden even with configured suffix`() {
+        fixture(bytecodeConfiguration(), "app")
+        compile("example/app/acl/CustomerAcl.java", "package example.app.acl; public interface CustomerAcl {}")
+        assertThat(runner("verifyDddTypes").buildAndFail().output).contains("禁止 app.acl", "domain.gateway")
+        Files.delete(directory.resolve("bytecode/example/app/acl/CustomerAcl.class"))
+        fixture(bytecodeConfiguration(), "infra")
+        appendProperties("wuli3.ddd.types.infra-app-allowed-suffixes=Acl")
+        compileReference("app.acl.CustomerAcl", "Client")
+        assertThat(runner("verifyDddTypes").buildAndFail().output).contains("禁止引用 app.acl")
+    }
+
+    private fun appendProperties(value: String) {
+        val properties = directory.resolve("gradle.properties")
+        Files.writeString(properties, Files.readString(properties) + "\n" + value)
     }
 
     @Test
@@ -279,6 +350,24 @@ class DddConventionsPluginTest {
         compile(full.replace('.', '/') + ".java", source)
         assertThat(runner("verifyDddTransactions").buildAndFail().output)
             .contains("DDD 事务边界违规", full)
+    }
+
+    @Test
+    fun `transaction review allows configured package`() {
+        transactionFixture(enabled = true)
+        Files.writeString(directory.resolve("gradle.properties"), Files.readString(directory.resolve("gradle.properties")) +
+            "\nwuli3.ddd.transaction-review.allowed-packages=app.service,app.facade,infra.persistence")
+        compile("example/app/facade/OrderFacade.java", "package example.app.facade; @org.springframework.transaction.annotation.Transactional public class OrderFacade {}")
+        assertThat(runner("verifyDddTransactions").build().output).contains("BUILD SUCCESSFUL")
+    }
+
+    @Test
+    fun `transaction review allows configured infrastructure suffix`() {
+        transactionFixture(enabled = true, role = "infra")
+        Files.writeString(directory.resolve("gradle.properties"), Files.readString(directory.resolve("gradle.properties")) +
+            "\nwuli3.ddd.transaction-review.allowed-infrastructure-type-suffixes=Store")
+        compile("example/infra/persistence/OrderStore.java", "package example.infra.persistence; @org.springframework.transaction.annotation.Transactional public class OrderStore {}")
+        assertThat(runner("verifyDddTransactions").build().output).contains("BUILD SUCCESSFUL")
     }
 
     @Test

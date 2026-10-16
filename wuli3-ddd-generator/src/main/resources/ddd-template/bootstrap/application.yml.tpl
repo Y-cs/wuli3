@@ -27,3 +27,4 @@ wuli3:
 logging:
   level:
     com.kjs.wuli3: info
+{{rpcConfiguration}}

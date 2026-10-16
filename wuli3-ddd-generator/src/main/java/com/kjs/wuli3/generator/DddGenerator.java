@@ -33,6 +33,8 @@ public final class DddGenerator {
     private static void printUsage() {
         System.out.println("Usage: generate --service NAME --package PACKAGE --domain NAME "
                 + "[--persistence none|mysql] [--messaging none|rocketmq|rabbitmq] "
+                + "[--rpc none|dubbo] [--registry none|nacos] "
+                + "[--sort-fields field1,field2] "
                 + "[--wuli3-version VERSION] [--build-logic-version VERSION] [--output DIR]");
     }
 

@@ -46,11 +46,20 @@ class DddConventionsPlugin : Plugin<Project> {
 
     private fun configureChecks(project: Project) {
         val main = project.extensions.getByType<SourceSetContainer>().named("main")
+        // 外部服务契约必须显式标识；不根据 artifact 后缀猜测，以免误判本服务 API 和第三方库。
+        val externalApiCoordinates = project.providers.gradleProperty("wuli3.ddd.external-api.coordinates")
+            .map { it.split(',').map(String::trim).filter(String::isNotEmpty) }.orElse(emptyList())
         val declarations = project.tasks.register<VerifyDddDependencies>("verifyDddDependencies") {
             group = "verification"
             reportFile.convention(project.layout.buildDirectory.file("reports/ddd/verifyDddDependencies.txt"))
             description = "校验 DDD 七模块的生产依赖方向与领域纯净性。"
             violations.set(project.providers.provider {
+                val externalCoordinates = externalApiCoordinates.get()
+                externalCoordinates.forEach {
+                    if (!Regex("[^:\\s]+:[^:\\s]+").matches(it)) {
+                        throw GradleException("wuli3.ddd.external-api.coordinates 必须使用 group:artifact：$it")
+                    }
+                }
                 listOf("compileClasspath", "runtimeClasspath", "annotationProcessor").flatMap { name ->
                     project.configurations.getByName(name).allDependencies.mapNotNull { dependency ->
                         val coordinate = "${dependency.group}:${dependency.name}"
@@ -65,6 +74,8 @@ class DddConventionsPlugin : Plugin<Project> {
                             else -> null
                         }
                         when {
+                            project.name != "infra" && coordinate in externalCoordinates ->
+                                "外部服务 API 只能由 infra 引入：${project.name}: $name: $coordinate"
                             project.name == "domain" && DddBoundaries.isSpringGroup(dependency.group) ->
                                 "domain 禁止 Spring 生产依赖：$name: $coordinate"
                             targetModule in DddBoundaries.allowedModules &&
@@ -100,6 +111,12 @@ class DddConventionsPlugin : Plugin<Project> {
             basePackage.set(project.providers.gradleProperty("wuli3.ddd.base-package")
                 .orElse(project.providers.gradleProperty(ConventionProperties.NULL_AWAY_ANNOTATED_PACKAGES))
                 .orElse(ConventionProperties.DEFAULT_NULL_AWAY_ANNOTATED_PACKAGES))
+            infraAppAllowedSuffixes.set(project.providers.gradleProperty("wuli3.ddd.types.infra-app-allowed-suffixes")
+                .map { it.split(',').map(String::trim).filter(String::isNotEmpty) }
+                .orElse(listOf("QueryRepository", "Query", "DTO")))
+            externalApiPackages.set(project.providers.gradleProperty("wuli3.ddd.external-api.packages")
+                .map { it.split(',').map(String::trim).filter(String::isNotEmpty) }
+                .orElse(emptyList()))
             description = "校验 DDD 模块字节码遵守共享内核与基础设施边界。"
             dependsOn(declarations)
             classes.from(main.map { it.output.classesDirs })
@@ -114,6 +131,13 @@ class DddConventionsPlugin : Plugin<Project> {
             toolchainFingerprint.set(fingerprint)
             enabled = project.booleanProperty("wuli3.ddd.transaction-review.enabled", false)
             basePackage.set(types.flatMap { it.basePackage })
+            allowedPackages.set(project.providers.gradleProperty("wuli3.ddd.transaction-review.allowed-packages")
+                .map { it.split(',').map(String::trim).filter(String::isNotEmpty) }
+                .orElse(listOf("app.service", "infra.persistence")))
+            allowedInfrastructureTypeSuffixes.set(project.providers.gradleProperty(
+                "wuli3.ddd.transaction-review.allowed-infrastructure-type-suffixes")
+                .map { it.split(',').map(String::trim).filter(String::isNotEmpty) }
+                .orElse(listOf("RepositoryImpl")))
             classes.from(main.map { it.output.classesDirs })
             javap.set(toolchains.launcherFor(java.toolchain).map {
                 it.metadata.installationPath.file("bin/javap")
@@ -162,6 +186,13 @@ abstract class VerifyDddTypes @Inject constructor(private val exec: ExecOperatio
     @get:Input
     abstract val basePackage: Property<String>
 
+    @get:Input
+    abstract val infraAppAllowedSuffixes: ListProperty<String>
+
+    /** 外部服务 API 的完整包前缀，仅允许 infra 引用这些包及其子包。 */
+    @get:Input
+    abstract val externalApiPackages: ListProperty<String>
+
     @get:Classpath
     abstract val classes: ConfigurableFileCollection
 
@@ -175,12 +206,20 @@ abstract class VerifyDddTypes @Inject constructor(private val exec: ExecOperatio
         if (!Regex("[A-Za-z_$][\\w$]*(\\.[A-Za-z_$][\\w$]*)*").matches(basePackage.get())) {
             throw GradleException("wuli3.ddd.base-package 必须是单一有效基础包，不能包含多个包：${basePackage.get()}")
         }
+        externalApiPackages.get().forEach {
+            if (!Regex("[A-Za-z_$][\\w$]*(\\.[A-Za-z_$][\\w$]*)*").matches(it)) {
+                throw GradleException("wuli3.ddd.external-api.packages 必须是有效完整包名：$it")
+            }
+        }
         val directories = classes.files.filter { it.exists() }
         val ownTypes = directories.flatMap { directory ->
             directory.walkTopDown().filter { it.extension == "class" }.map {
                 it.relativeTo(directory).path.removeSuffix(".class").replace('/', '.')
             }.toList()
         }.toSet()
+        ownTypes.firstOrNull { it.startsWith("${basePackage.get()}.app.acl.") }?.let {
+            throw GradleException("禁止 app.acl：$it；本地能力接口请放入 domain.gateway，实现放入 infra.acl")
+        }
         if (ownTypes.isEmpty()) {
             DddReports.success(reportFile)
             return
@@ -207,14 +246,18 @@ abstract class VerifyDddTypes @Inject constructor(private val exec: ExecOperatio
                 }
             } else null
             val problem = when {
+                target.startsWith("$root.app.acl.") ->
+                    "禁止引用 app.acl；本地能力接口请放入 domain.gateway，实现放入 infra.acl"
+                role.get() != "infra" && externalApiPackages.get().any { target.startsWith("$it.") } ->
+                    "外部服务 API 类型只能由 infra 引用"
                 role.get() == "domain" && target.startsWith("org.springframework.") ->
                     "domain 禁止 Spring 类型引用"
                 targetRole != null && targetRole != role.get() &&
                     targetRole !in DddBoundaries.allowedModules.getValue(role.get()) ->
                     "DDD 类型依赖违规：${role.get()} -> $targetRole"
                 role.get() == "infra" && targetRole == "app" &&
-                    !listOf("QueryRepository", "Query", "DTO", "Acl").any { target.substringAfterLast('.').endsWith(it) } ->
-                    "infra 引用 app 类型必须以 QueryRepository、Query、DTO、Acl 结尾"
+                    !infraAppAllowedSuffixes.get().any { target.substringAfterLast('.').endsWith(it) } ->
+                    "infra 引用 app 类型必须以后缀 ${infraAppAllowedSuffixes.get().joinToString("、")} 结尾"
                 role.get() == "infra" && targetRole == "api" && !target.startsWith("$root.api.dto.") ->
                     "infra 只允许引用 api.dto，不允许引用 Facade 契约"
                 role.get() == "shared-kernel" && target !in ownTypes &&
