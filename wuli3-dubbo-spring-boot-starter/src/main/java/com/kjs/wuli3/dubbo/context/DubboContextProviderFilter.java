@@ -44,6 +44,7 @@ public final class DubboContextProviderFilter implements Filter {
 
     /** 在服务方法调用期间恢复远程上下文并写入 requestId，并在当前线程中可靠关闭作用域。 */
     @Override
+    @SuppressWarnings("try")
     public Result invoke(final Invoker<?> invoker, final Invocation invocation) throws RpcException {
         final DubboProperties properties = this.dubboProperties;
         final ContextPropagator encoder = this.contextPropagator;

@@ -80,7 +80,8 @@ public final class DubboErrorProviderFilter implements Filter {
         final ErrorResolver errorResolver = this.errorResolvers.computeIfAbsent(sourceService, ErrorResolver::new);
         final ErrorCodeCarrier protocol = errorResolver.resolvePropagation(local);
         DubboErrorProviderFilter.ERROR_PROPAGATION_ENCODER.inject(protocol, result::setAttachment);
-        result.setException(new RuntimeException("Remote service invocation failed"));
+        // checked 异常会让 Dubbo ExceptionFilter 直接返回，避免把已传播的业务错误记为未声明异常。
+        result.setException(new Exception("Remote service invocation failed"));
     }
 
     /**

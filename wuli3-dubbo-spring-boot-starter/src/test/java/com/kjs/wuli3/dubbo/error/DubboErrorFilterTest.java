@@ -131,7 +131,7 @@ class DubboErrorFilterTest {
         final Result wireResult = provider.invoke(providerInvoker, invocation);
 
         assertThat(wireResult.getException())
-                .isInstanceOf(RuntimeException.class)
+                .isExactlyInstanceOf(Exception.class)
                 .hasMessage("Remote service invocation failed");
         assertThat(wireResult.getAttachment(ErrorCodePropagator.CODE))
                 .isEqualTo("GROUP-SERVICE.COMMON.ILLEGAL_ARGUMENT");
@@ -158,7 +158,7 @@ class DubboErrorFilterTest {
                 assertThat(propagated.severity()).isEqualTo(ErrorSeverity.NORMAL);
                 assertThat(propagated.sourceService()).isEqualTo("group-service");
             });
-            assertThat(exception.getCause()).isInstanceOf(RuntimeException.class);
+            assertThat(exception.getCause()).isExactlyInstanceOf(Exception.class);
         });
     }
 

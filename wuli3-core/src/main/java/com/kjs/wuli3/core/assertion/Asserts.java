@@ -5,6 +5,7 @@ import com.kjs.wuli3.core.error.builtin.CommonErrors;
 import com.kjs.wuli3.core.error.model.ErrorCode;
 import java.util.Collection;
 import java.util.Map;
+import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -74,6 +75,23 @@ public final class Asserts {
     /** 当 Map 非空时触发失败断言。 */
     public static AssertCondition whenNotEmptyMap(final @Nullable Map<?, ?> map) {
         return () -> map != null && !map.isEmpty();
+    }
+
+    /**
+     * 校验对象非空，为 null 时抛出指定错误码异常。
+     *
+     * 使用方式：校验后还需要使用对象本身时调用，返回值已带非空类型，调用方无需再做空值收窄。
+     *
+     * @param obj 待校验对象
+     * @param errorCode 对象为 null 时抛出的错误码
+     * @return 校验通过的原对象
+     * @throws ErrorCodeException 对象为 null 时
+     */
+    public static <T extends @NonNull Object> T requireNonNull(final @Nullable T obj, final ErrorCode errorCode) {
+        if (obj == null) {
+            throw new ErrorCodeException(errorCode);
+        }
+        return obj;
     }
 
     @FunctionalInterface

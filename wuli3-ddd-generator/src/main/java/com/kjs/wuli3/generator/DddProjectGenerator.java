@@ -23,7 +23,7 @@ import java.util.Set;
  */
 final class DddProjectGenerator {
     private static final String TEMPLATE_ROOT = "/ddd-template/";
-    private static final String TEMPLATE_VERSION = "2.0.0";
+    private static final String TEMPLATE_VERSION = "2.1.0";
 
     /** 模板文件与生成路径的映射，按生成工程的模块顺序排列。 */
     private static final List<TemplateFile> BASE_FILES = List.of(
@@ -147,11 +147,6 @@ final class DddProjectGenerator {
         if (options.persistence().equals("mysql")) {
             files.addAll(DddProjectGenerator.MYSQL_FILES);
         }
-        if ("dubbo".equals(options.rpc())) {
-            files.add(file(
-                    "bootstrap/DomainRpcConfiguration.java.tpl",
-                    "bootstrap/src/main/java/{{packagePath}}/config/{{domainType}}RpcConfiguration.java"));
-        }
         if (!options.persistence().equals("mysql")) {
             files.add(
                     file(
@@ -262,6 +257,9 @@ final class DddProjectGenerator {
         result.put("buildLogicVersion", options.buildLogicVersion());
         result.put("templateVersion", DddProjectGenerator.TEMPLATE_VERSION);
         result.put("infraDependencies", this.infraDependencies(options));
+        result.put("appDependencies", this.appDependencies(options));
+        result.put("facadeRpcImport", this.facadeRpcImport(options));
+        result.put("facadeRpcAnnotation", this.facadeRpcAnnotation(options));
         result.put("bootstrapDependencies", this.bootstrapDependencies(options));
         result.put("rpcConfiguration", this.rpcConfiguration(options));
         result.put("repositoryImports", this.repositoryImports(options));
@@ -292,21 +290,39 @@ final class DddProjectGenerator {
         return result.toString();
     }
 
-    /** bootstrap 模块负责 Dubbo 运行时与可选 Nacos 注册中心。 */
+    /** app 模块引入 Dubbo 注解，Facade 实现直接声明 RPC 发布。 */
+    private String appDependencies(final GeneratorOptions options) {
+        return "dubbo".equals(options.rpc()) ? "    implementation(\"org.apache.dubbo:dubbo-config-spring\")\n" : "";
+    }
+
+    /** Dubbo 选项下生成 Facade 发布注解的导入。 */
+    private String facadeRpcImport(final GeneratorOptions options) {
+        return "dubbo".equals(options.rpc()) ? "import org.apache.dubbo.config.annotation.DubboService;\n" : "";
+    }
+
+    /** Dubbo 选项下生成 Facade 发布注解。 */
+    private String facadeRpcAnnotation(final GeneratorOptions options) {
+        return "dubbo".equals(options.rpc()) ? "@DubboService\n" : "";
+    }
+
+    /** bootstrap 模块提供 Dubbo 运行时与可选 Nacos 注册中心。 */
     private String bootstrapDependencies(final GeneratorOptions options) {
         if (!"dubbo".equals(options.rpc())) {
             return "";
         }
-        final StringBuilder result = new StringBuilder("    implementation(project(\":api\"))\n"
-                + "    implementation(\"org.apache.dubbo:dubbo-config-spring\")\n"
-                + "    implementation(\"com.kjs.wuli3:wuli3-dubbo-spring-boot-starter\")\n");
+        final StringBuilder result =
+                new StringBuilder("    implementation(\"com.kjs.wuli3:wuli3-dubbo-spring-boot-starter\")\n");
         if ("nacos".equals(options.registry())) {
             result.append("    runtimeOnly(\"org.apache.dubbo:dubbo-registry-nacos\")\n");
         }
         return result.toString();
     }
 
-    /** 仅在选择 Dubbo/Nacos 时生成最小注册中心配置。 */
+    /**
+     * 仅在选择 Dubbo/Nacos 时生成最小注册中心与注解扫描配置。
+     *
+     * 注意：关闭 QoS，避免服务启动时额外暴露管理端口。
+     */
     private String rpcConfiguration(final GeneratorOptions options) {
         if (!"dubbo".equals(options.rpc())) {
             return "";
@@ -314,6 +330,8 @@ final class DddProjectGenerator {
         final String address =
                 "nacos".equals(options.registry()) ? "${DUBBO_REGISTRY_ADDRESS:nacos://127.0.0.1:8848}" : "N/A";
         return "\ndubbo:\n  application:\n    name: " + options.service()
+                + "\n    qos-enable: false"
+                + "\n  scan:\n    base-packages: " + options.basePackage() + ".app.facade"
                 + "\n  protocol:\n    name: dubbo\n    port: ${DUBBO_PORT:20880}\n    serialization: fastjson2"
                 + "\n  registry:\n    address: \"" + address + "\"\n";
     }
@@ -446,7 +464,11 @@ final class DddProjectGenerator {
         packages.put("adapter.mq", "消息消费者入口；处理消息协议与幂等触发，发送消息的基础设施实现不放在此包。");
         packages.put("adapter.job", "定时任务入口；负责调度参数适配，完整业务操作委托应用服务。");
         packages.put("app", "应用用例核心；组织领域行为与事务，查询和聚合写入使用独立仓储契约。");
-        packages.put("app.facade", "内部 Facade 实现；委托核心 Service，不重复业务编排或绑定 RPC 发布框架。");
+        packages.put(
+                "app.facade",
+                "dubbo".equals(options.rpc())
+                        ? "内部 Facade 实现；委托核心 Service，并通过 @DubboService 发布内部 RPC 契约。"
+                        : "内部 Facade 实现；委托核心 Service，不承担业务编排。");
         packages.put("app.service", "业务用例服务；按业务领域分包，按内聚职责拆类，不强制按调用方或读写拆分。");
         packages.put("app.repository", "应用查询仓储契约；只定义单条与分页查询投影能力，聚合加载与保存契约归 domain。");
         packages.put("domain.gateway", "外部业务能力的本地契约；由 infra 实现，使用本地模型，禁止泄漏外部 API、SDK、RPC DTO 和协议类型。");

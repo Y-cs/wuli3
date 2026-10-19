@@ -7,14 +7,14 @@ import {{basePackage}}.sharedkernel.EntityId;
 import com.kjs.wuli3.pagination.PageQuery;
 import com.kjs.wuli3.pagination.PageResult;
 import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
+{{facadeRpcImport}}import org.springframework.stereotype.Service;
 
 /**
- * 实现 {{domainType}} 内部调用契约；RPC 发布由接入或启动配置负责。
+ * 实现 {{domainType}} 内部调用契约；委托核心服务。
  *
  * @author GuoYang create on 2026/10/14 15:30
  */
-@Service
+{{facadeRpcAnnotation}}@Service
 @RequiredArgsConstructor
 public class {{domainType}}FacadeImpl implements {{domainType}}Facade {
     private final {{domainType}}Service service;

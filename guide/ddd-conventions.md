@@ -1,6 +1,6 @@
 # DDD 领域驱动约定指南
 
-本文适用于 `wuli3-ddd-generator` 2.0.0 生成的 Java 单体多模块工程，也作为后续业务开发的架构约定。
+本文适用于 `wuli3-ddd-generator` 2.1.0 生成的 Java 单体多模块工程，也作为后续业务开发的架构约定。
 目标是让领域规则保持独立、业务用例易于复用、读写职责明确，同时避免机械分层和重复对象转换。
 
 工程初始化见 [生成器使用指南](wuli3-ddd-generator.md)，构建约定见 [build-logic](build-logic.md)，完整目录示例见
@@ -174,7 +174,7 @@ wuli3.ddd.external-api.packages=com.example.customer.api
 bootstrap 可通过 infra 的传递依赖完成运行时组装，但不得直接声明或引用已登记的外部 API。
 旧项目将 `app.acl` 接口迁移到 `domain.gateway`，同步迁移本地模型并调整 app/infra 导入。
 
-MQ 消费属于 adapter.mq；业务执行过程中的消息发送属于出站基础设施能力。RPC FacadeImpl 在 app，RPC 发布机制由接入或组装层配置。
+MQ 消费属于 adapter.mq；业务执行过程中的消息发送属于出站基础设施能力。RPC FacadeImpl 在 app，Dubbo 选项下由 `@DubboService` 直接发布。
 
 infra.config 拥有 Mapper 扫描、外部客户端等技术配置；扫描范围明确限定到对应 Mapper 包。
 bootstrap 负责选择配置并最终组装，地址、凭据和运行参数通过外部环境提供。只有需要作为可复用组件发布时，才引入自动配置机制。
