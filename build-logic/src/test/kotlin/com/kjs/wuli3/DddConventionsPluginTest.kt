@@ -2,6 +2,7 @@ package com.kjs.wuli3
 
 import org.assertj.core.api.Assertions.assertThat
 import org.gradle.testkit.runner.GradleRunner
+import org.gradle.testkit.runner.TaskOutcome
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import org.junit.jupiter.params.ParameterizedTest
@@ -88,7 +89,7 @@ class DddConventionsPluginTest {
     @Test
     fun `infra allows only query contracts dto and domain references`() {
         fixture(bytecodeConfiguration(), "infra")
-        listOf("app.repository.OrderQueryRepository", "app.query.OrderQuery", "app.dto.OrderDTO", "app.acl.CustomerAcl", "api.dto.ResultDto", "domain.Order").forEachIndexed { index, name ->
+        listOf("app.repository.OrderQueryRepository", "app.query.OrderQuery", "app.dto.OrderDTO", "domain.gateway.CustomerGateway", "api.dto.ResultDto", "domain.Order").forEachIndexed { index, name ->
             compileReference(name, "Allowed$index")
         }
         assertThat(runner("verifyDddTypes").build().output).contains("BUILD SUCCESSFUL")
@@ -102,6 +103,77 @@ class DddConventionsPluginTest {
         }
         val output = runner("verifyDddTypes").buildAndFail().output
         assertThat(output).contains("infra 引用 app 类型必须以", "app.acl.Gateway", "app.dto.OrderDto", "app.service.Service", "app.facade.FacadeImpl", "api.facade.Facade", "adapter.api.Api", "app.other.Other")
+    }
+
+    @Test
+    fun `infra app reference suffixes are configurable`() {
+        fixture(bytecodeConfiguration(), "infra")
+        Files.writeString(directory.resolve("gradle.properties"), Files.readString(directory.resolve("gradle.properties")) +
+            "\nwuli3.ddd.types.infra-app-allowed-suffixes=Projection")
+        compileReference("app.read.OrderProjection", "Reference")
+        assertThat(runner("verifyDddTypes").build().output).contains("BUILD SUCCESSFUL")
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = ["app", "api", "domain", "adapter", "bootstrap", "shared-kernel"])
+    fun `external service API declarations are restricted to infra`(role: String) {
+        fixture("dependencies { implementation(\"external.customer:customer-api:1.0\") }", role)
+        appendProperties("wuli3.ddd.external-api.coordinates=external.customer:customer-api")
+        assertThat(runner("verifyDddDependencies").buildAndFail().output)
+            .contains("外部服务 API 只能由 infra 引入", "external.customer:customer-api")
+    }
+
+    @Test
+    fun `infra accepts declared external APIs and app accepts unrelated libraries`() {
+        fixture("dependencies { implementation(\"external.customer:customer-api:1.0\") }", "infra")
+        appendProperties("wuli3.ddd.external-api.coordinates=external.customer:customer-api")
+        assertThat(runner("verifyDddDependencies").build().output).contains("BUILD SUCCESSFUL")
+        fixture("dependencies { implementation(\"other:some-api:1.0\") }", "app")
+        appendProperties("wuli3.ddd.external-api.coordinates=external.customer:customer-api")
+        assertThat(runner("verifyDddDependencies").build().output).contains("BUILD SUCCESSFUL")
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = ["app", "api", "domain", "adapter", "bootstrap", "shared-kernel", "infra"])
+    fun `external API bytecode references only pass in infra`(role: String) {
+        fixture(bytecodeConfiguration(), role)
+        appendProperties("wuli3.ddd.external-api.packages=external.customer.api")
+        compile("external/customer/api/Customer.java", "package external.customer.api; public class Customer {}")
+        compile("example/$role/Client.java".replace("shared-kernel", "sharedkernel"),
+            "package example.${role.replace("shared-kernel", "sharedkernel")}; public class Client { public external.customer.api.Customer value; }")
+        Files.delete(directory.resolve("bytecode/external/customer/api/Customer.class"))
+        if (role == "infra") {
+            assertThat(runner("verifyDddTypes").build().output).contains("BUILD SUCCESSFUL")
+        } else {
+            assertThat(runner("verifyDddTypes").buildAndFail().output)
+                .contains("外部服务 API 类型只能由 infra 引用", "external.customer.api.Customer")
+        }
+    }
+
+    @Test
+    fun `external API prefixes do not match sibling packages or local API`() {
+        fixture(bytecodeConfiguration(), "app")
+        appendProperties("wuli3.ddd.external-api.packages=external.customer.api")
+        compileReference("api.dto.OrderDTO", "Local", "app")
+        compileReference("api2.Customer", "Sibling", "app", "external.customer")
+        assertThat(runner("verifyDddTypes").build().output).contains("BUILD SUCCESSFUL")
+    }
+
+    @Test
+    fun `app acl declarations and references are forbidden even with configured suffix`() {
+        fixture(bytecodeConfiguration(), "app")
+        compile("example/app/acl/CustomerAcl.java", "package example.app.acl; public interface CustomerAcl {}")
+        assertThat(runner("verifyDddTypes").buildAndFail().output).contains("禁止 app.acl", "domain.gateway")
+        Files.delete(directory.resolve("bytecode/example/app/acl/CustomerAcl.class"))
+        fixture(bytecodeConfiguration(), "infra")
+        appendProperties("wuli3.ddd.types.infra-app-allowed-suffixes=Acl")
+        compileReference("app.acl.CustomerAcl", "Client")
+        assertThat(runner("verifyDddTypes").buildAndFail().output).contains("禁止引用 app.acl")
+    }
+
+    private fun appendProperties(value: String) {
+        val properties = directory.resolve("gradle.properties")
+        Files.writeString(properties, Files.readString(properties) + "\n" + value)
     }
 
     @Test
@@ -278,6 +350,120 @@ class DddConventionsPluginTest {
         compile(full.replace('.', '/') + ".java", source)
         assertThat(runner("verifyDddTransactions").buildAndFail().output)
             .contains("DDD 事务边界违规", full)
+    }
+
+    @Test
+    fun `transaction review allows configured package`() {
+        transactionFixture(enabled = true)
+        Files.writeString(directory.resolve("gradle.properties"), Files.readString(directory.resolve("gradle.properties")) +
+            "\nwuli3.ddd.transaction-review.allowed-packages=app.service,app.facade,infra.persistence")
+        compile("example/app/facade/OrderFacade.java", "package example.app.facade; @org.springframework.transaction.annotation.Transactional public class OrderFacade {}")
+        assertThat(runner("verifyDddTransactions").build().output).contains("BUILD SUCCESSFUL")
+    }
+
+    @Test
+    fun `transaction review allows configured infrastructure suffix`() {
+        transactionFixture(enabled = true, role = "infra")
+        Files.writeString(directory.resolve("gradle.properties"), Files.readString(directory.resolve("gradle.properties")) +
+            "\nwuli3.ddd.transaction-review.allowed-infrastructure-type-suffixes=Store")
+        compile("example/infra/persistence/OrderStore.java", "package example.infra.persistence; @org.springframework.transaction.annotation.Transactional public class OrderStore {}")
+        assertThat(runner("verifyDddTransactions").build().output).contains("BUILD SUCCESSFUL")
+    }
+
+    @Test
+    fun `all gates reuse unchanged reports and restore reports from build cache`() {
+        transactionFixture(enabled = true)
+        val buildFile = directory.resolve("build.gradle.kts")
+        Files.writeString(buildFile, Files.readString(buildFile) + "\n" + bytecodeConfiguration())
+        val settings = directory.resolve("settings.gradle.kts")
+        Files.writeString(settings, Files.readString(settings) +
+            "\nbuildCache { local { directory = file(\"local-build-cache\") } }")
+        compile("example/app/service/OrderService.java", "package example.app.service; public class OrderService {}")
+        val tasks = arrayOf("verifyDddDependencies", "verifyDddTypes", "verifyDddTransactions")
+        val first = runner(*tasks, "--build-cache").build()
+        tasks.forEach { assertThat(first.task(":$it")!!.outcome).isEqualTo(TaskOutcome.SUCCESS) }
+        val second = runner(*tasks, "--build-cache").build()
+        tasks.forEach {
+            assertThat(second.task(":$it")!!.outcome).isEqualTo(TaskOutcome.UP_TO_DATE)
+            Files.delete(directory.resolve("build/reports/ddd/$it.txt"))
+        }
+        val restored = runner(*tasks, "--build-cache").build()
+        tasks.forEach { assertThat(restored.task(":$it")!!.outcome).isEqualTo(TaskOutcome.FROM_CACHE) }
+        compile("example/app/facade/Invalid.java", "package example.app.facade; @org.springframework.transaction.annotation.Transactional public class Invalid {}")
+        assertThat(runner(*tasks, "--build-cache").buildAndFail().output)
+            .contains("DDD 事务边界违规", "example.app.facade.Invalid")
+        assertThat(directory.resolve("build/reports/ddd/verifyDddTransactions.txt")).doesNotExist()
+    }
+
+    @Test
+    fun `bytecode and architecture configuration changes invalidate cached verdict`() {
+        fixture(bytecodeConfiguration(), "infra")
+        compileReference("app.service.Service", "Reference")
+        val properties = directory.resolve("gradle.properties")
+        Files.writeString(properties, "wuli3.ddd.base-package=unrelated")
+        assertThat(runner("verifyDddTypes", "--build-cache").build().task(":verifyDddTypes")!!.outcome)
+            .isEqualTo(TaskOutcome.SUCCESS)
+        Files.writeString(properties, "wuli3.ddd.base-package=example")
+        assertThat(runner("verifyDddTypes", "--build-cache").buildAndFail().output)
+            .contains("example.app.service.Service")
+        val build = directory.resolve("build.gradle.kts")
+        val original = Files.readString(build)
+        Files.writeString(build, original + "\ntasks.named<com.kjs.wuli3.VerifyDddTypes>(\"verifyDddTypes\") { role.set(\"bootstrap\") }")
+        assertThat(runner("verifyDddTypes", "--build-cache").build().task(":verifyDddTypes")!!.outcome)
+            .isEqualTo(TaskOutcome.SUCCESS)
+        Files.writeString(build, original)
+        assertThat(runner("verifyDddTypes", "--build-cache").buildAndFail().output)
+            .contains("example.app.service.Service")
+    }
+
+    @Test
+    fun `batched transaction inspection retains class boundaries beyond first chunk`() {
+        transactionFixture(enabled = true)
+        val annotation = "@org.springframework.transaction.annotation.Transactional"
+        val sources = (0 until 101).associate { index ->
+            val name = "Reference" + index.toString().padStart(3, '0')
+            "example/app/facade/$name.java" to
+                "package example.app.facade; public class $name { public Class<?> type() { return org.springframework.transaction.annotation.Transactional.class; } }"
+        }.toMutableMap()
+        sources["example/app/facade/ZClassViolation.java"] =
+            "package example.app.facade; $annotation public class ZClassViolation {}"
+        sources["example/app/facade/ZMethodViolation.java"] =
+            "package example.app.facade; public class ZMethodViolation { $annotation public void execute() {} }"
+        compileBatch(sources)
+        val output = runner("verifyDddTransactions").buildAndFail().output
+        assertThat(output).contains("example.app.facade.ZClassViolation", "example.app.facade.ZMethodViolation")
+            .doesNotContain("DDD 事务边界违规：example.app.facade.Reference")
+        Files.delete(directory.resolve("bytecode/example/app/facade/ZClassViolation.class"))
+        Files.delete(directory.resolve("bytecode/example/app/facade/ZMethodViolation.class"))
+        assertThat(runner("verifyDddTransactions").build().output).contains("BUILD SUCCESSFUL")
+    }
+
+    @Test
+    fun `batched repository inspection rejects non interface beyond first chunk`() {
+        fixture(bytecodeConfiguration(), "app")
+        val sources = (0 until 101).associate { index ->
+            val name = "Order" + index.toString().padStart(3, '0') + "QueryRepository"
+            "example/app/repository/$name.java" to "package example.app.repository; public interface $name {}"
+        }.toMutableMap()
+        sources["example/app/repository/ZBad.java"] = "package example.app.repository; public class ZBad {}"
+        compileBatch(sources)
+        assertThat(runner("verifyDddTypes").buildAndFail().output)
+            .contains("app.repository 只允许查询仓储接口", "example.app.repository.ZBad")
+        Files.delete(directory.resolve("bytecode/example/app/repository/ZBad.class"))
+        assertThat(runner("verifyDddTypes").build().output).contains("BUILD SUCCESSFUL")
+    }
+
+    private fun compileBatch(sources: Map<String, String>) {
+        val files = sources.map { (path, source) ->
+            val file = directory.resolve("sources/$path")
+            Files.createDirectories(file.parent)
+            Files.writeString(file, source)
+            file.toString()
+        }
+        val classes = directory.resolve("bytecode")
+        Files.createDirectories(classes)
+        val arguments = listOf("-classpath", classes.toString(), "-d", classes.toString()) + files
+        assertThat(ToolProvider.getSystemJavaCompiler().run(null, null, null, *arguments.toTypedArray())).isZero()
     }
 
     private fun transactionFixture(enabled: Boolean, role: String = "app") {

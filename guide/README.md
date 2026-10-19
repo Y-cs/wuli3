@@ -2,6 +2,12 @@
 
 本目录集中维护仓库各模块的使用文档。模块目录只保留源码、资源和构建文件，不再放置独立 README 或使用手册。
 
+## 新手教程
+
+第一次使用请从 [Wuli3 业务开发实战教程](tutorial/README.md) 开始：
+创建项目 → Web 业务边界 → 错误与权限 → Redis/分页/ES/Mongo → JSON 资源与脱敏 → 上下文与事件。
+教程提供配置、代码、流程图及验证步骤；下方模块文档用于按需查阅详细契约。
+
 ## 架构约定
 
 | 文档 | 用途 |
@@ -30,6 +36,7 @@
 | [wuli3-json](wuli3-json.md) | Jackson facade、Mapper 装配、资源路径和脱敏。 |
 | [wuli3-context-propagation](wuli3-context-propagation.md) | 固定上下文、线程存储、异步快照和出站编码。 |
 | [wuli3-permission](wuli3-permission.md) | 资源动作位图、注解与判断契约。 |
+| [wuli3-pagination](wuli3-pagination.md) | 与持久化技术无关的分页查询、排序和结果契约。 |
 | [wuli3-event-core](wuli3-event-core.md) | 事件信封、发布选项和传输端口。 |
 
 ## Spring Boot Starter
@@ -44,7 +51,7 @@
 | [wuli3-opentelemetry-spring-boot-starter](wuli3-opentelemetry-spring-boot-starter.md) | OpenTelemetry Java Agent 适配、Trace 上下文访问与业务指标记录。 |
 | [wuli3-web-spring-boot-starter](wuli3-web-spring-boot-starter.md) | Spring MVC 上下文、JSON、统一响应与异常处理。 |
 | [wuli3-dubbo-spring-boot-starter](wuli3-dubbo-spring-boot-starter.md) | Dubbo 调用上下文与协议无关错误传播。 |
-| [wuli3-mysql-spring-boot-starter](wuli3-mysql-spring-boot-starter.md) | MyBatis-Plus 依赖聚合。 |
+| [wuli3-mysql-spring-boot-starter](wuli3-mysql-spring-boot-starter.md) | MyBatis-Plus 依赖聚合与分页适配。 |
 | [wuli3-redis-spring-boot-starter](wuli3-redis-spring-boot-starter.md) | Redis String/JSON/Hash/Set 统一操作与分布式锁。 |
 | [wuli3-rocketmq-spring-boot-starter](wuli3-rocketmq-spring-boot-starter.md) | RocketMQ 远程事件发送适配。 |
 | [wuli3-rabbitmq-spring-boot-starter](wuli3-rabbitmq-spring-boot-starter.md) | RabbitMQ 远程事件发送适配。 |

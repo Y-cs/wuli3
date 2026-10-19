@@ -10,4 +10,5 @@ dependencies {
     api("org.springframework.boot:spring-boot-starter")
     api("com.github.ulisesbocchio:jasypt-spring-boot-starter")
     compileOnly("ch.qos.logback:logback-classic")
+    testRuntimeOnly("ch.qos.logback:logback-classic")
 }

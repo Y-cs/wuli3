@@ -2,7 +2,11 @@ package {{basePackage}}.app.facade.{{domainPackage}};
 
 import {{basePackage}}.api.dto.{{domainPackage}}.{{domainType}}StatusDto;
 import {{basePackage}}.api.facade.{{domainType}}Facade;
-import {{basePackage}}.app.service.{{domainPackage}}.{{domainType}}QueryService;
+import {{basePackage}}.app.service.{{domainPackage}}.{{domainType}}Service;
+import {{basePackage}}.sharedkernel.EntityId;
+import com.kjs.wuli3.pagination.PageQuery;
+import com.kjs.wuli3.pagination.PageResult;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 /**
@@ -11,17 +15,30 @@ import org.springframework.stereotype.Service;
  * @author GuoYang create on 2026/10/14 15:30
  */
 @Service
+@RequiredArgsConstructor
 public class {{domainType}}FacadeImpl implements {{domainType}}Facade {
-    private final {{domainType}}QueryService service;
+    private final {{domainType}}Service service;
 
-    /** 注入共享业务用例。 */
-    public {{domainType}}FacadeImpl(final {{domainType}}QueryService service) {
-        this.service = service;
+    /** 委托核心服务新增或修改。 */
+    @Override
+    public {{domainType}}StatusDto save(final {{domainType}}StatusDto entry) {
+        return this.service.save(entry);
     }
 
-    /** 委托核心服务查询状态，不重复业务编排。 */
+    /** 委托核心服务按标识查询。 */
     @Override
-    public {{domainType}}StatusDto status() {
-        return this.service.status();
+    public {{domainType}}StatusDto findById(final EntityId id) {
+        return this.service.findById(id);
+    }
+
+    /** 委托核心服务按标识删除。 */
+    @Override
+    public void deleteById(final EntityId id) {
+        this.service.deleteById(id);
+    }
+    /** 分页查询投影。 */
+    @Override
+    public PageResult<{{domainType}}StatusDto> page(final PageQuery query) {
+        return this.service.page(query);
     }
 }

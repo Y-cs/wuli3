@@ -7,7 +7,7 @@ import java.util.Map;
  *
  * @author 国杨 create on 2026/10/13 10:00
  */
-public final class PrincipalPermissions {
+public class PrincipalPermissions {
     private final PermissionToken token;
     private final Map<String, Long> permissions;
 

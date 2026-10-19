@@ -24,6 +24,9 @@ public final class DddGeneratorPlugin implements Plugin<Project> {
                             task.setDescription("生成单体多模块 DDD 业务服务。");
                             task.getPersistence().convention(GeneratorOptions.DEFAULT_PERSISTENCE);
                             task.getMessaging().convention(GeneratorOptions.DEFAULT_MESSAGING);
+                            task.getRpc().convention("none");
+                            task.getRegistry().convention("none");
+                            task.getSortFields().convention(GeneratorOptions.DEFAULT_SORT_FIELDS);
                             task.getWuli3Version().convention(GeneratorOptions.DEFAULT_WULI3_VERSION);
                             task.getBuildLogicVersion().convention(GeneratorOptions.DEFAULT_BUILD_LOGIC_VERSION);
                             task.getOutputDirectory()

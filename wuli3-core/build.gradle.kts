@@ -4,5 +4,6 @@ plugins {
 
 
 dependencies{
+    api("org.jspecify:jspecify")
     testImplementation("org.projectlombok:lombok:1.18.48")
 }

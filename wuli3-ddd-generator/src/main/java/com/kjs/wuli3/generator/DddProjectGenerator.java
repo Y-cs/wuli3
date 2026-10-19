@@ -34,12 +34,17 @@ final class DddProjectGenerator {
             file("root/lombok.config.tpl", "lombok.config"),
             file("root/README.md.tpl", "README.md"),
             file("root/AGENTS.md.tpl", "AGENTS.md"),
+            file("root/CLAUDE.md.tpl", "CLAUDE.md"),
             file("root/Dockerfile.tpl", "Dockerfile"),
             file("root/dockerignore.tpl", ".dockerignore"),
             file("root/gitignore.tpl", ".gitignore"),
+            file("root/logs.gitkeep.tpl", "logs/.gitkeep"),
             file("root/githooks/pre-commit.tpl", ".githooks/pre-commit"),
             file("root/generation.properties.tpl", ".wuli3/generation.properties"),
             // shared-kernel
+            file(
+                    "shared-kernel/RecordErrors.java.tpl",
+                    "shared-kernel/src/main/java/{{packagePath}}/sharedkernel/RecordErrors.java"),
             file("shared-kernel/shared-kernel.gradle.kts.tpl", "shared-kernel/build.gradle.kts"),
             file(
                     "shared-kernel/Status.java.tpl",
@@ -71,7 +76,7 @@ final class DddProjectGenerator {
                     "app/src/main/java/{{packagePath}}/app/facade/{{domainPackage}}/{{domainType}}FacadeImpl.java"),
             file(
                     "app/DomainQueryService.java.tpl",
-                    "app/src/main/java/{{packagePath}}/app/service/{{domainPackage}}/{{domainType}}QueryService.java"),
+                    "app/src/main/java/{{packagePath}}/app/service/{{domainPackage}}/{{domainType}}Service.java"),
             file(
                     "app/DomainQueryRepository.java.tpl",
                     "app/src/main/java/{{packagePath}}/app/repository/{{domainPackage}}/{{domainType}}QueryRepository.java"),
@@ -141,6 +146,21 @@ final class DddProjectGenerator {
         final List<TemplateFile> files = new ArrayList<>(DddProjectGenerator.BASE_FILES);
         if (options.persistence().equals("mysql")) {
             files.addAll(DddProjectGenerator.MYSQL_FILES);
+        }
+        if ("dubbo".equals(options.rpc())) {
+            files.add(file(
+                    "bootstrap/DomainRpcConfiguration.java.tpl",
+                    "bootstrap/src/main/java/{{packagePath}}/config/{{domainType}}RpcConfiguration.java"));
+        }
+        if (!options.persistence().equals("mysql")) {
+            files.add(
+                    file(
+                            "infra/DomainStore.java.tpl",
+                            "infra/src/main/java/{{packagePath}}/infra/persistence/{{domainPackage}}/{{domainType}}Store.java"));
+            files.add(
+                    file(
+                            "infra/DomainStoreTest.java.tpl",
+                            "infra/src/test/java/{{packagePath}}/infra/persistence/{{domainPackage}}/{{domainType}}StoreTest.java"));
         }
         for (final TemplateFile template : files) {
             this.render(root, template, variables);
@@ -235,18 +255,22 @@ final class DddProjectGenerator {
         result.put("domainType", options.domainType());
         result.put("persistence", options.persistence());
         result.put("messaging", options.messaging());
+        result.put("rpc", options.rpc());
+        result.put("registry", options.registry());
+        result.put("sortFields", String.join(",", options.sortFields()));
         result.put("wuli3Version", options.wuli3Version());
         result.put("buildLogicVersion", options.buildLogicVersion());
         result.put("templateVersion", DddProjectGenerator.TEMPLATE_VERSION);
         result.put("infraDependencies", this.infraDependencies(options));
+        result.put("bootstrapDependencies", this.bootstrapDependencies(options));
+        result.put("rpcConfiguration", this.rpcConfiguration(options));
         result.put("repositoryImports", this.repositoryImports(options));
-        result.put(
-                "queryRepositoryConstructor",
-                this.repositoryConstructor(options).replace("RepositoryImpl(", "QueryRepositoryImpl("));
-        result.put("queryRepositoryStatus", this.queryRepositoryStatus(options));
+        result.put("queryRepositoryPage", this.queryRepositoryPage(options));
+        result.put("queryRepositoryFindById", this.queryRepositoryFindById(options));
         result.put("repositoryFields", this.repositoryFields(options));
-        result.put("repositoryConstructor", this.repositoryConstructor(options));
+        result.put("repositorySave", this.repositorySave(options));
         result.put("repositoryLoad", this.repositoryLoad(options));
+        result.put("repositoryDelete", this.repositoryDelete(options));
         result.put("bootstrapTestImports", this.bootstrapTestImports(options));
         result.put("bootstrapTestConfiguration", this.bootstrapTestConfiguration(options));
         return result;
@@ -268,6 +292,32 @@ final class DddProjectGenerator {
         return result.toString();
     }
 
+    /** bootstrap 模块负责 Dubbo 运行时与可选 Nacos 注册中心。 */
+    private String bootstrapDependencies(final GeneratorOptions options) {
+        if (!"dubbo".equals(options.rpc())) {
+            return "";
+        }
+        final StringBuilder result = new StringBuilder("    implementation(project(\":api\"))\n"
+                + "    implementation(\"org.apache.dubbo:dubbo-config-spring\")\n"
+                + "    implementation(\"com.kjs.wuli3:wuli3-dubbo-spring-boot-starter\")\n");
+        if ("nacos".equals(options.registry())) {
+            result.append("    runtimeOnly(\"org.apache.dubbo:dubbo-registry-nacos\")\n");
+        }
+        return result.toString();
+    }
+
+    /** 仅在选择 Dubbo/Nacos 时生成最小注册中心配置。 */
+    private String rpcConfiguration(final GeneratorOptions options) {
+        if (!"dubbo".equals(options.rpc())) {
+            return "";
+        }
+        final String address =
+                "nacos".equals(options.registry()) ? "${DUBBO_REGISTRY_ADDRESS:nacos://127.0.0.1:8848}" : "N/A";
+        return "\ndubbo:\n  application:\n    name: " + options.service()
+                + "\n  protocol:\n    name: dubbo\n    port: ${DUBBO_PORT:20880}\n    serialization: fastjson2"
+                + "\n  registry:\n    address: \"" + address + "\"\n";
+    }
+
     /** MySQL 仓储显式导入所属领域的持久化类型。 */
     private String repositoryImports(final GeneratorOptions options) {
         if (!options.persistence().equals("mysql")) {
@@ -279,44 +329,68 @@ final class DddProjectGenerator {
                 + options.domainType() + "Mapper;\n";
     }
 
-    /** 查询仓储直接构建投影，不经过聚合仓储或领域模型转换。 */
-    private String queryRepositoryStatus(final GeneratorOptions options) {
-        final String constructor = "new " + options.domainType() + "StatusDto";
+    /** 查询仓储直接构建传播对象。 */
+    private String queryRepositoryFindById(final GeneratorOptions options) {
         if (!options.persistence().equals("mysql")) {
-            return "        return " + constructor + "(new EntityId(\"sample-1\"), Status.ACTIVE);";
+            return "        return this.store.findById(id);";
         }
-        return "        final " + options.domainType() + "Po stored = this.mapper.selectById(\"sample-1\");\n"
-                + "        final String id = stored == null ? \"sample-1\" : stored.id();\n"
-                + "        return " + constructor + "(new EntityId(id), Status.ACTIVE);";
+        return "        final var stored = this.mapper.selectById(id.value());\n"
+                + "        Asserts.whenNull(stored).throwException(" + options.basePackage()
+                + ".sharedkernel.RecordErrors.NOT_FOUND);\n"
+                + "        return new " + options.domainType()
+                + "StatusDto(new EntityId(java.util.Objects.requireNonNull(stored).id()), stored.status());";
     }
 
-    /** 仓储适配器的 Mapper 字段声明，非 MySQL 时为空。 */
+    /** 分页查询限制排序字段并稳定追加主键排序。 */
+    private String queryRepositoryPage(final GeneratorOptions options) {
+        if (!options.persistence().equals("mysql")) {
+            return "        return this.store.page(query);";
+        }
+        return "        final var page = com.kjs.wuli3.mysql.pagination.PaginationHelper.<"
+                + options.domainType() + "Po>toPage(query, field -> {\n"
+                + "            Asserts.whenFalse(java.util.Set.of(\""
+                + String.join("\",\"", options.sortFields())
+                + "\").contains(field))\n"
+                + "                    .throwIllegalArgumentException(\"不支持的排序字段\");\n"
+                + "            return field;\n        });\n"
+                + "        page.addOrder(com.baomidou.mybatisplus.core.metadata.OrderItem.asc(\"id\"));\n"
+                + "        this.mapper.selectPage(page, null);\n"
+                + "        return com.kjs.wuli3.mysql.pagination.PaginationHelper.toPageResult(page, stored -> new "
+                + options.domainType() + "StatusDto(new EntityId(stored.id()), stored.status()));";
+    }
+
+    /** 两种仓储共享同一个内存存储或 Mapper。 */
     private String repositoryFields(final GeneratorOptions options) {
-        if (!options.persistence().equals("mysql")) {
-            return "";
-        }
-        return "    private final " + options.domainType() + "Mapper mapper;\n";
+        return "    private final " + options.domainType()
+                + (options.persistence().equals("mysql") ? "Mapper mapper;\n" : "Store store;\n");
     }
 
-    /** 仓储适配器的构造器，非 MySQL 时为空。 */
-    private String repositoryConstructor(final GeneratorOptions options) {
+    /** 保存聚合状态，新增与修改使用同一入口。 */
+    private String repositorySave(final GeneratorOptions options) {
         if (!options.persistence().equals("mysql")) {
-            return "";
+            return "        this.store.save(aggregate);\n        return aggregate;";
         }
-        return "\n    public " + options.domainType() + "RepositoryImpl(final " + options.domainType()
-                + "Mapper mapper) {\n        this.mapper = mapper;\n    }\n";
+        return "        this.mapper.insertOrUpdate(new " + options.domainType()
+                + "Po(aggregate.id().value(), aggregate.status()));\n        return aggregate;";
     }
 
-    /** 仓储适配器的加载实现，MySQL 选项下走 Mapper 查询。 */
+    /** 按真实标识加载，不为不存在的记录伪造结果。 */
     private String repositoryLoad(final GeneratorOptions options) {
         if (!options.persistence().equals("mysql")) {
-            return "        return new " + options.domainType() + "(new EntityId(\"sample-1\"));";
+            return "        final var stored = this.store.findById(id);\n        return new " + options.domainType()
+                    + "(stored.id(), stored.status());";
         }
-        return "        final " + options.domainType() + "Po stored = this.mapper.selectById(\"sample-1\");\n"
-                + "        if (stored == null) {\n"
-                + "            return new " + options.domainType() + "(new EntityId(\"sample-1\"));\n"
-                + "        }\n"
-                + "        return stored.toDomain();";
+        return "        final var stored = this.mapper.selectById(id.value());\n"
+                + "        Asserts.whenNull(stored).throwException(" + options.basePackage()
+                + ".sharedkernel.RecordErrors.NOT_FOUND);\n"
+                + "        return java.util.Objects.requireNonNull(stored).toDomain();";
+    }
+
+    /** 删除不存在的记录为幂等操作。 */
+    private String repositoryDelete(final GeneratorOptions options) {
+        return options.persistence().equals("mysql")
+                ? "        this.mapper.deleteById(id.value());"
+                : "        this.store.deleteById(id);";
     }
 
     /** 启动测试的导入片段，MySQL 选项下需要额外导入自动配置与 Mockito。 */
@@ -341,10 +415,14 @@ final class DddProjectGenerator {
 
     /** 启动测试的类注解片段，MySQL 选项下排除数据源自动配置并 Mock Mapper。 */
     private String bootstrapTestConfiguration(final GeneratorOptions options) {
+        final String rpcProperty = "dubbo".equals(options.rpc()) ? "\"dubbo.enabled=false\"" : "";
         if (!options.persistence().equals("mysql")) {
-            return "";
+            return rpcProperty.isEmpty() ? "" : "(properties = " + rpcProperty + ")";
         }
-        return "(properties = \"application.persistence.enabled=false\")\n"
+        final String properties = rpcProperty.isEmpty()
+                ? "\"application.persistence.enabled=false\""
+                : "{\"application.persistence.enabled=false\", " + rpcProperty + "}";
+        return "(properties = " + properties + ")\n"
                 + String.join(
                         "\n",
                         "@MockitoBean(types = " + options.domainType() + "Mapper.class)",
@@ -360,7 +438,7 @@ final class DddProjectGenerator {
     private void renderPackageDocumentation(
             final Path root, final GeneratorOptions options, final Map<String, String> variables) throws IOException {
         final Map<String, String> packages = new LinkedHashMap<>();
-        packages.put("api", "内部 RPC 契约；只依赖共享内核，不依赖应用实现或 RPC 框架。");
+        packages.put("api", "内部 RPC 契约；复用共享内核与独立分页契约，不依赖应用实现或 RPC 框架。");
         packages.put("api.facade", "内部调用 Facade 契约；传播对象使用 DTO，业务实现位于 app.facade。");
         packages.put("api.dto", "可传播的内部契约对象；按业务组织，不直接暴露聚合或持久化实体。");
         packages.put("adapter", "HTTP、消息与任务接入；只负责协议和身份转换，业务编排交由应用服务。");
@@ -370,13 +448,13 @@ final class DddProjectGenerator {
         packages.put("app", "应用用例核心；组织领域行为与事务，查询和聚合写入使用独立仓储契约。");
         packages.put("app.facade", "内部 Facade 实现；委托核心 Service，不重复业务编排或绑定 RPC 发布框架。");
         packages.put("app.service", "业务用例服务；按业务领域分包，按内聚职责拆类，不强制按调用方或读写拆分。");
-        packages.put("app.repository", "应用查询仓储契约；只定义查询投影能力，聚合加载与保存契约归 domain。");
-        packages.put("app.acl", "外部业务能力的防腐契约；供 infra 实现的接口以 Acl 结尾，使用本地语义，禁止泄漏外部 SDK、RPC DTO 和协议类型。");
+        packages.put("app.repository", "应用查询仓储契约；只定义单条与分页查询投影能力，聚合加载与保存契约归 domain。");
+        packages.put("domain.gateway", "外部业务能力的本地契约；由 infra 实现，使用本地模型，禁止泄漏外部 API、SDK、RPC DTO 和协议类型。");
         packages.put("domain", "领域模型；按业务概念和聚合组织，领域规则不依赖应用层或基础设施。");
         packages.put("infra", "基础设施实现；实现领域仓储、查询仓储与 ACL，不反向依赖应用 Service 或 Facade。");
         packages.put("infra.config", "基础设施技术配置；显式限定扫描范围，运行凭据通过外部环境提供。");
         packages.put("infra.persistence", "持久化实现；分别实现查询投影与聚合仓储，按业务领域组织。");
-        packages.put("infra.acl", "外部能力防腐实现；转换外部模型、状态和错误，实现 app.acl 中以 Acl 结尾的契约。");
+        packages.put("infra.acl", "外部能力防腐实现；转换外部模型、状态和错误，仅此层引入外部服务 API，实现 domain.gateway 的本地能力契约。");
         packages.put("sharedkernel", "稳定共享类型与约定；保持无框架依赖，由构建插件检查纯净边界。");
         final String domain = options.domain().replace('-', '_');
         for (final String parent : List.of(

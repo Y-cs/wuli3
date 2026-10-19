@@ -71,6 +71,10 @@ final class DddGeneratorPluginTest {
                         "com.example.order",
                         "--domain",
                         "order",
+                        "--rpc",
+                        "dubbo",
+                        "--registry",
+                        "nacos",
                         "--output",
                         output.toString(),
                         "--stacktrace")
@@ -86,6 +90,6 @@ final class DddGeneratorPluginTest {
         assertThat(output.resolve("order-service/adapter/src/main/java/com/example/order/adapter/mq/package-info.java"))
                 .isRegularFile();
         assertThat(Files.readString(output.resolve("order-service/.wuli3/generation.properties")))
-                .contains("template.version=2.0.0");
+                .contains("template.version=2.0.0", "rpc=dubbo", "registry=nacos");
     }
 }

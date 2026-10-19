@@ -41,6 +41,9 @@ jbang --repos <内部仓库URL>,mavenlocal \
 | `--domain`              | 是   | 小写字母开头，可含数字和单个连字符 | —                | 领域名                                                       |
 | `--persistence`         | 否   | `none`、`mysql`                    | `none`           | `mysql` 额外生成 MyBatis-Plus PO/Mapper 并引入 MySQL starter |
 | `--messaging`           | 否   | `none`、`rocketmq`、`rabbitmq`     | `none`           | 非 `none` 时引入对应的 Wuli3 消息 starter                    |
+| `--rpc`                 | 否   | `none`、`dubbo`                    | `none`           | `dubbo` 生成 Dubbo Facade 发布能力并引入 Dubbo starter       |
+| `--registry`            | 否   | `none`、`nacos`                    | `none`           | `nacos` 作为 Dubbo 注册中心；必须同时设置 `--rpc dubbo`     |
+| `--sort-fields`         | 否   | 逗号分隔的数据库字段名            | `id,status`      | 查询分页允许排序的字段白名单，生成到 infra 查询实现             |
 | `--wuli3-version`       | 否   | 已发布的 Wuli3 版本                | `0.1.3-SNAPSHOT` | Wuli3 BOM 与 starter 版本                                    |
 | `--build-logic-version` | 否   | 已发布的约定插件版本               | `0.1.3-SNAPSHOT` | Gradle 约定插件版本                                          |
 | `--output`              | 否   | 目录路径                           | `.`              | 服务的父目录                                                 |
@@ -81,6 +84,9 @@ cd demo-web
 ./gradlew check
 ```
 
+生成工程会创建并保留 `logs/.gitkeep`，Docker 镜像也会预创建 `logs` 目录。模板默认启用文件日志，
+这可保证 Spring Boot 回退到 JUL `FileHandler` 时日志锁文件能够创建；Wuli3 Core Starter 也会在日志初始化阶段创建配置文件的父目录。
+
 ## 模块边界
 
 生成工程包含七个 Gradle 模块：
@@ -94,18 +100,46 @@ shared-kernel -> domain / api -> app -> infra
 - `shared-kernel` 放置共享的状态、标识和稳定约定，允许 Wuli3 Core、必要的 JSpecify 注解与编译期 Lombok。
 - `domain` 按领域组织聚合、实体、值对象、规则与聚合仓储。
 - `api` 是内部 RPC 契约包，包含 `facade` 与按领域组织的 `dto`。
-- `app.service` 按领域分包、按业务职责拆类；`app.facade` 实现 Facade 并委托 Service。
-- `app.repository` 只定义 QueryRepository；`app.acl` 定义本地语义的外部业务能力。
+- `app.service` 按领域分包、按业务职责拆类；`app.facade` 实现 Facade 并委托 Service。示例用例包含
+  `save`（新增或修改）、`findById`、`deleteById` 和 `page`；`save` 统一表达新增与修改。
+- `api` 通过 `api` 依赖导出 `wuli3-pagination`，分页契约可供应用、HTTP 和 RPC 复用；MyBatis-Plus 类型只出现在 infra。
+- `app.repository` 只定义 QueryRepository；`domain.gateway` 定义本地语义的外部业务能力。
 - `infra` 实现两类仓储与 ACL；`infra.config` 管理 Mapper 扫描和技术 Bean。
 - `adapter.api` 提供 HTTP 入口，类名以 Api 结尾；`adapter.mq`、`adapter.job` 提供消息消费与任务入口。
 - `bootstrap` 负责启动、配置选择和最终组装；RPC 发布机制由接入/组装层配置。
+
+`save` 保存调用方提供的标识和完整状态，不生成标识。MySQL 示例的 `insertOrUpdate` 先查主键再插入或更新，
+不保证并发新增同一主键的原子 upsert；业务需要并发控制时应在仓储中使用数据库原子语句或明确的锁策略。
+`persistence=none` 使用共享进程内存储，便于运行完整用例，数据不跨重启保留。
 
 HTTP Api 和 FacadeImpl 复用 Service 中的完整业务用例及事务边界。Service 不按内部/外部或 Command/Query 强制拆分。
 查询通过 app QueryRepository 返回投影，写入通过 domain Repository 加载聚合、执行业务行为并保存。
 不因分层机械复制 Request/Response/Command/Result；语义一致时可复用 DTO，真实契约差异出现时才转换。
 
-`app.acl` 与 `infra.acl` 隔离外部系统的模型、状态和错误；跨系统查询也属于 ACL，不归入本地查询仓储。
+`domain.gateway` 与 `infra.acl` 隔离外部系统的模型、状态和错误；跨系统查询也属于 ACL，不归入本地查询仓储。
+不生成 `app.acl`。外部服务 API 只在 infra 引入，通过 `wuli3.ddd.external-api.coordinates` 与
+`wuli3.ddd.external-api.packages` 登记依赖坐标和包前缀；详细配置与迁移步骤见 [ACL 约定](ddd-conventions.md#8-acl-与基础设施配置)。
 所有约定包（包括空的 mq/job/acl）均生成中文 `package-info.java`，明确职责、依赖与禁止事项。
+
+### 领域模型与 Service 扩展
+
+生成器只生成最小的状态聚合和传播 DTO，不猜测具体业务字段。新增领域字段时，应同步修改 `domain` 聚合、`api.dto` 传播对象、
+`infra.persistence.<领域>.entity` 持久化对象及其转换逻辑；多表聚合应在同一 `RepositoryImpl` 中协调多个 Mapper，并由应用服务的事务边界包住完整用例。
+生成器不会覆盖这些业务文件，便于从通用骨架演进为订单等具体模型。
+
+默认生成一个领域 Service。业务复杂后按内聚职责拆分为 `XxxQueryService`、`XxxSaveService` 或其他用例 Service，入口和 Facade 只注入需要的 Service；
+不要为了形式按 HTTP/RPC 或 Command/Query 机械复制。拆分后保留同一 domain Repository 与 QueryRepository 契约。
+
+### 消息选项边界
+
+`--messaging rocketmq` 或 `--messaging rabbitmq` 只为 `infra` 模块加入对应的 Wuli3 消息 starter，并保留
+`adapter.mq` 消费入口包。生成器不会猜测 topic、exchange、queue、consumer group 或重试/死信策略，也不会生成带有
+具体中间件注解的 Listener；这些配置属于业务协议和部署边界，应由应用在 `adapter.mq` 中实现。入口只负责协议解析、
+幂等触发和上下文恢复，完整业务编排委托 `app.service`。
+
+消息 starter 提供 `EventPublisher` 与远程 `RemoteEventTransport`，发送事件的用法和连接配置分别见
+[RocketMQ 指南](wuli3-rocketmq-spring-boot-starter.md)或 [RabbitMQ 指南](wuli3-rabbitmq-spring-boot-starter.md)。
+生成项目选择 `messaging=none` 时仍保留空的 `adapter.mq` 约定包，但不会引入消息依赖。
 
 根工程统一应用 Java 约定插件：`domain`、`api` 使用 `com.kjs.wuli3.java-conventions`，
 Spring 模块使用 `com.kjs.wuli3.spring-conventions`，各模块先应用 `com.kjs.wuli3.ddd-conventions`。
@@ -129,7 +163,7 @@ DDD 架构检查由 `DddConventionsPlugin` 统一提供并接入 `check`，生�
 | bootstrap | 其余业务模块 |
 
 - domain 禁止声明 Spring 依赖或引用 Spring 类型。
-- infra 引用 app 类型必须严格以 `QueryRepository`、`Query`、`DTO` 或 `Acl` 结尾，大小写敏感；引用 api 只允许 dto 包。
+- infra 引用 app 类型必须严格以 `QueryRepository`、`Query` 或 `DTO` 结尾，大小写敏感；引用 api 只允许 dto 包。
 - app.repository 的顶层类型必须为接口，包说明不作为实现类检查。
 - shared-kernel 保留生产依赖和类型白名单；违规依赖直接失败，不自动移除，不自动引入日志；允许编译期 Lombok 与生成的 lombok.Generated 注解，但禁止将 Lombok 声明为运行时依赖。
 - 插件按标准模块名识别角色，先于 Java/Spring 约定应用；项目内类型依赖以 `wuli3.ddd.base-package` 为边界。
@@ -137,12 +171,18 @@ DDD 架构检查由 `DddConventionsPlugin` 统一提供并接入 `check`，生�
 ```properties
 wuli3.ddd.base-package=com.example.order
 wuli3.ddd.transaction-review.enabled=false
+wuli3.ddd.transaction-review.allowed-packages=app.service,infra.persistence
+wuli3.ddd.transaction-review.allowed-infrastructure-type-suffixes=RepositoryImpl
+wuli3.ddd.types.infra-app-allowed-suffixes=QueryRepository,Query,DTO
 ```
 
 基础包未配置时兼容回退到 `wuli3.conventions.nullaway.annotated-packages`，要求单一有效包名，拒绝空值和多个包。
 
 可选任务 `verifyDddTransactions` 默认关闭。开启后仅允许 `app.service` 以及 `infra.persistence` 中以 `RepositoryImpl` 结尾的仓储实现，在类或方法上直接声明 Spring `@Transactional`。不要求所有 Service 声明事务。
 该审查检查直接注解位置，不推断组合注解、继承事务、编程式事务、事务传播语义或运行时代理行为。
+
+事务包和基础设施实现类后缀可通过上面的 Gradle 属性扩展；`infra` 引用 `app` 类型的后缀白名单也可通过
+`wuli3.ddd.types.infra-app-allowed-suffixes` 扩展。未配置时保持默认规则，扩展前应确认新增类型确实属于稳定应用契约。
 
 类型检查基于编译后字节码，不能识别反射字符串形成的动态依赖；声明检查不等同于完整传递依赖树扫描。
 
@@ -175,5 +215,19 @@ wuli3.ddd.transaction-review.enabled=false
 ./gradlew :bootstrap:bootRun
 ```
 
-MySQL 选项会额外生成 MyBatis-Plus PO/Mapper 和显式 Mapper 扫描配置；消息选项会加入对应 Wuli3 消息 starter，未选择的基础设施不会生成。
+MySQL 选项会额外生成 MyBatis-Plus PO/Mapper 和显式 Mapper 扫描配置；消息选项会加入对应 Wuli3 消息 starter。
+启用 Dubbo 时，bootstrap 模块生成 `DomainRpcConfiguration`（名称按领域替换），通过
+`ServiceBean` 发布 Spring 管理的 Facade；app 和 api 不引入 Dubbo 注解或依赖。再启用 Nacos 时，
+bootstrap 模块加入 `dubbo-registry-nacos` 运行时依赖，使用 `DUBBO_REGISTRY_ADDRESS` 环境变量设置
+地址，默认 `nacos://127.0.0.1:8848`。`--registry none` 显式设置 `address: "N/A"`，仍可直接连接
+Dubbo 端口调用。端口由 `DUBBO_PORT` 配置，默认 20880。
+
+生成配置显式使用 `fastjson2` 序列化；RPC 请求、返回值及其嵌套对象必须保持可序列化，并由调用
+双方共享兼容的契约版本。生成的 Spring 启动测试设置 `dubbo.enabled=false`，同时禁用 RPC 发布
+配置，避免测试绑定端口或访问 Nacos；该测试验证业务装配，不代替真实 RPC 联调。未选择的基础
+设施不会生成。
 消息中间件的连接和认证配置不会由生成器猜测，请按对应 starter 文档补充 `application.yml`。
+
+生成代码优先使用 Lombok：Spring Bean 用 `@RequiredArgsConstructor` 注入 final 依赖，聚合用 `@Getter` 和 `@Accessors(fluent = true)` 保留 `id()`、`status()` 访问方式。
+DTO 和值对象保留 record；领域校验构造器及业务行为显式实现，不用 `@Data` 或公开 setter 绕过不变量。
+Lombok 由 Java 约定插件提供编译期依赖和注解处理器，生成工程不可关闭 `wuli3.conventions.lombok.enabled`。

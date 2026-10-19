@@ -34,7 +34,8 @@ build/
 .vscode/
 
 ### application ###
-logs
+logs/*
+!logs/.gitkeep
 .env
 output/
 #src/main/resources/application-ssh.yml

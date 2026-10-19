@@ -10,8 +10,8 @@
 - `shared-kernel`：共享稳定的标识、状态和领域类型，允许 Wuli3 Core、必要的 JSpecify 注解与编译期 Lombok，不依赖框架。
 - `domain`：按业务领域组织聚合、实体、值对象、领域规则和聚合 Repository；不引入 Spring 或基础设施实现。
 - `api`：内部 RPC 依赖契约包，接口以 `Facade` 结尾，传播对象以 `Dto` 结尾并按领域组织。
-- `app`：`service` 按领域分包、按业务职责拆类；`facade` 实现 RPC 契约并委托 Service；`repository` 只定义查询仓储；`acl` 定义本地语义的外部业务能力。
-- `infra`：实现 domain 聚合仓储、app 查询仓储及 ACL；引用 app 类型只允许 QueryRepository、Query、DTO、Acl 后缀，不依赖 Service 或 Facade 实现。
+- `app`：`service` 按领域分包、按业务职责拆类；`facade` 实现 RPC 契约并委托 Service；`repository` 定义查询仓储接口。
+- `infra`：实现 domain 聚合仓储、app 查询仓储及 ACL；引用 app 类型只允许 QueryRepository、Query、DTO 后缀，不依赖 Service 或 Facade 实现。
 - `adapter`：`api` 提供 HTTP 接入（类名以 Api 结尾），`mq` 提供消息消费入口，`job` 提供任务入口，统一调用 app Service。
 - `bootstrap`：Spring Boot 启动和最终组装，负责配置选择与 RPC 发布等装配。基础设施自身配置归 infra 所有。
 新增能力应放入承担该职责的模块；不要绕过现有架构测试或扩大依赖白名单来掩盖模块边界问题。
@@ -39,12 +39,17 @@
 
 - Api、FacadeImpl、消息消费者和 Job 是薄入口；完整业务编排与事务边界归 Service。HTTP 与 RPC 复用同一用例，不各自实现业务流程。
 - Service 按领域分包，一个包允许多个 Service；不强制按内部/外部或 Command/Query 成对拆类，也不强制每个 Service 抽接口。
-- 读路径调用 app 的 QueryRepository，直接返回查询投影；写路径通过 domain 的 Repository 加载聚合、执行领域行为并保存。app 可以调用领域仓储，但不定义写仓储。
+- 读路径调用 app 的 QueryRepository，直接返回查询投影；写路径通过 domain 的 Repository 执行 save、findById、deleteById；save 同时覆盖新增和修改。
 - 不因分层复制对象。HTTP 可复用应用输入和结果，应用可复用语义一致的 RPC DTO；仅在契约、格式、安全或演进边界不同时转换。不直接传播聚合或持久化实体。
 - 可信身份由入口从认证上下文取得，不接受客户端任意指定；协议和 RPC 框架类型不进入核心 Service。
-- app.acl 使用本地业务语义定义外部能力，供 infra 实现的契约以 Acl 结尾；infra.acl 负责远程调用、模型与错误转换。跨系统查询同样属于 ACL，不作为本地 QueryRepository。
+- domain.gateway 定义本地语义的外部能力接口，由 infra 实现；infra.acl 负责远程调用、模型与错误转换。跨系统查询同样属于 ACL，不作为本地 QueryRepository。
 - infra.config 管理 Mapper 扫描和基础设施 Bean；bootstrap 组装配置，地址和凭据由外部环境提供。
 - 约定包即使为空也保留中文 package-info.java，说明职责、依赖与禁用事项；按实际外部系统增补 ACL 子包，不生成虚构系统。
+
+外部服务 API 只能在 infra 声明依赖并引用；通过 domain.gateway 本地契约向 app 提供能力，不生成 app.acl。
+在 gradle.properties 中以 `wuli3.ddd.external-api.coordinates` 登记精确 group:artifact，
+以 `wuli3.ddd.external-api.packages` 登记外部 API 完整包前缀（均为逗号分隔），启用对应依赖与字节码门禁。
+未登记的外部 API 无法自动识别；本服务自己的 api 模块不属于外部 API。
 
 ## 编码风格与设计约束
 
@@ -64,7 +69,7 @@
 - 测试覆盖可观察行为、边界值和失败路径，避免只验证实现细节。
 - 修复缺陷时补充能够复现问题的回归测试；重构前确认现有行为有测试保护。
 - domain 禁止声明 Spring 依赖或引用 Spring 类型；所有模块的生产依赖声明与类型引用均遵守 DDD 依赖方向。
-- 事务审查通过 `wuli3.ddd.transaction-review.enabled` 开关控制，默认关闭；开启时仅 app.service 和 infra.persistence 中以 RepositoryImpl 结尾的仓储实现可声明 Spring @Transactional，不要求所有服务开启事务。
+- 事务审查通过 `wuli3.ddd.transaction-review.enabled` 开关控制，默认关闭；开启时默认仅 app.service 和 infra.persistence 中以 RepositoryImpl 结尾的仓储实现可声明 Spring @Transactional，不要求所有服务开启事务。事务包和基础设施后缀可通过 `gradle.properties` 扩展。
 - 保留 DDD 约定插件提供的 `verifyDddDependencies`、`verifyDddTypes` 门禁；违规依赖直接失败，不静默移除。
 - 涉及数据库或消息中间件的测试应明确环境前提；普通单元测试不依赖开发者机器上的外部服务。
 - 验证失败时修复原因；无法运行的检查需明确说明阻塞原因与未验证范围，不得声称已通过。
@@ -136,3 +141,7 @@ private final int maxRetryTimes;
 ## 配置与安全
 
 不要提交私有仓库凭据、数据库口令、访问密钥、本机绝对路径或 IDE 私有配置。运行环境的连接和认证信息通过外部配置提供。
+
+生成代码优先使用 Lombok：Spring Bean 用 `@RequiredArgsConstructor` 注入 final 依赖，聚合用 `@Getter` 和 `@Accessors(fluent = true)` 保留 `id()`、`status()` 访问方式。
+DTO 和值对象保留 record；领域校验构造器及业务行为显式实现，不用 `@Data` 或公开 setter 绕过不变量。
+Lombok 由 Java 约定插件提供编译期依赖和注解处理器，生成工程不可关闭 `wuli3.conventions.lombok.enabled`。

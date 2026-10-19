@@ -44,6 +44,7 @@ final class DddGeneratorTest {
         });
 
         final Path root = this.output.resolve("order-service");
+        assertThat(root.resolve("logs/.gitkeep")).isRegularFile();
         assertThat(Files.readString(root.resolve("lombok.config")))
                 .isEqualTo("# 全局设置@EqualsAndHashCode的callSuper属性为true\n"
                         + "lombok.equalsAndHashCode.callSuper = CALL\n"
@@ -67,6 +68,8 @@ final class DddGeneratorTest {
                         "git add <path>",
                         "yyyy/M/d HH:mm")
                 .doesNotContain("{{", "/Users/", "OMX", "com.kjs.wuli3.generator", "kotlin", "Kotlin");
+        assertThat(Files.readString(root.resolve("CLAUDE.md")))
+                .isEqualTo("请阅读并遵循根目录 [AGENTS.md](AGENTS.md) 中的全部项目协作规范。\n");
         assertThat(root.resolve("gradlew")).isExecutable();
         assertThat(Files.readString(root.resolve("settings.gradle.kts")))
                 .contains(
@@ -112,6 +115,7 @@ final class DddGeneratorTest {
                 .doesNotContain("kotlin", "Kotlin");
         assertThat(Files.readString(root.resolve("domain/build.gradle.kts")))
                 .contains("api(project(\":shared-kernel\"))")
+                .contains("implementation(\"com.kjs.wuli3:wuli3-core\")")
                 .doesNotContain("plugins", "java-library");
         assertThat(Files.readString(root.resolve("infra/build.gradle.kts")))
                 .contains("project(\":app\")", "project(\":domain\")")
@@ -119,10 +123,40 @@ final class DddGeneratorTest {
         assertThat(root.resolve("infra/src/test/java/com/example/order/architecture/InfraArchitectureTest.java"))
                 .doesNotExist();
         assertThat(Files.readString(
-                        root.resolve("app/src/main/java/com/example/order/app/service/order/OrderQueryService.java")))
-                .contains("public class OrderQueryService");
+                        root.resolve("app/src/main/java/com/example/order/app/service/order/OrderService.java")))
+                .contains(
+                        "public class OrderService",
+                        "import org.springframework.transaction.annotation.Transactional;",
+                        "@Transactional\n    public OrderStatusDto save",
+                        "@Transactional\n    public void deleteById");
         assertThat(Files.readString(root.resolve(".wuli3/generation.properties")))
-                .contains("template.version=2.0.0", "persistence=none", "messaging=none");
+                .contains("template.version=2.0.0", "persistence=none", "messaging=none", "sort.fields=id,status");
+    }
+
+    /** 验证自定义排序白名单会进入生成配置和 MySQL 查询实现。 */
+    @Test
+    void supportsCustomSortFields() throws Exception {
+        DddGenerator.main(new String[] {
+            "generate",
+            "--service",
+            "catalog-service",
+            "--package",
+            "com.example.catalog",
+            "--domain",
+            "catalog",
+            "--persistence",
+            "mysql",
+            "--sort-fields",
+            "id,created_at",
+            "--output",
+            this.output.toString()
+        });
+        final Path root = this.output.resolve("catalog-service");
+        assertThat(Files.readString(root.resolve(".wuli3/generation.properties")))
+                .contains("sort.fields=id,created_at");
+        final Path queryRepository = root.resolve(
+                "infra/src/main/java/com/example/catalog/infra/persistence/catalog/CatalogQueryRepositoryImpl.java");
+        assertThat(Files.readString(queryRepository)).contains("Set.of(\"id\",\"created_at\")");
     }
 
     /** 验证基础设施选项只修改 Infra 组合并生成对应持久化类型。 */
@@ -147,6 +181,7 @@ final class DddGeneratorTest {
         final Path root = this.output.resolve("catalog-service");
         assertThat(Files.readString(root.resolve("infra/build.gradle.kts")))
                 .contains("wuli3-mysql-spring-boot-starter", "wuli3-rocketmq-spring-boot-starter");
+        assertThat(Files.readString(root.resolve("README.md"))).contains("消息选项为 `rocketmq`", "不生成具体 Listener");
         assertThat(root.resolve("infra/src/main/java/com/example/catalog/infra/persistence/product_catalog/"
                         + "mapper/ProductCatalogMapper.java"))
                 .exists();
@@ -163,12 +198,16 @@ final class DddGeneratorTest {
         assertThat(Files.readString(root.resolve("infra/src/main/java/com/example/catalog/infra/config/"
                         + "ProductCatalogPersistenceConfiguration.java")))
                 .contains(
-                        "@MapperScan(basePackageClasses = ProductCatalogMapper.class)",
-                        "@Configuration(proxyBeanMethods = false)");
+                        "@MapperScan(basePackages = \"com.example.catalog.infra.persistence.**\"",
+                        "@Configuration(proxyBeanMethods = false)",
+                        "PaginationInnerInterceptor");
         assertThat(Files.readString(
                         root.resolve("infra/src/main/java/com/example/catalog/infra/persistence/product_catalog/"
                                 + "ProductCatalogQueryRepositoryImpl.java")))
-                .contains("implements ProductCatalogQueryRepository", "this.mapper.selectById")
+                .contains(
+                        "implements ProductCatalogQueryRepository",
+                        "this.mapper.selectById",
+                        "PaginationHelper.toPageResult")
                 .doesNotContain("domain.product_catalog", "ProductCatalogRepository");
         assertThat(Files.readString(root.resolve("bootstrap/src/main/resources/application.yml")))
                 .contains("name: catalog-service", "service-code: catalog-service")
@@ -206,13 +245,14 @@ final class DddGeneratorTest {
             this.output.toString()
         });
         final Path root = this.output.resolve("order-service");
+        assertThat(root.resolve("app/src/main/java/com/example/order/app/acl")).doesNotExist();
         for (final String packagePath : List.of(
                 "api/facade",
                 "api/dto/order",
                 "app/facade/order",
                 "app/service/order",
                 "app/repository/order",
-                "app/acl",
+                "domain/gateway",
                 "adapter/api/order",
                 "adapter/mq",
                 "adapter/job",
@@ -242,11 +282,15 @@ final class DddGeneratorTest {
                 .isRegularFile();
         assertThat(Files.readString(
                         root.resolve("app/src/main/java/com/example/order/app/facade/order/OrderFacadeImpl.java")))
-                .contains("implements OrderFacade", "this.service.status()")
+                .contains(
+                        "implements OrderFacade",
+                        "this.service.findById",
+                        "this.service.save",
+                        "this.service.deleteById")
                 .doesNotContain("QueryRepository", "Request", "Response");
         assertThat(Files.readString(
                         root.resolve("adapter/src/main/java/com/example/order/adapter/api/order/OrderApi.java")))
-                .contains("OrderQueryService", "this.service.status()")
+                .contains("OrderService", "this.service.findById", "this.service.save", "this.service.deleteById")
                 .doesNotContain("OrderFacade", "QueryRepository");
         assertThat(root.resolve("domain/src/main/java/com/example/order/domain/order/OrderRepository.java"))
                 .isRegularFile();

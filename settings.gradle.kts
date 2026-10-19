@@ -20,6 +20,7 @@ rootProject.name = "wuli3-gradle"
 include(
     "wuli3-dependencies",
     "wuli3-core",
+    "wuli3-pagination",
     "wuli3-json",
     "wuli3-event-core",
     "wuli3-permission",

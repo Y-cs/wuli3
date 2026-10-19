@@ -1,5 +1,8 @@
 package com.kjs.wuli3.spring.logging;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -58,6 +61,9 @@ public final class LoggingEnvironmentPostProcessor implements EnvironmentPostPro
             defaults.put("logging.file.name", file.getName());
         }
         if (fileConfigured) {
+            this.createParentDirectory(environment, file);
+        }
+        if (fileConfigured) {
             this.putDefault(
                     environment,
                     defaults,
@@ -79,6 +85,32 @@ public final class LoggingEnvironmentPostProcessor implements EnvironmentPostPro
             environment
                     .getPropertySources()
                     .addLast(new MapPropertySource(LoggingEnvironmentPostProcessor.DEFAULTS_PROPERTY_SOURCE, defaults));
+        }
+    }
+
+    /** 预创建文件日志的父目录，兼容 JUL FileHandler 不自动创建目录的行为。 */
+    private void createParentDirectory(
+            final ConfigurableEnvironment environment, final LoggingProperties.FileProperties file) {
+        final String configuredName = environment.getProperty("logging.file.name");
+        final String configuredPath = environment.getProperty("logging.file.path");
+        final String name;
+        if (StringUtils.hasText(configuredName)) {
+            name = environment.resolvePlaceholders(configuredName);
+        } else if (StringUtils.hasText(configuredPath)) {
+            name = Path.of(environment.resolvePlaceholders(configuredPath))
+                    .resolve("spring.log")
+                    .toString();
+        } else {
+            name = environment.resolvePlaceholders(file.getName());
+        }
+        final Path path = Path.of(name).toAbsolutePath().normalize();
+        final Path parent = path.getParent();
+        if (parent != null) {
+            try {
+                Files.createDirectories(parent);
+            } catch (IOException exception) {
+                throw new IllegalStateException("无法创建日志目录：" + parent, exception);
+            }
         }
     }
 
