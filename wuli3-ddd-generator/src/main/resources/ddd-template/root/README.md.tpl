@@ -41,6 +41,18 @@ RPC -> api.facade <- app.facade ────> app.service.<领域>
 
 RPC 选项为 `{{rpc}}`，注册中心为 `{{registry}}`。启用 Dubbo 时由 `app.facade` 上的 `@DubboService` 发布，扫描包由 `dubbo.scan.base-packages` 指定；Nacos 地址使用 `DUBBO_REGISTRY_ADDRESS`，服务端口使用 `DUBBO_PORT`。
 
+配置文件中的敏感值可以使用 Jasypt `ENC(...)` 密文。构建 Docker 镜像后，启动容器时必须通过环境变量注入解密主密码：
+
+```bash
+docker build -t {{service}}:latest .
+docker run --rm \
+  -e JASYPT_ENCRYPTOR_PASSWORD \
+  {{service}}:latest
+```
+
+执行 `docker run` 前，应由 Secret 管理系统将 `JASYPT_ENCRYPTOR_PASSWORD` 注入当前环境。该变量不得写入镜像层或版本库。
+启用 Dubbo/Nacos 时，再按部署环境注入 `DUBBO_REGISTRY_ADDRESS`、`DUBBO_CONFIG_CENTER_ADDRESS` 和 `NACOS_CONFIG_SERVER_ADDR`。
+
 ## 验证和启动
 
 ```bash

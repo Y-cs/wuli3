@@ -55,12 +55,7 @@ dependencies {
         api("org.apache.dubbo:dubbo-spring-boot-starter:3.3.6")
         api("org.apache.dubbo:dubbo-config-spring:3.3.6")
         api("org.apache.dubbo:dubbo-registry-nacos:3.3.6")
-        api("com.alibaba.nacos:nacos-client") {
-            version {
-                // Dubbo 3.3.6 的 Nacos 注册中心按 2.5.x 验证；禁止 SCA BOM 静默升级到 Nacos 3.x。
-                strictly("2.5.1")
-            }
-        }
+        api("com.alibaba.cloud:spring-cloud-starter-alibaba-nacos-config")
     }
 }
 

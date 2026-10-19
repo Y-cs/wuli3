@@ -47,7 +47,15 @@ final class RpcGeneratorTest {
                         "base-packages: com.example.order.app.facade");
         if (registry.equals("nacos")) {
             assertThat(dependencies).contains("runtimeOnly(\"org.apache.dubbo:dubbo-registry-nacos\")");
-            assertThat(config).contains("${DUBBO_REGISTRY_ADDRESS:nacos://127.0.0.1:8848}");
+            assertThat(dependencies).contains("spring-cloud-starter-alibaba-nacos-config");
+            assertThat(config)
+                    .contains(
+                            "${DUBBO_REGISTRY_ADDRESS:nacos://127.0.0.1:8848}",
+                            "config-center:",
+                            "${DUBBO_CONFIG_CENTER_ADDRESS:nacos://127.0.0.1:8848}",
+                            "server-addr: \"${NACOS_CONFIG_SERVER_ADDR:127.0.0.1:8848}\"",
+                            "optional:nacos:${NACOS_CONFIG_DATA_ID:order-service.yml}",
+                            "group=${NACOS_CONFIG_GROUP:DEFAULT_GROUP}");
         } else {
             assertThat(dependencies).doesNotContain("dubbo-registry-nacos");
             assertThat(config).contains("address: \"N/A\"");

@@ -219,9 +219,12 @@ MySQL 选项会额外生成 MyBatis-Plus PO/Mapper 和显式 Mapper 扫描配置
 启用 Dubbo 时，app 模块引入 `dubbo-config-spring`，`DomainFacadeImpl` 以 `@DubboService` 发布，
 `application.yml` 通过 `dubbo.scan.base-packages` 指向 `app.facade`；api 仍不引入 Dubbo 注解或依赖。
 bootstrap 模块只保留 `wuli3-dubbo-spring-boot-starter` 运行时装配。再启用 Nacos 时，
-bootstrap 模块加入 `dubbo-registry-nacos` 运行时依赖，使用 `DUBBO_REGISTRY_ADDRESS` 环境变量设置
-地址，默认 `nacos://127.0.0.1:8848`。`--registry none` 显式设置 `address: "N/A"`，仍可直接连接
-Dubbo 端口调用。端口由 `DUBBO_PORT` 配置，默认 20880。
+bootstrap 模块加入 `dubbo-registry-nacos` 和 Spring Cloud Alibaba Nacos Config starter，分别通过
+`DUBBO_REGISTRY_ADDRESS`、`DUBBO_CONFIG_CENTER_ADDRESS` 设置 Dubbo 注册中心与 Dubbo 配置中心地址，
+默认均为 `nacos://127.0.0.1:8848`。同时生成 Spring Cloud Nacos Config 的 `spring.config.import`，
+通过 `NACOS_CONFIG_SERVER_ADDR`、`NACOS_CONFIG_DATA_ID`、`NACOS_CONFIG_GROUP` 配置配置中心加载地址、
+Data ID 和 Group；默认 Data ID 为 `<service>.yml`，默认 Group 为 `DEFAULT_GROUP`。`--registry none` 显式设置
+`address: "N/A"`，仍可直接连接 Dubbo 端口调用。端口由 `DUBBO_PORT` 配置，默认 20880。
 
 生成配置显式使用 `fastjson2` 序列化；RPC 请求、返回值及其嵌套对象必须保持可序列化，并由调用
 双方共享兼容的契约版本。生成的 Spring 启动测试设置 `dubbo.enabled=false`，同时禁用 RPC 发布
