@@ -22,7 +22,8 @@ public class LoggingProperties {
     /** 默认文本日志格式。 */
     public static final String DEFAULT_TEXT_PATTERN =
             "[%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX}] [%-5level] [%thread] [app=${spring.application.name:application}] "
-                    + "[requestId=%X{requestId}] [traceId=%X{trace_id}] [spanId=%X{span_id}] %logger{36} - %msg%n%wEx";
+                    + "[requestId=%X{" + LogMdcKeys.REQUEST_ID + "}] [traceId=%X{trace_id}] [spanId=%X{span_id}] "
+                    + "%logger{36} - %msg%n%wEx";
 
     /** 默认日志文件名。 */
     public static final String DEFAULT_FILE_NAME = "logs/${spring.application.name:application}.log";

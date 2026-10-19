@@ -5,6 +5,7 @@ import com.kjs.wuli3.core.error.ErrorCodeException;
 import com.kjs.wuli3.propagation.ContextManager;
 import com.kjs.wuli3.propagation.codec.ContextPropagator;
 import com.kjs.wuli3.propagation.context.ContextSnapshot;
+import com.kjs.wuli3.spring.logging.RequestIdMdc;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.Callable;
@@ -13,6 +14,8 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * 从 RocketMQ 消息 headers 解码传播上下文，由消费适配器显式恢复。
+ *
+ * 注意：作用域内同时把 requestId 写入 MDC，退出时还原消费线程进入前的值。
  *
  * @author GuoYang create on 2026/8/17 11:53
  */
@@ -34,19 +37,25 @@ public final class RocketContextSupport {
     }
 
     /**
-     * 在消息处理回调期间恢复 headers 中的传播上下文。
+     * 在消息处理回调期间恢复 headers 中的传播上下文，并把 requestId 写入 MDC。
      *
      * @param headers 消息 headers（来自 {@code MessageExt.getProperties()} 或 {@code RocketMessageWrapper.headers()}）
      * @throws ErrorCodeException 当 {@code headers} 为 {@code null} 时
      */
     @SuppressWarnings("NullAway")
     public void runInScope(final Map<String, ?> headers, final Runnable task) {
-        this.contextManager.from(this.extract(headers)).run(task);
+        final ContextSnapshot snapshot = this.extract(headers);
+        try (final RequestIdMdc ignored = RequestIdMdc.open(snapshot)) {
+            this.contextManager.from(snapshot).run(task);
+        }
     }
 
-    /** 在消息处理回调期间恢复 headers 中的传播上下文并返回结果。 */
+    /** 在消息处理回调期间恢复 headers 中的传播上下文、写入 requestId，并返回结果。 */
     public <T> T callInScope(final Map<String, ?> headers, final Callable<T> task) throws Exception {
-        return this.contextManager.from(this.extract(headers)).call(task);
+        final ContextSnapshot snapshot = this.extract(headers);
+        try (final RequestIdMdc ignored = RequestIdMdc.open(snapshot)) {
+            return this.contextManager.from(snapshot).call(task);
+        }
     }
 
     @SuppressWarnings("NullAway")

@@ -50,7 +50,7 @@ wuli3:
 
 ## 4. 上下文传播
 
-consumer Filter 捕获当前 `ContextSnapshot`，通过 Dubbo invocation attachments 写出；provider Filter 从 attachments 读取并在服务方法调用期间恢复上下文，调用结束后恢复 provider 线程原有状态。
+consumer Filter 捕获当前 `ContextSnapshot`，通过 Dubbo invocation attachments 写出；provider Filter 从 attachments 读取并在服务方法调用期间恢复上下文，调用结束后恢复 provider 线程原有状态。provider 作用域内同时把 `requestId` 写入日志 MDC，作用域退出后按 provider 线程进入前的值还原；作用域之外的 Dubbo 框架日志不带 `requestId`。
 
 默认 `ContextPropagator` 传播 Wuli3 标准上下文字段。需要减少字段时，应在应用侧替换 `ContextPropagator` Bean，而不是修改 Dubbo Filter。
 

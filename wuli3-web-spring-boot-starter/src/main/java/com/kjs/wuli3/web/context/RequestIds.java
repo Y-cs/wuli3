@@ -1,6 +1,7 @@
 package com.kjs.wuli3.web.context;
 
 import com.kjs.wuli3.propagation.internal.InvocationContext;
+import com.kjs.wuli3.spring.logging.LogMdcKeys;
 
 /**
  * Web 上下文传播使用的请求 ID 名称。
@@ -9,7 +10,7 @@ import com.kjs.wuli3.propagation.internal.InvocationContext;
  */
 public final class RequestIds {
     public static final String HEADER_NAME = InvocationContext.REQUEST_ID;
-    public static final String MDC_KEY = "requestId";
+    public static final String MDC_KEY = LogMdcKeys.REQUEST_ID;
 
     private RequestIds() {}
 }

@@ -11,7 +11,6 @@ dependencies {
     api(platform("org.springframework.boot:spring-boot-dependencies:3.5.15"))
     api(platform("com.alibaba.cloud:spring-cloud-alibaba-dependencies:2025.0.0.0"))
     api(platform("com.baomidou:mybatis-plus-bom:3.5.16"))
-    api(platform("org.apache.dubbo:dubbo-bom:3.3.6"))
 
     constraints {
         api("com.kjs.wuli3:wuli3-core:${project.version}")
@@ -54,6 +53,7 @@ dependencies {
         api("org.apache.rocketmq:rocketmq-spring-boot-starter:2.3.4")
         api("org.apache.rocketmq:rocketmq-client-java:5.2.0")
         api("org.apache.dubbo:dubbo-spring-boot-starter:3.3.6")
+        api("org.apache.dubbo:dubbo-config-spring:3.3.6")
         api("org.apache.dubbo:dubbo-registry-nacos:3.3.6")
         api("com.alibaba.nacos:nacos-client") {
             version {

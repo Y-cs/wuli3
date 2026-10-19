@@ -46,7 +46,7 @@ dependencies {
 - MDC 中的 `requestId`、`trace_id` 和 `span_id`；
 - Logger、消息和异常堆栈。
 
-`requestId` 由 Web/上下文模块负责写入，OpenTelemetry Agent 可写入 `trace_id` 和 `span_id`；当前没有对应上下文时字段为空，日志模块不会自行生成这些标识。
+`requestId` 由 Web 入口过滤器，以及 Dubbo provider、RocketMQ/RabbitMQ 消费作用域写入；OpenTelemetry Agent 可写入 `trace_id` 和 `span_id`；当前没有对应上下文时字段为空，日志模块不会自行生成这些标识。`requestId` 的字段名契约见 `LogMdcKeys`，绑定实现见 `RequestIdMdc`：入站作用域退出时按进入前的值还原而非直接移除，避免线程池复用把上一个调用的 `requestId` 留在 MDC。
 
 ### 3.2 常用配置
 

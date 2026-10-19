@@ -107,7 +107,7 @@ rocketMqContextSupport.runInScope(messageExt.getProperties(), () -> {
 });
 ```
 
-`runInScope` 只解码字段编码器识别出的上下文并执行回调，不会自动注册或包裹 RocketMQ Listener。实际 Listener 仍应根据消息来源、线程模型、重试和死信策略决定调用时机。非法认证字段由 `AuthContextCodec` 忽略，避免消费适配器承担解析细节。
+`runInScope` 只解码字段编码器识别出的上下文并执行回调，不会自动注册或包裹 RocketMQ Listener。实际 Listener 仍应根据消息来源、线程模型、重试和死信策略决定调用时机。非法认证字段由 `AuthContextCodec` 忽略，避免消费适配器承担解析细节。回调期间同时把 `requestId` 写入日志 MDC，作用域退出后按消费线程进入前的值还原。
 
 ## 投递边界
 
