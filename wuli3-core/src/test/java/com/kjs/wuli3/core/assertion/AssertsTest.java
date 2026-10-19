@@ -91,6 +91,20 @@ class AssertsTest {
     }
 
     @Test
+    void returnsNonNullValueWhenRequiringNonNull() {
+        assertThat(Asserts.requireNonNull("value", CommonErrors.ILLEGAL_ARGUMENT))
+                .isEqualTo("value");
+    }
+
+    @Test
+    void throwsErrorCodeExceptionWhenRequiringNonNullOfNull() {
+        assertThatThrownBy(() -> Asserts.requireNonNull(null, CommonErrors.ILLEGAL_ARGUMENT))
+                .isInstanceOfSatisfying(
+                        ErrorCodeException.class,
+                        exception -> assertThat(exception.getErrorCode()).isSameAs(CommonErrors.ILLEGAL_ARGUMENT));
+    }
+
+    @Test
     void throwsIllegalArgumentErrorCode() {
         assertThatThrownBy(() -> Asserts.whenFalse(false).throwIllegalArgumentException("invalid state"))
                 .isInstanceOfSatisfying(ErrorCodeException.class, exception -> {

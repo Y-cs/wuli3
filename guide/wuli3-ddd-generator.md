@@ -41,7 +41,7 @@ jbang --repos <内部仓库URL>,mavenlocal \
 | `--domain`              | 是   | 小写字母开头，可含数字和单个连字符 | —                | 领域名                                                       |
 | `--persistence`         | 否   | `none`、`mysql`                    | `none`           | `mysql` 额外生成 MyBatis-Plus PO/Mapper 并引入 MySQL starter |
 | `--messaging`           | 否   | `none`、`rocketmq`、`rabbitmq`     | `none`           | 非 `none` 时引入对应的 Wuli3 消息 starter                    |
-| `--rpc`                 | 否   | `none`、`dubbo`                    | `none`           | `dubbo` 生成 Dubbo Facade 发布能力并引入 Dubbo starter       |
+| `--rpc`                 | 否   | `none`、`dubbo`                    | `none`           | `dubbo` 在 app.facade 生成 `@DubboService` 发布能力并引入 Dubbo starter |
 | `--registry`            | 否   | `none`、`nacos`                    | `none`           | `nacos` 作为 Dubbo 注册中心；必须同时设置 `--rpc dubbo`     |
 | `--sort-fields`         | 否   | 逗号分隔的数据库字段名            | `id,status`      | 查询分页允许排序的字段白名单，生成到 infra 查询实现             |
 | `--wuli3-version`       | 否   | 已发布的 Wuli3 版本                | `0.1.3-SNAPSHOT` | Wuli3 BOM 与 starter 版本                                    |
@@ -106,7 +106,7 @@ shared-kernel -> domain / api -> app -> infra
 - `app.repository` 只定义 QueryRepository；`domain.gateway` 定义本地语义的外部业务能力。
 - `infra` 实现两类仓储与 ACL；`infra.config` 管理 Mapper 扫描和技术 Bean。
 - `adapter.api` 提供 HTTP 入口，类名以 Api 结尾；`adapter.mq`、`adapter.job` 提供消息消费与任务入口。
-- `bootstrap` 负责启动、配置选择和最终组装；RPC 发布机制由接入/组装层配置。
+- `bootstrap` 负责启动、配置选择和最终组装；Dubbo 选项下 RPC 发布由 `app.facade` 上的 `@DubboService` 完成。
 
 `save` 保存调用方提供的标识和完整状态，不生成标识。MySQL 示例的 `insertOrUpdate` 先查主键再插入或更新，
 不保证并发新增同一主键的原子 upsert；业务需要并发控制时应在仓储中使用数据库原子语句或明确的锁策略。
@@ -186,7 +186,7 @@ wuli3.ddd.types.infra-app-allowed-suffixes=QueryRepository,Query,DTO
 
 类型检查基于编译后字节码，不能识别反射字符串形成的动态依赖；声明检查不等同于完整传递依赖树扫描。
 
-模板版本为 2.0.0，包结构不兼容旧模板；仅生成新项目，不覆盖或自动迁移已有项目。
+模板版本为 2.1.0，包结构不兼容旧模板；Dubbo 发布位于 app.facade。仅生成新项目，不覆盖或自动迁移已有项目。
 使用时需要先发布包含 DDD 约定检查插件的 build-logic 版本，再通过 `--build-logic-version` 指定。
 
 ## Git 钩子
@@ -216,8 +216,9 @@ wuli3.ddd.types.infra-app-allowed-suffixes=QueryRepository,Query,DTO
 ```
 
 MySQL 选项会额外生成 MyBatis-Plus PO/Mapper 和显式 Mapper 扫描配置；消息选项会加入对应 Wuli3 消息 starter。
-启用 Dubbo 时，bootstrap 模块生成 `DomainRpcConfiguration`（名称按领域替换），通过
-`ServiceBean` 发布 Spring 管理的 Facade；app 和 api 不引入 Dubbo 注解或依赖。再启用 Nacos 时，
+启用 Dubbo 时，app 模块引入 `dubbo-config-spring`，`DomainFacadeImpl` 以 `@DubboService` 发布，
+`application.yml` 通过 `dubbo.scan.base-packages` 指向 `app.facade`；api 仍不引入 Dubbo 注解或依赖。
+bootstrap 模块只保留 `wuli3-dubbo-spring-boot-starter` 运行时装配。再启用 Nacos 时，
 bootstrap 模块加入 `dubbo-registry-nacos` 运行时依赖，使用 `DUBBO_REGISTRY_ADDRESS` 环境变量设置
 地址，默认 `nacos://127.0.0.1:8848`。`--registry none` 显式设置 `address: "N/A"`，仍可直接连接
 Dubbo 端口调用。端口由 `DUBBO_PORT` 配置，默认 20880。

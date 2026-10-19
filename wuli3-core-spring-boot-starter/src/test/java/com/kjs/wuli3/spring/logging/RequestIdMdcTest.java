@@ -25,6 +25,7 @@ class RequestIdMdcTest {
 
     /** 验证作用域内写入快照中的 requestId，退出后移除。 */
     @Test
+    @SuppressWarnings("try")
     void writesRequestIdInsideScopeAndRemovesAfterwards() {
         try (final RequestIdMdc ignored = RequestIdMdc.open(RequestIdMdcTest.snapshot("request-42"))) {
             assertThat(MDC.get(LogMdcKeys.REQUEST_ID)).isEqualTo("request-42");
@@ -34,6 +35,7 @@ class RequestIdMdcTest {
 
     /** 验证退出时还原进入前的值，而不是无条件移除。 */
     @Test
+    @SuppressWarnings("try")
     void restoresPreviousValueOnExit() {
         MDC.put(LogMdcKeys.REQUEST_ID, "outer");
         try (final RequestIdMdc ignored = RequestIdMdc.open(RequestIdMdcTest.snapshot("request-42"))) {
@@ -44,6 +46,7 @@ class RequestIdMdcTest {
 
     /** 验证快照中没有请求上下文时不写 MDC，也不影响已有值。 */
     @Test
+    @SuppressWarnings("try")
     void skipsWhenSnapshotHasNoInvocationContext() {
         MDC.put(LogMdcKeys.REQUEST_ID, "outer");
         final ContextSnapshot snapshot =
@@ -56,6 +59,7 @@ class RequestIdMdcTest {
 
     /** 验证回调抛异常时仍然还原。 */
     @Test
+    @SuppressWarnings("try")
     void restoresWhenTaskFails() {
         assertThatThrownBy(() -> {
                     try (final RequestIdMdc ignored = RequestIdMdc.open(RequestIdMdcTest.snapshot("request-42"))) {

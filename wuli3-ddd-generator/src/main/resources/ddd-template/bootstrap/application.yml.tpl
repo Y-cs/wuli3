@@ -2,6 +2,9 @@ spring:
   application:
     name: {{service}}
 
+server:
+  port: ${SERVER_PORT:8080}
+
 application:
   service:
     service-code: {{service}}

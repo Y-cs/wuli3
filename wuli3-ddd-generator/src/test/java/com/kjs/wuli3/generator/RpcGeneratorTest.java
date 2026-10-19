@@ -19,26 +19,32 @@ final class RpcGeneratorTest {
     @TempDir
     private Path output;
 
-    /** 启用 RPC 不污染应用模块，并为两种持久化组合生成无网络启动测试。 */
+    /** 启用 RPC 时由 app.facade 发布，并为两种持久化组合生成无网络启动测试。 */
     @ParameterizedTest
     @CsvSource({"none,none", "none,nacos", "mysql,none", "mysql,nacos"})
-    void publishesFacadeFromBootstrap(final String persistence, final String registry) throws Exception {
+    void publishesFacadeFromAppFacade(final String persistence, final String registry) throws Exception {
         final Path root = new DddProjectGenerator().generate(this.options("dubbo", registry, persistence));
-        assertThat(Files.readString(root.resolve("app/build.gradle.kts"))).doesNotContain("dubbo");
+        assertThat(Files.readString(root.resolve("app/build.gradle.kts")))
+                .contains("org.apache.dubbo:dubbo-config-spring");
         assertThat(Files.readString(
                         root.resolve("app/src/main/java/com/example/order/app/facade/order/OrderFacadeImpl.java")))
-                .doesNotContain("DubboService", "org.apache.dubbo");
-        assertThat(Files.readString(
-                        root.resolve("bootstrap/src/main/java/com/example/order/config/OrderRpcConfiguration.java")))
                 .contains(
-                        "new ServiceBean<>(context)",
-                        "service.setInterface(OrderFacade.class)",
-                        "service.setRef(facade)",
-                        "@ConditionalOnProperty(prefix = \"dubbo\", name = \"enabled\"");
+                        "import org.apache.dubbo.config.annotation.DubboService;",
+                        "@DubboService",
+                        "@Service",
+                        "implements OrderFacade");
+        assertThat(root.resolve("bootstrap/src/main/java/com/example/order/config/OrderRpcConfiguration.java"))
+                .doesNotExist();
         final String dependencies = Files.readString(root.resolve("bootstrap/build.gradle.kts"));
-        assertThat(dependencies).contains("wuli3-dubbo-spring-boot-starter");
+        assertThat(dependencies).contains("wuli3-dubbo-spring-boot-starter").doesNotContain("dubbo-config-spring");
         final String config = Files.readString(root.resolve("bootstrap/src/main/resources/application.yml"));
-        assertThat(config).contains("serialization: fastjson2", "${DUBBO_PORT:20880}");
+        assertThat(config)
+                .contains(
+                        "serialization: fastjson2",
+                        "${DUBBO_PORT:20880}",
+                        "qos-enable: false",
+                        "scan:",
+                        "base-packages: com.example.order.app.facade");
         if (registry.equals("nacos")) {
             assertThat(dependencies).contains("runtimeOnly(\"org.apache.dubbo:dubbo-registry-nacos\")");
             assertThat(config).contains("${DUBBO_REGISTRY_ADDRESS:nacos://127.0.0.1:8848}");
@@ -51,12 +57,16 @@ final class RpcGeneratorTest {
                 .contains("\"dubbo.enabled=false\"");
     }
 
-    /** 未启用 RPC 时不生成发布文件、依赖和配置。 */
+    /** 未启用 RPC 时不生成发布注解、依赖和配置。 */
     @Test
     void omitsRpcWhenDisabled() throws Exception {
         final Path root = new DddProjectGenerator().generate(this.options("none", "none", "none"));
         assertThat(root.resolve("bootstrap/src/main/java/com/example/order/config/OrderRpcConfiguration.java"))
                 .doesNotExist();
+        assertThat(Files.readString(root.resolve("app/build.gradle.kts"))).doesNotContain("dubbo");
+        assertThat(Files.readString(
+                        root.resolve("app/src/main/java/com/example/order/app/facade/order/OrderFacadeImpl.java")))
+                .doesNotContain("DubboService", "org.apache.dubbo");
         assertThat(Files.readString(root.resolve("bootstrap/build.gradle.kts"))).doesNotContain("dubbo");
         assertThat(Files.readString(root.resolve("bootstrap/src/main/resources/application.yml")))
                 .doesNotContain("dubbo:");

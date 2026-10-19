@@ -10,10 +10,10 @@
 - `shared-kernel`：共享稳定的标识、状态和领域类型，允许 Wuli3 Core、必要的 JSpecify 注解与编译期 Lombok，不依赖框架。
 - `domain`：按业务领域组织聚合、实体、值对象、领域规则和聚合 Repository；不引入 Spring 或基础设施实现。
 - `api`：内部 RPC 依赖契约包，接口以 `Facade` 结尾，传播对象以 `Dto` 结尾并按领域组织。
-- `app`：`service` 按领域分包、按业务职责拆类；`facade` 实现 RPC 契约并委托 Service；`repository` 定义查询仓储接口。
+- `app`：`service` 按领域分包、按业务职责拆类；`facade` 实现 RPC 契约、委托 Service，Dubbo 选项下以 `@DubboService` 发布；`repository` 定义查询仓储接口。
 - `infra`：实现 domain 聚合仓储、app 查询仓储及 ACL；引用 app 类型只允许 QueryRepository、Query、DTO 后缀，不依赖 Service 或 Facade 实现。
 - `adapter`：`api` 提供 HTTP 接入（类名以 Api 结尾），`mq` 提供消息消费入口，`job` 提供任务入口，统一调用 app Service。
-- `bootstrap`：Spring Boot 启动和最终组装，负责配置选择与 RPC 发布等装配。基础设施自身配置归 infra 所有。
+- `bootstrap`：Spring Boot 启动和最终组装，负责配置选择与运行时装配；RPC 发布由 `app.facade` 上的注解完成。基础设施自身配置归 infra 所有。
 新增能力应放入承担该职责的模块；不要绕过现有架构测试或扩大依赖白名单来掩盖模块边界问题。
 
 ## 构建风格与验证命令
@@ -42,6 +42,7 @@
 - 读路径调用 app 的 QueryRepository，直接返回查询投影；写路径通过 domain 的 Repository 执行 save、findById、deleteById；save 同时覆盖新增和修改。
 - 不因分层复制对象。HTTP 可复用应用输入和结果，应用可复用语义一致的 RPC DTO；仅在契约、格式、安全或演进边界不同时转换。不直接传播聚合或持久化实体。
 - 可信身份由入口从认证上下文取得，不接受客户端任意指定；协议和 RPC 框架类型不进入核心 Service。
+- Dubbo 选项下 `dubbo.scan.base-packages` 指向 `app.facade`，`@DubboService` 只标注 Facade 实现，不进入 Service。
 - domain.gateway 定义本地语义的外部能力接口，由 infra 实现；infra.acl 负责远程调用、模型与错误转换。跨系统查询同样属于 ACL，不作为本地 QueryRepository。
 - infra.config 管理 Mapper 扫描和基础设施 Bean；bootstrap 组装配置，地址和凭据由外部环境提供。
 - 约定包即使为空也保留中文 package-info.java，说明职责、依赖与禁用事项；按实际外部系统增补 ACL 子包，不生成虚构系统。

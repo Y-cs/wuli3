@@ -130,7 +130,7 @@ final class DddGeneratorTest {
                         "@Transactional\n    public OrderStatusDto save",
                         "@Transactional\n    public void deleteById");
         assertThat(Files.readString(root.resolve(".wuli3/generation.properties")))
-                .contains("template.version=2.0.0", "persistence=none", "messaging=none", "sort.fields=id,status");
+                .contains("template.version=2.1.0", "persistence=none", "messaging=none", "sort.fields=id,status");
     }
 
     /** 验证自定义排序白名单会进入生成配置和 MySQL 查询实现。 */
@@ -210,7 +210,7 @@ final class DddGeneratorTest {
                         "PaginationHelper.toPageResult")
                 .doesNotContain("domain.product_catalog", "ProductCatalogRepository");
         assertThat(Files.readString(root.resolve("bootstrap/src/main/resources/application.yml")))
-                .contains("name: catalog-service", "service-code: catalog-service")
+                .contains("name: catalog-service", "service-code: catalog-service", "${SERVER_PORT:8080}")
                 .doesNotContain("generator:", "messaging:");
         assertThat(Files.readString(
                         root.resolve("bootstrap/src/test/java/com/example/catalog/BootstrapApplicationTest.java")))

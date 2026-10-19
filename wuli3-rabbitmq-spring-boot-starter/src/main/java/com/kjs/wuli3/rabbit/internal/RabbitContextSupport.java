@@ -41,7 +41,7 @@ public final class RabbitContextSupport {
      * @param headers 消息 headers（来自 {@code MessageProperties.getHeaders()}）
      * @throws ErrorCodeException 当 {@code headers} 为 {@code null} 时
      */
-    @SuppressWarnings("NullAway")
+    @SuppressWarnings({"NullAway", "try"})
     public void runInScope(final Map<String, ?> headers, final Runnable task) {
         final ContextSnapshot snapshot = this.extract(headers);
         try (final RequestIdMdc ignored = RequestIdMdc.open(snapshot)) {
@@ -50,6 +50,7 @@ public final class RabbitContextSupport {
     }
 
     /** 在消息处理回调期间恢复 headers 中的传播上下文、写入 requestId，并返回结果。 */
+    @SuppressWarnings("try")
     public <T> T callInScope(final Map<String, ?> headers, final Callable<T> task) throws Exception {
         final ContextSnapshot snapshot = this.extract(headers);
         try (final RequestIdMdc ignored = RequestIdMdc.open(snapshot)) {

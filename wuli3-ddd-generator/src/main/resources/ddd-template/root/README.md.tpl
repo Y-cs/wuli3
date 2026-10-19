@@ -18,7 +18,7 @@ RPC -> api.facade <- app.facade ────> app.service.<领域>
                                          └─ 外部业务能力 -> domain.gateway -> infra.acl
 ```
 
-- `api` 是内部 RPC 契约包，使用 Facade 和 DTO；`app.facade` 实现契约并委托 Service，RPC 发布由装配层负责。
+- `api` 是内部 RPC 契约包，使用 Facade 和 DTO；`app.facade` 实现契约并委托 Service，通过 `@DubboService` 发布。
 - `app.service` 按领域组织，按业务职责拆分；不强制为每个领域创建 Command/Query 两类 Service。
 - `adapter.api` 的 HTTP 类以 Api 结尾；`mq`、`job` 分别负责消费和任务入口，不承担完整业务编排。
 - 消息选项为 `{{messaging}}`；选择 RocketMQ 或 RabbitMQ 只引入对应 starter，不生成具体 Listener、拓扑或重试策略。
@@ -39,7 +39,7 @@ RPC -> api.facade <- app.facade ────> app.service.<领域>
 生成配置中的 `sort.fields={{sortFields}}` 是查询排序白名单。扩展领域字段时，应同步扩展 DTO、聚合、PO 和仓储映射；多表聚合由同一仓储实现协调多个 Mapper，并复用 Service 的事务边界。
 默认生成一个 Service；复杂领域可按内聚职责拆分为 Query、Save 或其他用例 Service，入口只依赖实际需要的 Service。
 
-RPC 选项为 `{{rpc}}`，注册中心为 `{{registry}}`。启用 Dubbo 时由 bootstrap 发布 Facade；Nacos 地址使用 `DUBBO_REGISTRY_ADDRESS`，服务端口使用 `DUBBO_PORT`。
+RPC 选项为 `{{rpc}}`，注册中心为 `{{registry}}`。启用 Dubbo 时由 `app.facade` 上的 `@DubboService` 发布，扫描包由 `dubbo.scan.base-packages` 指定；Nacos 地址使用 `DUBBO_REGISTRY_ADDRESS`，服务端口使用 `DUBBO_PORT`。
 
 ## 验证和启动
 
@@ -55,7 +55,7 @@ DDD 约定插件提供 `verifyDddDependencies` 与 `verifyDddTypes`，并统一�
 事务包、基础设施实现类后缀以及 infra 引用 app 类型的后缀白名单可通过 `gradle.properties` 扩展；未配置时保持默认规则。
 选择 MySQL 时生成 Mapper、持久化配置与扫描；运行时连接信息由环境提供，启动测试使用替身隔离数据库。
 
-模板 2.0.0 调整了入口、DTO、Service 和仓储包路径；只生成新项目，不自动迁移已有工程。
+模板 2.1.0 将 Dubbo 发布从 bootstrap 的 ServiceBean 调整为 app.facade 上的 `@DubboService`；只生成新项目，不自动迁移已有工程。
 
 外部服务 API 只能在 infra 声明依赖并引用；通过 domain.gateway 本地契约向 app 提供能力，不生成 app.acl。
 在 gradle.properties 中以 `wuli3.ddd.external-api.coordinates` 登记精确 group:artifact，
