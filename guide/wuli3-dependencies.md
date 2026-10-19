@@ -39,10 +39,9 @@ com.kjs.wuli3:wuli3-dependencies:0.1.3-SNAPSHOT
 - `org.apache.dubbo:dubbo-bom:3.3.6`
 - `com.baomidou:mybatis-plus-bom:3.5.16`
 
-Spring Cloud Alibaba 2025.0.0.0 会管理 Nacos 3.x 客户端；本项目面向 Dubbo 3.3.6 + Nacos 注册中心，因而将
-`com.alibaba.nacos:nacos-client` 严格锁定为 2.5.1。引入 Spring Cloud Alibaba 的 Nacos Discovery 或 Config
-starter 前，必须先完成与 Dubbo 注册中心的联合验证；当前平台会将其解析回 2.5.1，若未来 starter 对 3.x
-存在硬性要求，则应先拆分平台或完成兼容性验证。
+Spring Cloud Alibaba 2025.0.0.0 管理 Nacos 3.0.3，并面向 Spring Boot 3.5.x 提供 Nacos Config/Discovery
+starter。本平台跟随该 BOM，不再强制覆盖 Nacos 客户端版本；这样生成工程的配置中心依赖与官方管理版本保持一致。
+Dubbo Nacos 注册中心与 Spring Cloud Nacos Config 共用同一客户端版本，发布前应使用目标 Nacos 3.x 服务端完成联调。
 
 当前约束的依赖版本：
 
@@ -61,6 +60,7 @@ starter 前，必须先完成与 Dubbo 注册中心的联合验证；当前平�
 - `org.projectlombok:lombok:1.18.46`
 - `org.junit.jupiter:junit-jupiter:5.12.2`
 - `org.assertj:assertj-core:3.27.3`
+- `com.alibaba.cloud:spring-cloud-starter-alibaba-nacos-config`（由 Spring Cloud Alibaba BOM 管理版本）
 - `org.apache.rocketmq:rocketmq-spring-boot-starter:2.3.4`
 - `org.apache.rocketmq:rocketmq-client-java:5.2.0`
 

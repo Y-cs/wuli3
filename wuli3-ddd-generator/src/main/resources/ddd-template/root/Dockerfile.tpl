@@ -5,6 +5,10 @@ FROM --platform=$TARGET_ARCH registry.cn-hangzhou.aliyuncs.com/kr36-env/openjdk:
 ENV BASE_HOME=/opt/www
 ENV LANG=en_US.UTF-8
 
+# Jasypt 主密码只允许在运行容器时注入，不要写入镜像或提交到代码库。
+# Spring Boot 会将该环境变量绑定到 jasypt.encryptor.password。
+ENV JASYPT_ENCRYPTOR_PASSWORD=""
+
 #############################################
 #
 # OpenTelemetry Java Agent

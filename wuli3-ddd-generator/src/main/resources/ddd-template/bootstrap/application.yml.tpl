@@ -1,6 +1,7 @@
 spring:
   application:
     name: {{service}}
+{{nacosConfiguration}}
 
 server:
   port: ${SERVER_PORT:8080}

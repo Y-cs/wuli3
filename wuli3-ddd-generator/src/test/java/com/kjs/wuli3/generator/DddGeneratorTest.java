@@ -113,6 +113,9 @@ final class DddGeneratorTest {
         assertThat(Files.readString(root.resolve("README.md")))
                 .contains("src/main/java", "src/test/java", "java-conventions", "spring-conventions")
                 .doesNotContain("kotlin", "Kotlin");
+        assertThat(Files.readString(root.resolve("Dockerfile")))
+                .contains("ENV JASYPT_ENCRYPTOR_PASSWORD=\"\"", "Jasypt 主密码只允许在运行容器时注入");
+        assertThat(Files.readString(root.resolve("README.md"))).contains("JASYPT_ENCRYPTOR_PASSWORD", "Secret 管理系统将");
         assertThat(Files.readString(root.resolve("domain/build.gradle.kts")))
                 .contains("api(project(\":shared-kernel\"))")
                 .contains("implementation(\"com.kjs.wuli3:wuli3-core\")")

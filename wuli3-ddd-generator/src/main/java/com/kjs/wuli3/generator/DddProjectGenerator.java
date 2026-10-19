@@ -262,6 +262,7 @@ final class DddProjectGenerator {
         result.put("facadeRpcAnnotation", this.facadeRpcAnnotation(options));
         result.put("bootstrapDependencies", this.bootstrapDependencies(options));
         result.put("rpcConfiguration", this.rpcConfiguration(options));
+        result.put("nacosConfiguration", this.nacosConfiguration(options));
         result.put("repositoryImports", this.repositoryImports(options));
         result.put("queryRepositoryPage", this.queryRepositoryPage(options));
         result.put("queryRepositoryFindById", this.queryRepositoryFindById(options));
@@ -314,8 +315,20 @@ final class DddProjectGenerator {
                 new StringBuilder("    implementation(\"com.kjs.wuli3:wuli3-dubbo-spring-boot-starter\")\n");
         if ("nacos".equals(options.registry())) {
             result.append("    runtimeOnly(\"org.apache.dubbo:dubbo-registry-nacos\")\n");
+            result.append("    implementation(\"com.alibaba.cloud:spring-cloud-starter-alibaba-nacos-config\")\n");
         }
         return result.toString();
+    }
+
+    /** 生成 Spring Cloud Alibaba Nacos 配置中心导入配置。 */
+    private String nacosConfiguration(final GeneratorOptions options) {
+        if (!"nacos".equals(options.registry())) {
+            return "";
+        }
+        return "\n  cloud:\n    nacos:\n      config:\n        server-addr: \"${NACOS_CONFIG_SERVER_ADDR:127.0.0.1:8848}\"\n"
+                + "  config:\n    import:\n      - \"optional:nacos:${NACOS_CONFIG_DATA_ID:"
+                + options.service()
+                + ".yml}?group=${NACOS_CONFIG_GROUP:DEFAULT_GROUP}&refreshEnabled=true\"\n";
     }
 
     /**
@@ -329,11 +342,14 @@ final class DddProjectGenerator {
         }
         final String address =
                 "nacos".equals(options.registry()) ? "${DUBBO_REGISTRY_ADDRESS:nacos://127.0.0.1:8848}" : "N/A";
+        final String configCenter = "nacos".equals(options.registry())
+                ? "\n  config-center:\n    address: \"${DUBBO_CONFIG_CENTER_ADDRESS:nacos://127.0.0.1:8848}\"\n"
+                : "";
         return "\ndubbo:\n  application:\n    name: " + options.service()
                 + "\n    qos-enable: false"
                 + "\n  scan:\n    base-packages: " + options.basePackage() + ".app.facade"
                 + "\n  protocol:\n    name: dubbo\n    port: ${DUBBO_PORT:20880}\n    serialization: fastjson2"
-                + "\n  registry:\n    address: \"" + address + "\"\n";
+                + "\n  registry:\n    address: \"" + address + "\"" + configCenter;
     }
 
     /** MySQL 仓储显式导入所属领域的持久化类型。 */
