@@ -21,6 +21,7 @@ import com.kjs.wuli3.web.response.ApiResponse;
 import com.kjs.wuli3.web.response.WebResponseProperties;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
+import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -38,6 +39,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
  * @author GuoYang create on 2026/8/17 11:53
  */
 @RestControllerAdvice
+@Slf4j
 public class WebExceptionHandler {
 
     private final ApiResponseFactory responseFactory;
@@ -127,6 +129,14 @@ public class WebExceptionHandler {
         if (!status.is5xxServerError() && severity != ErrorSeverity.CRITICAL && severity != ErrorSeverity.FATAL) {
             return;
         }
+        log.error(
+                "Web request failed: status={}, code={}, method={}, uri={}, requestId={}",
+                status.value(),
+                responseCode,
+                request.getMethod(),
+                request.getRequestURI(),
+                this.requestId(),
+                original);
         this.errorAlertNotifiers.dispatch(new ErrorAlertContext(
                 original,
                 status,
