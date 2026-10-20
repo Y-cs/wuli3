@@ -67,8 +67,6 @@ DDD 约定插件提供 `verifyDddDependencies` 与 `verifyDddTypes`，并统一�
 事务包、基础设施实现类后缀以及 infra 引用 app 类型的后缀白名单可通过 `gradle.properties` 扩展；未配置时保持默认规则。
 选择 MySQL 时生成 Mapper、持久化配置与扫描；运行时连接信息由环境提供，启动测试使用替身隔离数据库。
 
-模板 2.1.0 将 Dubbo 发布从 bootstrap 的 ServiceBean 调整为 app.facade 上的 `@DubboService`；只生成新项目，不自动迁移已有工程。
-
 外部服务 API 只能在 infra 声明依赖并引用；通过 domain.gateway 本地契约向 app 提供能力，不生成 app.acl。
 在 gradle.properties 中以 `wuli3.ddd.external-api.coordinates` 登记精确 group:artifact，
 以 `wuli3.ddd.external-api.packages` 登记外部 API 完整包前缀（均为逗号分隔），启用对应依赖与字节码门禁。

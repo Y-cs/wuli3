@@ -82,6 +82,19 @@ class WebErrorBoundaryTest {
                 .isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
     }
 
+    /** 认证与授权错误保留 HTTP 状态语义，不能按调用方错误降为 400。 */
+    @Test
+    void mapsAuthenticationAndAuthorizationCodesToHttpStatuses() {
+        final WebExceptionHandler handler = WebErrorBoundaryTest.handler(List.of());
+        final MockHttpServletRequest request = new MockHttpServletRequest();
+        assertThat(handler.handleException(new ErrorCodeException(WebErrors.UNAUTHORIZED), request)
+                        .getStatusCode())
+                .isEqualTo(HttpStatus.UNAUTHORIZED);
+        assertThat(handler.handleException(new ErrorCodeException(WebErrors.FORBIDDEN), request)
+                        .getStatusCode())
+                .isEqualTo(HttpStatus.FORBIDDEN);
+    }
+
     /** 参数异常默认四百，内部故障及包含参数异常的未知包装仍为五百。 */
     @Test
     void classifiesOnlyTopLevelArgumentErrors() {

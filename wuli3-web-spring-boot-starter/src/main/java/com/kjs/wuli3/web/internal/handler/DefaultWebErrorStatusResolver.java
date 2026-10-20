@@ -28,6 +28,7 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
  *   <li>安全异常：AuthenticationException → 401, AccessDeniedException → 403</li>
  *   <li>业务错误（{@link ErrorCodeException}）：
  *     <ul>
+ *       <li>{@link WebErrors#UNAUTHORIZED} → 401，{@link WebErrors#FORBIDDEN} → 403（保留认证与授权语义）</li>
  *       <li>{@link ErrorOrigin#SERVER} → 500 Internal Server Error（服务端责任）</li>
  *       <li>{@link ErrorOrigin#CALLER} → 400 Bad Request（调用方责任）</li>
  *     </ul>
@@ -50,6 +51,12 @@ public final class DefaultWebErrorStatusResolver implements WebErrorStatusResolv
     @Override
     public HttpStatus resolve(final Throwable error, final ErrorCode responseCode) {
         if (error instanceof ErrorCodeException coded) {
+            if (coded.getErrorCode() == WebErrors.UNAUTHORIZED) {
+                return HttpStatus.UNAUTHORIZED;
+            }
+            if (coded.getErrorCode() == WebErrors.FORBIDDEN) {
+                return HttpStatus.FORBIDDEN;
+            }
             if (coded.getErrorCode() == WebErrors.PAYLOAD_TOO_LARGE && coded.getOrigin() == ErrorOrigin.CALLER) {
                 return HttpStatus.PAYLOAD_TOO_LARGE;
             }
