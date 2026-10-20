@@ -83,7 +83,8 @@ public final class ContextFilter extends OncePerRequestFilter {
                 return null;
             });
         } catch (final Exception exception) {
-            final ModelAndView resolved = this.exceptionResolver.resolveException(request, response, this, exception);
+            // 过滤器早于 MVC 执行，没有 HandlerMethod；传入任意对象会被 Spring 判定为不适用而跳过全局异常处理。
+            final ModelAndView resolved = this.exceptionResolver.resolveException(request, response, null, exception);
             if (resolved != null) {
                 return;
             }

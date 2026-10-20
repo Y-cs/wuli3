@@ -23,6 +23,7 @@ public enum SystemErrors implements ErrorCode {
 
     CONFIGURATION_MISSING("运行配置缺失"),
 
+    @ErrorMetadata(origin = ErrorOrigin.CALLER)
     ILLEGAL_ARGUMENT("非法参数"),
 
     NOT_IMPLEMENTED("未实现");

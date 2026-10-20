@@ -128,7 +128,7 @@ record GeneratorOptions(
         return fields;
     }
 
-    private static String toTypeName(final String value) {
+    static String toTypeName(final String value) {
         final StringBuilder result = new StringBuilder();
         for (final String part : value.split("-", -1)) {
             result.append(Character.toUpperCase(part.charAt(0))).append(part.substring(1));

@@ -14,7 +14,12 @@ allprojects {
 subprojects {
     // DDD 检查先于语言约定应用，以保持共享内核纯净。
     pluginManager.apply("com.kjs.wuli3.ddd-conventions")
-    val springModules = setOf("app", "infra", "adapter", "bootstrap")
+    val springModules = setOf(
+        "{{service}}-app",
+        "{{service}}-infra",
+        "{{service}}-adapter",
+        "{{service}}-bootstrap",
+    )
     pluginManager.apply(
         if (name in springModules) {
             "com.kjs.wuli3.spring-conventions"

@@ -7,13 +7,13 @@
 本项目是 JDK 21 + Gradle Wrapper 的单体多模块 DDD 服务，Java 基础包名为 `{{basePackage}}`，初始领域为 `{{domain}}`。
 根目录 `settings.gradle.kts` 声明模块，源码位于各模块 `src/main/java`，测试位于 `src/test/java`，资源位于 `src/main/resources`。
 
-- `shared-kernel`：共享稳定的标识、状态和领域类型，允许 Wuli3 Core、必要的 JSpecify 注解与编译期 Lombok，不依赖框架。
-- `domain`：按业务领域组织聚合、实体、值对象、领域规则和聚合 Repository；不引入 Spring 或基础设施实现。
-- `api`：内部 RPC 依赖契约包，接口以 `Facade` 结尾，传播对象以 `Dto` 结尾并按领域组织。
-- `app`：`service` 按领域分包、按业务职责拆类；`facade` 实现 RPC 契约、委托 Service，Dubbo 选项下以 `@DubboService` 发布；`repository` 定义查询仓储接口。
-- `infra`：实现 domain 聚合仓储、app 查询仓储及 ACL；引用 app 类型只允许 QueryRepository、Query、DTO 后缀，不依赖 Service 或 Facade 实现。
-- `adapter`：`api` 提供 HTTP 接入（类名以 Api 结尾），`mq` 提供消息消费入口，`job` 提供任务入口，统一调用 app Service。
-- `bootstrap`：Spring Boot 启动和最终组装，负责配置选择与运行时装配；RPC 发布由 `app.facade` 上的注解完成。基础设施自身配置归 infra 所有。
+- `{{service}}-shared-kernel`：共享稳定的标识、状态和领域类型，允许 Wuli3 Core、必要的 JSpecify 注解与编译期 Lombok，不依赖框架。
+- `{{service}}-domain`：按业务领域组织聚合、实体、值对象、领域规则和聚合 Repository；不引入 Spring 或基础设施实现。
+- `{{service}}-api`：内部 RPC 依赖契约包，接口以 `Facade` 结尾，传播对象以 `Dto` 结尾并按领域组织。
+- `{{service}}-app`：`service` 按领域分包、按业务职责拆类；`facade` 实现 RPC 契约、委托 Service，Dubbo 选项下以 `@DubboService` 发布；`repository` 定义查询仓储接口。
+- `{{service}}-infra`：实现 domain 聚合仓储、app 查询仓储及 ACL；引用 app 类型只允许 QueryRepository、Query、DTO 后缀，不依赖 Service 或 Facade 实现。
+- `{{service}}-adapter`：`api` 提供 HTTP 接入（类名以 Api 结尾），`mq` 提供消息消费入口，`job` 提供任务入口，统一调用 app Service。
+- `{{service}}-bootstrap`：Spring Boot 启动和最终组装，负责配置选择与运行时装配；RPC 发布由 `app.facade` 上的注解完成。基础设施自身配置归 infra 所有。
 新增能力应放入承担该职责的模块；不要绕过现有架构测试或扩大依赖白名单来掩盖模块边界问题。
 
 ## 构建风格与验证命令
@@ -24,13 +24,13 @@
 ./gradlew test
 ./gradlew check
 ./gradlew clean check
-./gradlew :domain:test
-./gradlew :bootstrap:bootRun
+./gradlew :{{service}}-domain:test
+./gradlew :{{service}}-bootstrap:bootRun
 ```
 
 - `test` 运行 JUnit 测试；`check` 执行测试、格式与 Checkstyle 检查、Forbidden APIs、Error Prone、NullAway 及架构门禁。
 - 修改后先运行受影响模块的针对性测试，再运行相关模块 `check`；提交前执行 `./gradlew clean check`。
-- 根工程统一应用 Java 约定插件：纯模块使用 `com.kjs.wuli3.java-conventions`，Spring 模块使用 `com.kjs.wuli3.spring-conventions`；各模块先应用 `com.kjs.wuli3.ddd-conventions`；模块只声明业务依赖，`bootstrap` 额外应用 Spring Boot 插件。
+- 根工程统一应用 Java 约定插件：纯模块使用 `com.kjs.wuli3.java-conventions`，Spring 模块使用 `com.kjs.wuli3.spring-conventions`；各模块先应用 `com.kjs.wuli3.ddd-conventions`；模块只声明业务依赖，`{{service}}-bootstrap` 额外应用 Spring Boot 插件。
 - 不在模块中重复配置 Java 版本、测试框架或公共质量规则，不通过关闭门禁解决检查失败。
 - 依赖仓库统一配置在 `settings.gradle.kts`，依赖版本优先使用 Wuli3 BOM；BOM 坐标与版本通过根目录 `gradle.properties` 管理，约定插件版本在根构建文件管理。
 - 新增依赖需说明必要性，优先复用项目已有能力；不要在各模块散落重复版本声明。

@@ -34,6 +34,22 @@ wuli3.web.context.client-ip-header-priority=X-Forwarded-For,X-Real-IP,Forwarded
 适用于统一网关完成身份认证、业务服务只恢复认证上下文的微服务架构。直接接收外部请求或使用 token、session、
 安全框架 principal 等其他认证来源的应用，应提供自己的 `AuthContextResolver` Bean 替换默认实现。
 
+### 接口登录校验
+
+在 Controller 方法或类型上标注 `@LoginRequired`，未建立认证上下文时由 MVC 拦截器返回 401 `WEB.UNAUTHORIZED`。
+未标注的接口默认允许匿名访问；接口从需要登录改为公开时删除注解即可。类型级声明作用于该 Controller 的全部方法，
+没有单方法豁免。
+
+```java
+@LoginRequired
+@GetMapping("/orders/mine")
+List<Order> mine() { /* 业务 */ }
+```
+
+该注解只判断 `AuthContext` 是否存在，认证仍由 `AuthContextResolver` 和部署边界完成；能伪造 `X-Wuli3-Principal-*`
+请求头的调用方同样会通过校验。直连暴露的服务必须替换默认解析器。只标注 `@Permission` 而没有 `@LoginRequired`
+的接口，匿名请求由权限检查拒绝，错误码为 `PERMISSION.UNAUTHORIZED`，默认映射 400；需要 401 跳转登录时两个注解都要标注。
+
 Boot 管理的 `RestClient.Builder` 和 `RestTemplateBuilder` 会自动安装出站拦截器。当前拦截器使用
 `ContextPropagator.standardContextEncoder()`（包含 `InvocationContextCodec` 和 `AuthContextCodec`），
 会传播 `X-Wuli3-Request-Id`、`X-Wuli3-Origin-Ip`、`X-Wuli3-Principal-Type`、`X-Wuli3-Principal-Id` 和 `X-Wuli3-Principal-Name`；

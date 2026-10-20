@@ -17,11 +17,11 @@ dependencyResolutionManagement {
 rootProject.name = "{{service}}"
 
 include(
-    "shared-kernel",
-    "domain",
-    "api",
-    "app",
-    "infra",
-    "adapter",
-    "bootstrap",
+    "{{service}}-shared-kernel",
+    "{{service}}-domain",
+    "{{service}}-api",
+    "{{service}}-app",
+    "{{service}}-infra",
+    "{{service}}-adapter",
+    "{{service}}-bootstrap",
 )

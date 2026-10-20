@@ -24,20 +24,22 @@ final class RpcGeneratorTest {
     @CsvSource({"none,none", "none,nacos", "mysql,none", "mysql,nacos"})
     void publishesFacadeFromAppFacade(final String persistence, final String registry) throws Exception {
         final Path root = new DddProjectGenerator().generate(this.options("dubbo", registry, persistence));
-        assertThat(Files.readString(root.resolve("app/build.gradle.kts")))
+        assertThat(Files.readString(root.resolve("order-service-app/build.gradle.kts")))
                 .contains("org.apache.dubbo:dubbo-config-spring");
-        assertThat(Files.readString(
-                        root.resolve("app/src/main/java/com/example/order/app/facade/order/OrderFacadeImpl.java")))
+        assertThat(Files.readString(root.resolve(
+                        "order-service-app/src/main/java/com/example/order/app/facade/order/OrderFacadeImpl.java")))
                 .contains(
                         "import org.apache.dubbo.config.annotation.DubboService;",
                         "@DubboService",
                         "@Service",
                         "implements OrderFacade");
-        assertThat(root.resolve("bootstrap/src/main/java/com/example/order/config/OrderRpcConfiguration.java"))
+        assertThat(root.resolve(
+                        "order-service-bootstrap/src/main/java/com/example/order/config/OrderRpcConfiguration.java"))
                 .doesNotExist();
-        final String dependencies = Files.readString(root.resolve("bootstrap/build.gradle.kts"));
+        final String dependencies = Files.readString(root.resolve("order-service-bootstrap/build.gradle.kts"));
         assertThat(dependencies).contains("wuli3-dubbo-spring-boot-starter").doesNotContain("dubbo-config-spring");
-        final String config = Files.readString(root.resolve("bootstrap/src/main/resources/application.yml"));
+        final String config =
+                Files.readString(root.resolve("order-service-bootstrap/src/main/resources/application.yml"));
         assertThat(config)
                 .contains(
                         "serialization: fastjson2",
@@ -60,8 +62,8 @@ final class RpcGeneratorTest {
             assertThat(dependencies).doesNotContain("dubbo-registry-nacos");
             assertThat(config).contains("address: \"N/A\"");
         }
-        assertThat(Files.readString(
-                        root.resolve("bootstrap/src/test/java/com/example/order/BootstrapApplicationTest.java")))
+        assertThat(Files.readString(root.resolve(
+                        "order-service-bootstrap/src/test/java/com/example/order/OrderServiceApplicationTest.java")))
                 .contains("\"dubbo.enabled=false\"");
     }
 
@@ -69,14 +71,17 @@ final class RpcGeneratorTest {
     @Test
     void omitsRpcWhenDisabled() throws Exception {
         final Path root = new DddProjectGenerator().generate(this.options("none", "none", "none"));
-        assertThat(root.resolve("bootstrap/src/main/java/com/example/order/config/OrderRpcConfiguration.java"))
+        assertThat(root.resolve(
+                        "order-service-bootstrap/src/main/java/com/example/order/config/OrderRpcConfiguration.java"))
                 .doesNotExist();
-        assertThat(Files.readString(root.resolve("app/build.gradle.kts"))).doesNotContain("dubbo");
-        assertThat(Files.readString(
-                        root.resolve("app/src/main/java/com/example/order/app/facade/order/OrderFacadeImpl.java")))
+        assertThat(Files.readString(root.resolve("order-service-app/build.gradle.kts")))
+                .doesNotContain("dubbo");
+        assertThat(Files.readString(root.resolve(
+                        "order-service-app/src/main/java/com/example/order/app/facade/order/OrderFacadeImpl.java")))
                 .doesNotContain("DubboService", "org.apache.dubbo");
-        assertThat(Files.readString(root.resolve("bootstrap/build.gradle.kts"))).doesNotContain("dubbo");
-        assertThat(Files.readString(root.resolve("bootstrap/src/main/resources/application.yml")))
+        assertThat(Files.readString(root.resolve("order-service-bootstrap/build.gradle.kts")))
+                .doesNotContain("dubbo");
+        assertThat(Files.readString(root.resolve("order-service-bootstrap/src/main/resources/application.yml")))
                 .doesNotContain("dubbo:");
     }
 

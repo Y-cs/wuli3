@@ -133,6 +133,26 @@ class DddConventionsPluginTest {
         assertThat(runner("verifyDddDependencies").build().output).contains("BUILD SUCCESSFUL")
     }
 
+    /** 生成工程使用 `<service>-<角色>` 模块名时，依赖门禁仍按角色生效。 */
+    @Test
+    fun `service prefixed module names keep role gates`() {
+        fixture("dependencies { implementation(\"external.customer:customer-api:1.0\") }", "app")
+        Files.writeString(directory.resolve("settings.gradle.kts"), "rootProject.name = \"order-service-app\"")
+        appendProperties("wuli3.ddd.external-api.coordinates=external.customer:customer-api")
+        assertThat(runner("verifyDddDependencies").buildAndFail().output)
+            .contains("外部服务 API 只能由 infra 引入", "order-service-app")
+    }
+
+    /** 带服务名前缀的共享内核仍按纯净内核应用依赖门禁。 */
+    @Test
+    fun `service prefixed kernel keeps purity gate`() {
+        fixture("dependencies { implementation(\"org.springframework:spring-context:7.0.0\") }", "shared-kernel")
+        Files.writeString(
+            directory.resolve("settings.gradle.kts"), "rootProject.name = \"order-service-shared-kernel\"")
+        assertThat(runner("verifyDddDependencies").buildAndFail().output)
+            .contains("shared-kernel 禁止生产依赖", "org.springframework:spring-context")
+    }
+
     @ParameterizedTest
     @ValueSource(strings = ["app", "api", "domain", "adapter", "bootstrap", "shared-kernel", "infra"])
     fun `external API bytecode references only pass in infra`(role: String) {
