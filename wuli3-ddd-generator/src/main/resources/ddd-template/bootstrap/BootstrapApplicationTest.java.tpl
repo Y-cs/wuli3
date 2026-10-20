@@ -8,7 +8,7 @@ package {{basePackage}};
  * @author GuoYang create on 2026/9/7 15:30
  */
 @SpringBootTest{{bootstrapTestConfiguration}}
-final class BootstrapApplicationTest {
+final class {{serviceType}}ApplicationTest {
     /** 验证 Spring 应用上下文可以启动。 */
     @Test
     void contextLoads() {}

@@ -34,17 +34,17 @@ import javax.inject.Inject
  */
 class DddConventionsPlugin : Plugin<Project> {
     override fun apply(project: Project) {
-        // 标准生成工程使用固定模块名；本插件不代替 Java/Spring 构建约定。
-        if (project.name !in DddBoundaries.allowedModules) return
-        if (project.name == "shared-kernel") {
+        // 模块名可以是标准角色名，也可以是带服务名前缀的 <service>-<角色>。本插件不代替 Java/Spring 构建约定。
+        val moduleRole = DddBoundaries.roleOf(project.name) ?: return
+        if (moduleRole == "shared-kernel") {
             project.extensions.extraProperties.set("wuli3.sharedKernel", true)
         }
         project.pluginManager.withPlugin("java") {
-            configureChecks(project)
+            configureChecks(project, moduleRole)
         }
     }
 
-    private fun configureChecks(project: Project) {
+    private fun configureChecks(project: Project, moduleRole: String) {
         val main = project.extensions.getByType<SourceSetContainer>().named("main")
         // 外部服务契约必须显式标识；不根据 artifact 后缀猜测，以免误判本服务 API 和第三方库。
         val externalApiCoordinates = project.providers.gradleProperty("wuli3.ddd.external-api.coordinates")
@@ -73,15 +73,15 @@ class DddConventionsPlugin : Plugin<Project> {
                             is ExternalModuleDependency -> if (dependency.group == project.group.toString()) dependency.name else null
                             else -> null
                         }
+                        val targetRole = targetModule?.let(DddBoundaries::roleOf)
                         when {
-                            project.name != "infra" && coordinate in externalCoordinates ->
+                            moduleRole != "infra" && coordinate in externalCoordinates ->
                                 "外部服务 API 只能由 infra 引入：${project.name}: $name: $coordinate"
-                            project.name == "domain" && DddBoundaries.isSpringGroup(dependency.group) ->
+                            moduleRole == "domain" && DddBoundaries.isSpringGroup(dependency.group) ->
                                 "domain 禁止 Spring 生产依赖：$name: $coordinate"
-                            targetModule in DddBoundaries.allowedModules &&
-                                targetModule !in DddBoundaries.allowedModules.getValue(project.name) ->
+                            targetRole != null && targetRole !in DddBoundaries.allowedModules.getValue(moduleRole) ->
                                 "DDD 模块依赖违规：${project.name} -> $targetModule ($name)"
-                            project.name != "shared-kernel" -> null
+                            moduleRole != "shared-kernel" -> null
                             category in listOf(Category.REGULAR_PLATFORM, Category.ENFORCED_PLATFORM) -> null
                             dependency is ProjectDependency && targetModule == "wuli3-core" -> null
                             coordinate in setOf("com.kjs.wuli3:wuli3-core", "org.jspecify:jspecify") -> null
@@ -104,7 +104,7 @@ class DddConventionsPlugin : Plugin<Project> {
         }
         val types = project.tasks.register<VerifyDddTypes>("verifyDddTypes") {
             group = "verification"
-            role.set(project.name)
+            role.set(moduleRole)
             reportFile.convention(project.layout.buildDirectory.file("reports/ddd/verifyDddTypes.txt"))
             toolchainFingerprint.set(fingerprint)
             javap.set(launcher.map { it.metadata.installationPath.file("bin/javap") })
@@ -310,6 +310,12 @@ internal object DddBoundaries {
         "adapter" to setOf("app", "api", "domain", "shared-kernel"),
         "bootstrap" to setOf("adapter", "infra", "app", "api", "domain", "shared-kernel"),
     )
+
+    /**
+     * 解析模块角色；生成工程使用 `<service>-<角色>` 命名，标准角色名保持兼容。
+     */
+    fun roleOf(moduleName: String): String? =
+        allowedModules.keys.firstOrNull { moduleName == it || moduleName.endsWith("-$it") }
 
     fun isSpringGroup(group: String?): Boolean =
         group == "org.springframework" || group?.startsWith("org.springframework.") == true

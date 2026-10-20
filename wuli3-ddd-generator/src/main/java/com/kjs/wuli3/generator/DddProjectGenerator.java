@@ -23,7 +23,11 @@ import java.util.Set;
  */
 final class DddProjectGenerator {
     private static final String TEMPLATE_ROOT = "/ddd-template/";
-    private static final String TEMPLATE_VERSION = "2.1.0";
+    private static final String TEMPLATE_VERSION = "2.2.0";
+
+    /** 模块目录后缀；生成时统一加服务名前缀，避免多个服务的模块目录与制品重名。 */
+    private static final Set<String> MODULE_DIRECTORIES =
+            Set.of("shared-kernel", "domain", "api", "app", "infra", "adapter", "bootstrap");
 
     /** 模板文件与生成路径的映射，按生成工程的模块顺序排列。 */
     private static final List<TemplateFile> BASE_FILES = List.of(
@@ -106,11 +110,11 @@ final class DddProjectGenerator {
             file("bootstrap/bootstrap.gradle.kts.tpl", "bootstrap/build.gradle.kts"),
             file(
                     "bootstrap/BootstrapApplication.java.tpl",
-                    "bootstrap/src/main/java/{{packagePath}}/BootstrapApplication.java"),
+                    "bootstrap/src/main/java/{{packagePath}}/{{serviceType}}Application.java"),
             file("bootstrap/application.yml.tpl", "bootstrap/src/main/resources/application.yml"),
             file(
                     "bootstrap/BootstrapApplicationTest.java.tpl",
-                    "bootstrap/src/test/java/{{packagePath}}/BootstrapApplicationTest.java"));
+                    "bootstrap/src/test/java/{{packagePath}}/{{serviceType}}ApplicationTest.java"));
 
     /** 选择 MySQL 持久化时额外生成的 infra 文件。 */
     private static final List<TemplateFile> MYSQL_FILES = List.of(
@@ -243,6 +247,7 @@ final class DddProjectGenerator {
     private Map<String, String> variables(final GeneratorOptions options) {
         final Map<String, String> result = new LinkedHashMap<>();
         result.put("service", options.service());
+        result.put("serviceType", GeneratorOptions.toTypeName(options.service()));
         result.put("basePackage", options.basePackage());
         result.put("packagePath", options.basePackage().replace('.', '/'));
         result.put("domain", options.domain());
@@ -539,7 +544,8 @@ final class DddProjectGenerator {
     private void render(final Path root, final TemplateFile template, final Map<String, String> variables)
             throws IOException {
         String content = this.readText(template.resource());
-        String relativePath = template.target();
+        String relativePath =
+                this.prefixModuleDirectory(template.target(), Objects.requireNonNull(variables.get("service")));
         for (final Map.Entry<String, String> variable : variables.entrySet()) {
             final String token = "{{" + variable.getKey() + "}}";
             content = content.replace(token, variable.getValue());
@@ -549,6 +555,19 @@ final class DddProjectGenerator {
             throw new IllegalStateException("模板包含未解析变量: " + template.resource());
         }
         this.write(root.resolve(relativePath), content.getBytes(StandardCharsets.UTF_8));
+    }
+
+    /**
+     * 为模块目录加服务名前缀。
+     *
+     * 注意：bootstrap 可执行 jar 的文件名由模板固定为 bootstrap.jar，不受目录前缀影响。
+     */
+    private String prefixModuleDirectory(final String path, final String service) {
+        final int separator = path.indexOf('/');
+        if (separator < 0 || !DddProjectGenerator.MODULE_DIRECTORIES.contains(path.substring(0, separator))) {
+            return path;
+        }
+        return service + "-" + path;
     }
 
     private void copyResource(final Path root, final String resource, final String target) throws IOException {

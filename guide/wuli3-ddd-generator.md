@@ -89,7 +89,10 @@ cd demo-web
 
 ## 模块边界
 
-生成工程包含七个 Gradle 模块：
+生成工程包含七个 Gradle 模块，模块目录和工程名统一带服务名前缀：服务 `demo-web` 生成 `demo-web-shared-kernel`、
+`demo-web-domain`、`demo-web-api`、`demo-web-app`、`demo-web-infra`、`demo-web-adapter`、`demo-web-bootstrap`。
+`bootstrap` 模块的可执行 jar 仍固定为 `bootstrap.jar`，Dockerfile 和部署脚本无需感知前缀。启动类以服务名命名，
+例如 `demo-web` 生成 `DemoWebApplication`，对应测试为 `DemoWebApplicationTest`。
 
 ```text
 shared-kernel -> domain / api -> app -> infra
@@ -166,7 +169,7 @@ DDD 架构检查由 `DddConventionsPlugin` 统一提供并接入 `check`，生�
 - infra 引用 app 类型必须严格以 `QueryRepository`、`Query` 或 `DTO` 结尾，大小写敏感；引用 api 只允许 dto 包。
 - app.repository 的顶层类型必须为接口，包说明不作为实现类检查。
 - shared-kernel 保留生产依赖和类型白名单；违规依赖直接失败，不自动移除，不自动引入日志；允许编译期 Lombok 与生成的 lombok.Generated 注解，但禁止将 Lombok 声明为运行时依赖。
-- 插件按标准模块名识别角色，先于 Java/Spring 约定应用；项目内类型依赖以 `wuli3.ddd.base-package` 为边界。
+- 插件按模块名末尾的角色段识别角色（`demo-web-app` 等同 `app`），先于 Java/Spring 约定应用；项目内类型依赖以 `wuli3.ddd.base-package` 为边界。
 
 ```properties
 wuli3.ddd.base-package=com.example.order
@@ -186,7 +189,7 @@ wuli3.ddd.types.infra-app-allowed-suffixes=QueryRepository,Query,DTO
 
 类型检查基于编译后字节码，不能识别反射字符串形成的动态依赖；声明检查不等同于完整传递依赖树扫描。
 
-模板版本为 2.1.0，包结构不兼容旧模板；Dubbo 发布位于 app.facade。仅生成新项目，不覆盖或自动迁移已有项目。
+模板版本为 2.2.0，模块目录带服务名前缀，包结构不兼容旧模板；Dubbo 发布位于 app.facade。仅生成新项目，不覆盖或自动迁移已有项目。
 使用时需要先发布包含 DDD 约定检查插件的 build-logic 版本，再通过 `--build-logic-version` 指定。
 
 ## Git 钩子
@@ -212,7 +215,7 @@ wuli3.ddd.types.infra-app-allowed-suffixes=QueryRepository,Query,DTO
 ./gradlew check
 ./gradlew spotlessCheck
 ./gradlew spotlessApply
-./gradlew :bootstrap:bootRun
+./gradlew :demo-web-bootstrap:bootRun
 ```
 
 MySQL 选项会额外生成 MyBatis-Plus PO/Mapper 和显式 Mapper 扫描配置；消息选项会加入对应 Wuli3 消息 starter。

@@ -184,7 +184,7 @@ java -jar bootstrap/build/libs/bootstrap.jar
 | `app` | `app.service.order.OrderService`、`app.repository.order.OrderQueryRepository` | 完整用例、事务边界和本地查询接口 |
 | `infra` | `infra.persistence.order.OrderRepositoryImpl`、`OrderQueryRepositoryImpl` | 仓储实现、持久化转换；外部系统适配放 `infra.acl` |
 | `adapter` | `adapter.api.order.OrderApi` | HTTP、MQ、定时任务入口；解析协议后委托应用服务 |
-| `bootstrap` | `BootstrapApplication`、`application.yml` | 启动与最终装配、部署配置、RPC 发布 |
+| `bootstrap` | `OrderServiceApplication`、`application.yml` | 启动与最终装配、部署配置、RPC 发布 |
 
 例如新增“取消订单”用例：在 `domain.order.Order` 定义状态转换及规则，在 `app.service.order` 加载聚合、执行业务行为并保存，在 `adapter.api.order` 暴露 HTTP 入口。如果内部 RPC 也需要此用例，再扩展 `api.facade` 和 `app.facade`，复用同一应用服务。
 
