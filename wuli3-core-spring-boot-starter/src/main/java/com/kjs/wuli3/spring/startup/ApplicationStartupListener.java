@@ -29,21 +29,20 @@ public class ApplicationStartupListener implements ApplicationListener<Applicati
         final String[] activeProfiles = environment.getActiveProfiles();
         final String profiles = activeProfiles.length == 0 ? "-" : String.join(",", activeProfiles);
         final int port = this.resolvePort(context);
-        System.out.print(
-                String.format(Locale.ROOT, """
-                ============================================================
-                  __        __  _   _  _      ___   _____
-                  \\ \\      / / | | | || |    |_ _| |___ /
-                   \\ \\ /\\ / /  | | | || |     | |    |_ \\
-                    \\ V  V /   | |_| || |___  | |   ___) |
-                     \\_/\\_/     \\___/ |_____||___| |____/
-                ============================================================
-                  服务启动成功
-                  name: %s
-                  webPort: %s
-                  profiles: %s
-                ============================================================
-                """, serviceName, port < 0 ? "-" : Integer.toString(port), profiles));
+        System.out.printf(Locale.ROOT, """
+        ============================================================
+          __        __  _   _  _      ___   _____
+          \\ \\      / / | | | || |    |_ _| |___ /
+           \\ \\ /\\ / /  | | | || |     | |    |_ \\
+            \\ V  V /   | |_| || |___  | |   ___) |
+             \\_/\\_/     \\___/ |_____||___| |____/
+        ============================================================
+          服务启动成功
+          name: %s
+          webPort: %s
+          profiles: %s
+        ============================================================
+        """, serviceName, port < 0 ? "-" : Integer.toString(port), profiles);
         if (port < 0) {
             LOGGER.info("服务启动成功 name={} profiles={}", serviceName, profiles);
         } else {
