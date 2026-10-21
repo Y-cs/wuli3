@@ -119,6 +119,10 @@ class QualityConventionsPlugin : Plugin<Project> {
                     if (nullAwayEnabled) {
                         option("NullAway:AnnotatedPackages", nullAwayAnnotatedPackages)
                         option("NullAway:JSpecifyMode", nullAwayJSpecify.toString())
+                        option(
+                            "NullAway:ExcludedFieldAnnotations",
+                            "org.apache.dubbo.config.annotation.DubboReference",
+                        )
                     }
                 }
             }

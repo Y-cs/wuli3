@@ -86,6 +86,8 @@ wuli3.conventions.jacoco.verification.enabled=true
 wuli3.conventions.jacoco.line.minimum=0.45
 ```
 
+质量约定会将由 Dubbo 容器注入的 `@DubboReference` 字段加入 NullAway 的排除字段注解列表，避免把框架注入前的空值误报为未初始化字段。
+
 Spotless 提供 `spotlessCheck` 和 `spotlessApply`，Java 格式化规则使用 Palantir Java Format。JaCoCo 默认按模块整体 `LINE`
 覆盖率做门禁，并生成 HTML 和 XML 报告；XML 报告可供 CI、SonarQube 或 diff coverage 工具使用，但本约定插件本身不计算
 提交级覆盖率。
