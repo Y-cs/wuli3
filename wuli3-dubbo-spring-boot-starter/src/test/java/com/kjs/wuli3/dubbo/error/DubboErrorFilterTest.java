@@ -5,6 +5,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import com.kjs.wuli3.core.error.ErrorCodeException;
 import com.kjs.wuli3.core.error.builtin.CommonErrors;
 import com.kjs.wuli3.core.error.model.ErrorOrigin;
@@ -20,8 +23,10 @@ import org.apache.dubbo.rpc.AsyncRpcResult;
 import org.apache.dubbo.rpc.Invocation;
 import org.apache.dubbo.rpc.Invoker;
 import org.apache.dubbo.rpc.Result;
+import org.apache.dubbo.rpc.RpcException;
 import org.apache.dubbo.rpc.RpcInvocation;
 import org.junit.jupiter.api.Test;
+import org.slf4j.LoggerFactory;
 
 /**
  * 验证 Dubbo 错误 Filter 的跨服务完整传播和原生异常保留规则。
@@ -29,6 +34,58 @@ import org.junit.jupiter.api.Test;
  * @author GuoYang create on 2026/8/28 17:59
  */
 class DubboErrorFilterTest {
+    /** 同步错误结果记录服务、方法、远端地址和异常堆栈。 */
+    @Test
+    void consumerLogsSynchronousInvocationFailure() {
+        final Invocation invocation = DubboErrorFilterTest.invocation("com.example.RemoteService", "find");
+        final RpcException failure = new RpcException("connection failed");
+        final Invoker<?> invoker = DubboErrorFilterTest.invoker(invocation, new AppResponse(failure));
+        final DubboErrorConsumerFilter consumer = new DubboErrorConsumerFilter();
+
+        DubboErrorFilterTest.captureFailureLog(() -> consumer.invoke(invoker, invocation), failure);
+    }
+
+    /** 延迟完成的异步错误结果也记录调用信息和异常堆栈。 */
+    @Test
+    void consumerLogsDeferredInvocationFailure() {
+        final Invocation invocation = DubboErrorFilterTest.invocation("com.example.RemoteService", "find");
+        final CompletableFuture<AppResponse> future = new CompletableFuture<>();
+        final AsyncRpcResult asyncResult = new AsyncRpcResult(future, invocation);
+        final Invoker<?> invoker = DubboErrorFilterTest.invoker(invocation, asyncResult);
+        final DubboErrorConsumerFilter consumer = new DubboErrorConsumerFilter();
+        final LogCapture capture = DubboErrorFilterTest.captureLogs();
+
+        try {
+            consumer.invoke(invoker, invocation);
+            final RpcException failure = new RpcException("remote invocation failed");
+            future.complete(new AppResponse(failure));
+
+            DubboErrorFilterTest.assertFailureLog(capture.appender(), failure);
+        } finally {
+            capture.close();
+        }
+    }
+
+    /** Filter 调用本身抛出 RpcException 时记录失败后仍保留原异常抛出行为。 */
+    @Test
+    void consumerLogsAndRethrowsSynchronousRpcException() {
+        final Invocation invocation = DubboErrorFilterTest.invocation("com.example.RemoteService", "find");
+        final RpcException failure = new RpcException("request send failed");
+        final Invoker<?> invoker = mock(Invoker.class);
+        when(invoker.getUrl()).thenReturn(URL.valueOf("dubbo://127.0.0.1:20880/service"));
+        when(invoker.invoke(invocation)).thenThrow(failure);
+        final DubboErrorConsumerFilter consumer = new DubboErrorConsumerFilter();
+        final LogCapture capture = DubboErrorFilterTest.captureLogs();
+
+        try {
+            assertThatThrownBy(() -> consumer.invoke(invoker, invocation)).isSameAs(failure);
+
+            DubboErrorFilterTest.assertFailureLog(capture.appender(), failure);
+        } finally {
+            capture.close();
+        }
+    }
+
     /** 验证可信 RPC 对四种可见性均完整传播错误，并保留最终出口使用的策略。 */
     @Test
     void providerPreservesAllVisibilityPolicies() {
@@ -50,7 +107,6 @@ class DubboErrorFilterTest {
             final Invoker<?> consumerInvoker = mock(Invoker.class);
             when(consumerInvoker.invoke(invocation)).thenReturn(wireResult);
             final DubboErrorConsumerFilter consumer = new DubboErrorConsumerFilter();
-            consumer.setDubboProperties(properties);
             final Result localResult = consumer.invoke(consumerInvoker, invocation);
             assertThat(localResult.getException()).isInstanceOfSatisfying(ErrorCodeException.class, translated -> {
                 assertThat(translated.getErrorCode()).isInstanceOfSatisfying(ErrorCodeCarrier.class, carrier -> {
@@ -80,7 +136,6 @@ class DubboErrorFilterTest {
         final Invoker<?> consumerInvoker = mock(Invoker.class);
         when(consumerInvoker.invoke(invocation)).thenReturn(firstWire);
         final DubboErrorConsumerFilter consumer = new DubboErrorConsumerFilter();
-        consumer.setDubboProperties(properties);
         final ErrorCodeException remote = (ErrorCodeException)
                 consumer.invoke(consumerInvoker, invocation).getException();
 
@@ -99,7 +154,6 @@ class DubboErrorFilterTest {
     /** 缺少原始错误码字段时保留 Dubbo 原始异常，避免根据不完整附件重建错误。 */
     @Test
     void consumerRejectsPropagationWithoutOriginalCode() {
-        final DubboProperties properties = new DubboProperties();
         final Invocation invocation = mock(Invocation.class);
         final RuntimeException original = new RuntimeException("wire failure");
         final AppResponse response = new AppResponse(original);
@@ -110,7 +164,6 @@ class DubboErrorFilterTest {
         final Invoker<?> invoker = mock(Invoker.class);
         when(invoker.invoke(invocation)).thenReturn(response);
         final DubboErrorConsumerFilter consumer = new DubboErrorConsumerFilter();
-        consumer.setDubboProperties(properties);
 
         assertThat(consumer.invoke(invoker, invocation).getException()).isSameAs(original);
     }
@@ -144,7 +197,6 @@ class DubboErrorFilterTest {
         final Invoker<?> consumerInvoker = mock(Invoker.class);
         when(consumerInvoker.invoke(invocation)).thenReturn(wireResult);
         final DubboErrorConsumerFilter consumer = new DubboErrorConsumerFilter();
-        consumer.setDubboProperties(properties);
 
         final Result localResult = consumer.invoke(consumerInvoker, invocation);
 
@@ -175,7 +227,6 @@ class DubboErrorFilterTest {
         final DubboErrorProviderFilter provider = new DubboErrorProviderFilter();
         provider.setDubboProperties(properties);
         final DubboErrorConsumerFilter consumer = new DubboErrorConsumerFilter();
-        consumer.setDubboProperties(properties);
 
         assertThat(provider.invoke(invoker, invocation)).isSameAs(response);
         assertThat(consumer.invoke(invoker, invocation).getException()).isSameAs(original);
@@ -227,7 +278,6 @@ class DubboErrorFilterTest {
         final DubboErrorProviderFilter provider = new DubboErrorProviderFilter();
         provider.setDubboProperties(new DubboProperties());
         final DubboErrorConsumerFilter consumer = new DubboErrorConsumerFilter();
-        consumer.setDubboProperties(new DubboProperties());
         provider.invoke(invoker, invocation);
         consumer.invoke(invoker, invocation);
 
@@ -338,5 +388,56 @@ class DubboErrorFilterTest {
         final DubboErrorProviderFilter provider = new DubboErrorProviderFilter();
         provider.setDubboProperties(properties);
         return provider.invoke(invoker, invocation);
+    }
+
+    @SuppressWarnings("deprecation")
+    private static RpcInvocation invocation(final String service, final String method) {
+        final RpcInvocation invocation = new RpcInvocation();
+        invocation.setMethodName(method);
+        invocation.setServiceName(service);
+        invocation.setTargetServiceUniqueName(service);
+        return invocation;
+    }
+
+    private static Invoker<?> invoker(final Invocation invocation, final Result result) {
+        final Invoker<?> invoker = mock(Invoker.class);
+        when(invoker.getUrl()).thenReturn(URL.valueOf("dubbo://127.0.0.1:20880/service"));
+        when(invoker.invoke(invocation)).thenReturn(result);
+        return invoker;
+    }
+
+    private static LogCapture captureLogs() {
+        final Logger logger = (Logger) LoggerFactory.getLogger(DubboErrorConsumerFilter.class);
+        final ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.start();
+        logger.addAppender(appender);
+        return new LogCapture(logger, appender);
+    }
+
+    private static void captureFailureLog(final Runnable invocation, final Throwable failure) {
+        final LogCapture capture = DubboErrorFilterTest.captureLogs();
+        try {
+            invocation.run();
+            DubboErrorFilterTest.assertFailureLog(capture.appender(), failure);
+        } finally {
+            capture.close();
+        }
+    }
+
+    private static void assertFailureLog(final ListAppender<ILoggingEvent> appender, final Throwable failure) {
+        assertThat(appender.list).singleElement().satisfies(event -> {
+            assertThat(event.getFormattedMessage())
+                    .contains("service=com.example.RemoteService", "method=find", "remoteAddress=127.0.0.1:20880");
+            assertThat(event.getThrowableProxy()).isNotNull();
+            assertThat(event.getThrowableProxy().getMessage()).isEqualTo(failure.getMessage());
+        });
+    }
+
+    private record LogCapture(Logger logger, ListAppender<ILoggingEvent> appender) implements AutoCloseable {
+        @Override
+        public void close() {
+            this.logger.detachAppender(this.appender);
+            this.appender.stop();
+        }
     }
 }
