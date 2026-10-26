@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 620 450" role="img" aria-labelledby="title desc">
+  <title id="title">DDD 模块主要源码依赖</title>
+  <desc id="desc">bootstrap 装配 adapter 和 infra；adapter 和 infra 依赖 app。app 依赖 domain 与 api，它们共同依赖 shared-kernel。app 不依赖 infra。</desc>
+  <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="#76d7c4"/></marker></defs>
+  <rect width="620" height="450" rx="16" fill="#142e2d"/>
+  <g fill="none" stroke="#76d7c4" stroke-width="2" marker-end="url(#arrow)">
+    <path d="M265 65 155 108"/><path d="M355 65 465 108"/>
+    <path d="M155 154 265 198"/><path d="M465 154 355 198"/>
+    <path d="M265 242 155 286"/><path d="M355 242 465 286"/>
+    <path d="M155 332 265 374"/><path d="M465 332 355 374"/>
+  </g>
+  <g fill="#21433f" stroke="#517971">
+    <rect x="220" y="20" width="180" height="46" rx="8"/>
+    <rect x="65" y="108" width="180" height="46" rx="8"/><rect x="375" y="108" width="180" height="46" rx="8"/>
+    <rect x="220" y="197" width="180" height="46" rx="8"/>
+    <rect x="65" y="286" width="180" height="46" rx="8"/><rect x="375" y="286" width="180" height="46" rx="8"/>
+    <rect x="220" y="374" width="180" height="46" rx="8"/>
+  </g>
+  <g fill="#f2f8f5" font-family="sans-serif" font-size="16" text-anchor="middle">
+    <text x="310" y="49">bootstrap · 装配</text>
+    <text x="155" y="137">adapter · 入站</text><text x="465" y="137">infra · 技术实现</text>
+    <text x="310" y="226">app · 完整用例</text>
+    <text x="155" y="315">domain · 领域规则</text><text x="465" y="315">api · 内部契约</text>
+    <text x="310" y="403">shared-kernel</text>
+  </g>
+</svg>

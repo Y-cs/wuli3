@@ -29,6 +29,13 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
+      - name: Set up Node.js for documentation
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: wuli3-docs/package-lock.json
+
       # build 串联编译、单元测试、Checkstyle、Spotless、SpotBugs、Forbidden APIs、
       # Error Prone/NullAway、JaCoCo 覆盖率校验、javadoc(-Werror) 和打包；
       # :build-logic:test 运行约定插件自身的测试。

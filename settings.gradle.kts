@@ -40,4 +40,5 @@ include(
     "wuli3-mongodb-spring-boot-starter",
     "wuli3-dubbo-spring-boot-starter",
     "wuli3-ddd-generator",
+    "wuli3-docs",
 )
