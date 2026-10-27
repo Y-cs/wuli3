@@ -39,7 +39,7 @@ Maven 依赖示例：
 <dependency>
   <groupId>com.kjs.wuli3</groupId>
   <artifactId>wuli3-core</artifactId>
-  <version>0.1.3-SNAPSHOT</version>
+  <version>1.0.0</version>
 </dependency>
 ```
 

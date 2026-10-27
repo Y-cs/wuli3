@@ -43,6 +43,7 @@ import org.springframework.boot.convert.DurationUnit;
  */
 @Getter
 @ConfigurationProperties(prefix = "wuli3.spring.shutdown")
+@SuppressWarnings("UnrecognisedJavadocTag")
 public class GracefulShutdownProperties {
 
     /**

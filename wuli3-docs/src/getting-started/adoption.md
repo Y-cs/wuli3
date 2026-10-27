@@ -13,11 +13,11 @@ Gradle：
 ```kotlin
 repositories {
     mavenCentral()
-    // 内部快照仓库按团队约定加入
+    // 内部制品仓库按团队约定加入
 }
 
 dependencies {
-    implementation(platform("com.kjs.wuli3:wuli3-dependencies:0.1.3-SNAPSHOT"))
+    implementation(platform("com.kjs.wuli3:wuli3-dependencies:1.0.0"))
     implementation("com.kjs.wuli3:wuli3-core")
 }
 ```
@@ -30,7 +30,7 @@ Maven：
     <dependency>
       <groupId>com.kjs.wuli3</groupId>
       <artifactId>wuli3-dependencies</artifactId>
-      <version>0.1.3-SNAPSHOT</version>
+      <version>1.0.0</version>
       <type>pom</type>
       <scope>import</scope>
     </dependency>

@@ -50,6 +50,6 @@ Wuli3 提供稳定的机制和扩展契约，但不会替应用选择认证系�
 
 ## 版本与范围
 
-当前文档对应仓库快照 `0.1.3-SNAPSHOT`、JDK 21、Spring Boot 3.5.x。模块版本由 `wuli3-dependencies` 管理；BOM 只管理版本，不会自动把所有 starter 放进应用。
+当前文档对应仓库版本 `1.0.0`、JDK 21、Spring Boot 3.5.x。模块版本由 `wuli3-dependencies` 管理；BOM 只管理版本，不会自动把所有 starter 放进应用。
 
 </div>

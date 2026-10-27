@@ -18,7 +18,7 @@ OMX 配置。
 外部项目无需检出本仓库，直接用 [JBang](https://www.jbang.dev/) 从 Maven 仓库拉取生成器执行：
 
 ```bash
-jbang com.kjs.wuli3:wuli3-ddd-generator:0.1.3-SNAPSHOT generate \
+jbang com.kjs.wuli3:wuli3-ddd-generator:1.0.0 generate \
   --service demo-web --package com.demo.web --domain order \
   --persistence none --messaging none --output .
 ```
@@ -27,7 +27,7 @@ JBang 默认从 Maven Central 解析。构件发布在内部仓库时，用 `--r
 
 ```bash
 jbang --repos <内部仓库URL>,mavenlocal \
-  com.kjs.wuli3:wuli3-ddd-generator:0.1.3-SNAPSHOT generate \
+  com.kjs.wuli3:wuli3-ddd-generator:1.0.0 generate \
   --service demo-web --package com.demo.web --domain order \
   --persistence none --messaging none --output .
 ```
@@ -44,8 +44,8 @@ jbang --repos <内部仓库URL>,mavenlocal \
 | `--rpc`                 | 否   | `none`、`dubbo`                    | `none`           | `dubbo` 在 app.facade 生成 `@DubboService` 发布能力并引入 Dubbo starter |
 | `--registry`            | 否   | `none`、`nacos`                    | `none`           | `nacos` 作为 Dubbo 注册中心；必须同时设置 `--rpc dubbo`     |
 | `--sort-fields`         | 否   | 逗号分隔的数据库字段名            | `id,status`      | 查询分页允许排序的字段白名单，生成到 infra 查询实现             |
-| `--wuli3-version`       | 否   | 已发布的 Wuli3 版本                | `0.1.3-SNAPSHOT` | Wuli3 BOM 与 starter 版本                                    |
-| `--build-logic-version` | 否   | 已发布的约定插件版本               | `0.1.3-SNAPSHOT` | Gradle 约定插件版本                                          |
+| `--wuli3-version`       | 否   | 已发布的 Wuli3 版本                | `1.0.0` | Wuli3 BOM 与 starter 版本                                    |
+| `--build-logic-version` | 否   | 已发布的约定插件版本               | `1.0.0` | Gradle 约定插件版本                                          |
 | `--output`              | 否   | 目录路径                           | `.`              | 服务的父目录                                                 |
 
 `--output` 是父目录不是工程目录：上例 `--output .` 生成的是 `./demo-web/`。目标目录必须不存在或为空，生成器不会覆盖已有业务文件。
@@ -55,7 +55,7 @@ jbang --repos <内部仓库URL>,mavenlocal \
 无外部基础设施的最小工程：
 
 ```bash
-jbang com.kjs.wuli3:wuli3-ddd-generator:0.1.3-SNAPSHOT generate \
+jbang com.kjs.wuli3:wuli3-ddd-generator:1.0.0 generate \
   --service demo-web --package com.demo.web --domain order \
   --persistence none --messaging none --output .
 ```
@@ -63,7 +63,7 @@ jbang com.kjs.wuli3:wuli3-ddd-generator:0.1.3-SNAPSHOT generate \
 MySQL 持久化 + RocketMQ，生成到指定父目录：
 
 ```bash
-jbang com.kjs.wuli3:wuli3-ddd-generator:0.1.3-SNAPSHOT generate \
+jbang com.kjs.wuli3:wuli3-ddd-generator:1.0.0 generate \
   --service order-service --package com.example.order --domain order \
   --persistence mysql --messaging rocketmq --output ~/projects/order
 ```
@@ -71,10 +71,10 @@ jbang com.kjs.wuli3:wuli3-ddd-generator:0.1.3-SNAPSHOT generate \
 RabbitMQ、固定 Wuli3 版本：
 
 ```bash
-jbang com.kjs.wuli3:wuli3-ddd-generator:0.1.3-SNAPSHOT generate \
+jbang com.kjs.wuli3:wuli3-ddd-generator:1.0.0 generate \
   --service pay-service --package com.example.pay --domain payment \
   --persistence mysql --messaging rabbitmq \
-  --wuli3-version 0.1.3-SNAPSHOT --output .
+  --wuli3-version 1.0.0 --output .
 ```
 
 生成完成后进入工程目录验证：

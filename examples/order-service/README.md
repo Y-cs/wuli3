@@ -30,6 +30,15 @@ RPC -> api.facade <- app.facade ────> app.service.<领域>
 
 ## 验证和启动
 
+首次运行或升级 Wuli3 版本后，先在 Wuli3 仓库根目录将库、BOM 和约定插件发布到本地 Maven 仓库：
+
+```bash
+./gradlew publishToMavenLocal :build-logic:publishToMavenLocal
+```
+
+`build-logic` 是独立构建，需要显式发布，才能让本示例通过 `mavenLocal()` 解析对应版本的插件及其 marker。
+发布完成后，在本示例目录执行：
+
 ```bash
 ./gradlew check
 ./gradlew :bootstrap:bootRun

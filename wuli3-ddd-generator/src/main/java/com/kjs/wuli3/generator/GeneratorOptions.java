@@ -27,8 +27,8 @@ record GeneratorOptions(
     static final String DEFAULT_PERSISTENCE = "none";
     static final String DEFAULT_MESSAGING = "none";
     static final String DEFAULT_SORT_FIELDS = "id,status";
-    static final String DEFAULT_WULI3_VERSION = "0.1.3-SNAPSHOT";
-    static final String DEFAULT_BUILD_LOGIC_VERSION = "0.1.3-SNAPSHOT";
+    static final String DEFAULT_WULI3_VERSION = "1.0.0";
+    static final String DEFAULT_BUILD_LOGIC_VERSION = "1.0.0";
     private static final List<String> KEYS = List.of(
             "service",
             "package",

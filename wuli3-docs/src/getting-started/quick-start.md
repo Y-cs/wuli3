@@ -13,7 +13,7 @@ description: 用最小依赖生成、启动并验证一个 Wuli3 服务。
 - 一个可以访问 Maven 仓库的环境。
 - JBang（使用已发布生成器时）或当前仓库的 Gradle Wrapper。
 
-Wuli3 当前快照版本是 `0.1.3-SNAPSHOT`。它可能只存在于本地或团队仓库，不代表已经发布到 Maven Central。
+Wuli3 当前版本是 `1.0.0`。它可能只存在于本地或团队仓库，不代表已经发布到 Maven Central。
 
 ## 准备可解析的制品
 
@@ -32,7 +32,7 @@ Wuli3 当前快照版本是 `0.1.3-SNAPSHOT`。它可能只存在于本地或团
 在准备新工程的父目录执行：
 
 ```bash
-jbang --repos mavenlocal com.kjs.wuli3:wuli3-ddd-generator:0.1.3-SNAPSHOT generate \
+jbang --repos mavenlocal com.kjs.wuli3:wuli3-ddd-generator:1.0.0 generate \
   --service demo-order --package com.example.order --domain order \
   --persistence none --messaging none --rpc none --registry none \
   --output .

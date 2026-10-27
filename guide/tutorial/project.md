@@ -1,6 +1,6 @@
 # 从零创建一个 Wuli3 项目
 
-本文以 `demo-order` 为例，完成工程生成、构建、启动和 HTTP 增删改查。示例基于当前仓库的 `0.1.3-SNAPSHOT`、JDK 21、Gradle Wrapper 9.6.1 和 Spring Boot 3.5.15。命令使用 macOS/Linux shell；Windows 使用 `gradlew.bat`。
+本文以 `demo-order` 为例，完成工程生成、构建、启动和 HTTP 增删改查。示例基于当前仓库的 `1.0.0`、JDK 21、Gradle Wrapper 9.6.1 和 Spring Boot 3.5.15。命令使用 macOS/Linux shell；Windows 使用 `gradlew.bat`。
 
 ## 1. 先准备可解析的制品
 
@@ -24,8 +24,8 @@ Wuli3 的生成器、BOM、starter 与构建约定插件都需要从 Maven 仓�
 
 确认仓库同时包含以下制品及其依赖：
 
-- `com.kjs.wuli3:wuli3-ddd-generator:0.1.3-SNAPSHOT`。
-- `com.kjs.wuli3:wuli3-dependencies:0.1.3-SNAPSHOT` 和要使用的 Wuli3 库。
+- `com.kjs.wuli3:wuli3-ddd-generator:1.0.0`。
+- `com.kjs.wuli3:wuli3-dependencies:1.0.0` 和要使用的 Wuli3 库。
 - 对应版本的 `build-logic` 实现及 Gradle 插件 marker。
 
 JBang 的 `--repos` 只影响生成器自身解析，**不会自动修改生成工程的仓库配置**。工程生成后，在其 `settings.gradle.kts` 中同时为 `pluginManagement.repositories` 和 `dependencyResolutionManagement.repositories` 加入公司仓库。下面是需要合并到已有文件的片段，URL 必须替换为实际地址：
@@ -60,10 +60,10 @@ dependencyResolutionManagement {
 
 ```bash
 jbang --repos mavenlocal \
-  com.kjs.wuli3:wuli3-ddd-generator:0.1.3-SNAPSHOT generate \
+  com.kjs.wuli3:wuli3-ddd-generator:1.0.0 generate \
   --service demo-order --package com.example.order --domain order \
   --persistence none --messaging none --rpc none --registry none \
-  --wuli3-version 0.1.3-SNAPSHOT --build-logic-version 0.1.3-SNAPSHOT \
+  --wuli3-version 1.0.0 --build-logic-version 1.0.0 \
   --output .
 ```
 
@@ -75,7 +75,7 @@ jbang --repos mavenlocal \
 
 ```bash
 ./gradlew :wuli3-ddd-generator:run \
-  --args="generate --service demo-order --package com.example.order --domain order --persistence none --messaging none --rpc none --registry none --wuli3-version 0.1.3-SNAPSHOT --build-logic-version 0.1.3-SNAPSHOT --output $PWD/.."
+  --args="generate --service demo-order --package com.example.order --domain order --persistence none --messaging none --rpc none --registry none --wuli3-version 1.0.0 --build-logic-version 1.0.0 --output $PWD/.."
 ```
 
 直接运行生成器只解决“生成文件”，生成工程构建时仍需要第一节准备的 BOM、插件和库。
@@ -200,7 +200,7 @@ java -jar bootstrap/build/libs/bootstrap.jar
 
 ```kotlin
 dependencies {
-    implementation(platform("com.kjs.wuli3:wuli3-dependencies:0.1.3-SNAPSHOT"))
+    implementation(platform("com.kjs.wuli3:wuli3-dependencies:1.0.0"))
     implementation("com.kjs.wuli3:wuli3-core")
     implementation("com.kjs.wuli3:wuli3-web-spring-boot-starter")
 }
@@ -218,7 +218,7 @@ BOM 约束这些库的版本，允许省略各自的版本号；使用生成工�
     <dependency>
       <groupId>com.kjs.wuli3</groupId>
       <artifactId>wuli3-dependencies</artifactId>
-      <version>0.1.3-SNAPSHOT</version>
+      <version>1.0.0</version>
       <type>pom</type>
       <scope>import</scope>
     </dependency>
