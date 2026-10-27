@@ -355,7 +355,7 @@ public class PermissionSmoke {
                 (token, required) -> new PrincipalPermissions(token, Map.of("ORDER", 8L)), backend);
         final var read = new PermissionKey("ORDER", ActionCode.READ);
         final var cancel = new PermissionKey("ORDER", ActionCode.ACTION_5);
-        contexts.with(new AuthContext(PrincipalType.CUSTOMER, "u-1", "演示用户", "test-v1"))
+        contexts.with(new AuthContext(PrincipalType.CUSTOMER, "u-1", "test-v1"))
                 .run(() -> {
                     System.out.println(checker.has(read));
                     System.out.println(checker.has(cancel));

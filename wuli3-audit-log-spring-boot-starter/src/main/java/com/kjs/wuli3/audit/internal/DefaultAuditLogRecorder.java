@@ -92,8 +92,7 @@ public final class DefaultAuditLogRecorder implements AuditLogRecorder {
     }
 
     private static AuditLogRuntimeSnapshot.AuditPrincipal principal(final AuthContext context) {
-        return new AuditLogRuntimeSnapshot.AuditPrincipal(
-                context.principalType(), context.principalId(), context.principalName());
+        return new AuditLogRuntimeSnapshot.AuditPrincipal(context.principalType(), context.principalId());
     }
 
     private static AuditLogRuntimeSnapshot.AuditTrace trace(final TraceContext context) {

@@ -52,7 +52,7 @@ class ContextFilterTest {
     void storesAuthenticationContextWhenApplicationProvidesResolver() throws Exception {
         final ThreadLocalContextBackend threadLocalContextStore = new ThreadLocalContextBackend();
         final AuthContextResolver authContextResolver =
-                request -> Optional.of(new AuthContext(PrincipalType.CUSTOMER, "7", "alice"));
+                request -> Optional.of(new AuthContext(PrincipalType.CUSTOMER, "7"));
         final ContextFilter filter = ContextFilterTest.filter(threadLocalContextStore, authContextResolver);
 
         filter.doFilter(

@@ -36,7 +36,7 @@ class DubboContextFilterTest {
         final ThreadLocalContextBackend store = new ThreadLocalContextBackend();
         final ContextState state = ContextState.of(
                 new InvocationContext("10.0.0.8", "request-42"),
-                new AuthContext(PrincipalType.CUSTOMER, "7", "alice", "permissions-v2"));
+                new AuthContext(PrincipalType.CUSTOMER, "7", "permissions-v2"));
         final Invocation invocation = mock(Invocation.class);
         final Invoker<?> invoker = mock(Invoker.class);
         when(invoker.invoke(invocation)).thenReturn(new AppResponse());
@@ -64,7 +64,6 @@ class DubboContextFilterTest {
                     when(invocation.getAttachment(InvocationContext.ORIGIN_IP)).thenReturn("10.0.0.8");
                     when(invocation.getAttachment(AuthContext.PRINCIPAL_TYPE)).thenReturn("CUSTOMER");
                     when(invocation.getAttachment(AuthContext.PRINCIPAL_ID)).thenReturn("7");
-                    when(invocation.getAttachment(AuthContext.PRINCIPAL_NAME)).thenReturn("alice");
                     when(invocation.getAttachment(AuthContext.PRINCIPAL_PERMISSION_TOKEN))
                             .thenReturn("permissions-v2");
                     final Invoker<?> invoker = mock(Invoker.class);
@@ -72,7 +71,7 @@ class DubboContextFilterTest {
                         assertThat(store.get(ContextKey.of(InvocationContext.class)))
                                 .contains(new InvocationContext("10.0.0.8", "request-42"));
                         assertThat(store.get(ContextKey.of(AuthContext.class)))
-                                .contains(new AuthContext(PrincipalType.CUSTOMER, "7", "alice", "permissions-v2"));
+                                .contains(new AuthContext(PrincipalType.CUSTOMER, "7", "permissions-v2"));
                         assertThat(MDC.get(LogMdcKeys.REQUEST_ID)).isEqualTo("request-42");
                         return new AppResponse();
                     });

@@ -52,7 +52,7 @@ final String requestId = this.invocationContextAccessor.requestId().orElse("no-r
 final String operator = this.authContextAccessor.principalId().orElse("anonymous");
 ```
 
-`AuthContextAccessor.current()` 返回 `Optional<AuthContext>`，其中有主体类型、ID、名称和可空的权限主体码。不存在身份不能解释成“系统管理员”；需要身份的操作应进入统一鉴权链。`InvocationContext` 也不等于 OpenTelemetry 的 Trace/Span，不能假定 Wuli 上下文会自动携带所有第三方 ThreadLocal。
+`AuthContextAccessor.current()` 返回 `Optional<AuthContext>`，其中有主体类型、ID 和可空的权限主体码。显示名称不属于认证上下文；页面需要展示时从用户服务读取。不存在身份不能解释成“系统管理员”；需要身份的操作应进入统一鉴权链。`InvocationContext` 也不等于 OpenTelemetry 的 Trace/Span，不能假定 Wuli 上下文会自动携带所有第三方 ThreadLocal。
 
 下面是无需 Spring、可直接运行的最小示例。它验证嵌套恢复和异步传播，执行完不需要手动 `clear()`。
 

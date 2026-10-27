@@ -280,7 +280,7 @@ class WebConfigurationPropertiesTest {
         @Bean
         @Primary
         AuthContextResolver testSecurityContextResolver() {
-            return request -> java.util.Optional.of(new AuthContext(PrincipalType.CUSTOMER, "1", "tester"));
+            return request -> java.util.Optional.of(new AuthContext(PrincipalType.CUSTOMER, "1"));
         }
     }
 

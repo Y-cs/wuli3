@@ -28,7 +28,7 @@ class InvocationContextClientHttpRequestInterceptorTest {
         final ThreadLocalContextBackend threadLocalContextStore = new ThreadLocalContextBackend();
         final ContextState state = ContextState.of(
                 new InvocationContext("10.0.0.8", "request-42"),
-                new AuthContext(PrincipalType.CUSTOMER, "7", "alice", "permissions-v2"));
+                new AuthContext(PrincipalType.CUSTOMER, "7", "permissions-v2"));
         final ContextPropagationInterceptor interceptor = new ContextPropagationInterceptor(
                 threadLocalContextStore, new ContextPropagator(ContextPropagator.standardContextEncoder()));
         final HttpHeaders headers = new HttpHeaders();
@@ -36,7 +36,6 @@ class InvocationContextClientHttpRequestInterceptorTest {
         headers.set(InvocationContext.ORIGIN_IP, "203.0.113.8");
         headers.set(AuthContext.PRINCIPAL_TYPE, "ADMIN");
         headers.set(AuthContext.PRINCIPAL_ID, "99");
-        headers.set(AuthContext.PRINCIPAL_NAME, "mallory");
         headers.set(AuthContext.PRINCIPAL_PERMISSION_TOKEN, "forged");
         headers.set("x-wULi3-Future-Field", "forged");
         final HttpRequest request = mock(HttpRequest.class);
@@ -63,7 +62,6 @@ class InvocationContextClientHttpRequestInterceptorTest {
         assertThat(headers.getFirst(InvocationContext.ORIGIN_IP)).isEqualTo("10.0.0.8");
         assertThat(headers.getFirst(AuthContext.PRINCIPAL_TYPE)).isEqualTo("CUSTOMER");
         assertThat(headers.getFirst(AuthContext.PRINCIPAL_ID)).isEqualTo("7");
-        assertThat(headers.getFirst(AuthContext.PRINCIPAL_NAME)).isEqualTo("alice");
         assertThat(headers.getFirst(AuthContext.PRINCIPAL_PERMISSION_TOKEN)).isEqualTo("permissions-v2");
         assertThat(headers).doesNotContainKey("x-wULi3-Future-Field");
         verify(execution).execute(request, body);
@@ -79,7 +77,6 @@ class InvocationContextClientHttpRequestInterceptorTest {
         headers.set(InvocationContext.ORIGIN_IP, "203.0.113.8");
         headers.set(AuthContext.PRINCIPAL_TYPE, "ADMIN");
         headers.set(AuthContext.PRINCIPAL_ID, "99");
-        headers.set(AuthContext.PRINCIPAL_NAME, "mallory");
         headers.set(AuthContext.PRINCIPAL_PERMISSION_TOKEN, "forged");
         headers.set("x-wULi3-Future-Field", "forged");
         final HttpRequest request = mock(HttpRequest.class);
@@ -96,7 +93,6 @@ class InvocationContextClientHttpRequestInterceptorTest {
                 .doesNotContainKey(InvocationContext.ORIGIN_IP)
                 .doesNotContainKey(AuthContext.PRINCIPAL_TYPE)
                 .doesNotContainKey(AuthContext.PRINCIPAL_ID)
-                .doesNotContainKey(AuthContext.PRINCIPAL_NAME)
                 .doesNotContainKey(AuthContext.PRINCIPAL_PERMISSION_TOKEN)
                 .doesNotContainKey("x-wULi3-Future-Field");
     }

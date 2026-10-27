@@ -161,7 +161,7 @@ ThreadLocalContextBackend contextBackend() {
 
 ## Higress 可信入口契约
 
-全部标准字段使用 `X-Wuli3-` 前缀：`Request-Id`、`Origin-Ip`、`Principal-Type`、`Principal-Id`、`Principal-Name`、`Principal-Permission-Token`。
+全部标准字段使用 `X-Wuli3-` 前缀：`Request-Id`、`Origin-Ip`、`Principal-Type`、`Principal-Id`、`Principal-Permission-Token`。
 Higress 对外部入站请求按大小写无关前缀删除所有 `X-Wuli3-*`（含未知后缀及重复值），再依据可信认证结果设置各字段的单值。
 清洗必须先于认证结果注入；清洗规则覆盖所有外部路由。内部转发只在可信网络中保留和传播新头。
 不增加 Trusted 标记，前缀不是签名；业务服务应禁止绕过网关的非可信访问。
