@@ -72,6 +72,16 @@ public class ApiResponseFactory {
         return this.errorResolver.resolveBoundary(errorCode, message);
     }
 
+    /** 解析异常为可信内部传播模型；错误响应头使用未脱敏信息。 */
+    public ErrorCodeCarrier resolvePropagation(final ErrorCodeException exception) {
+        return this.errorResolver.resolvePropagation(exception);
+    }
+
+    /** 解析错误值为可信内部传播模型，不构造异常；错误响应头使用未脱敏信息。 */
+    public ErrorCodeCarrier resolvePropagation(final ErrorCode errorCode, final String message) {
+        return this.errorResolver.resolvePropagation(errorCode, message);
+    }
+
     /** 将已解析传播模型投影为对外响应，不重复解析。 */
     public <T> ApiResponse<T> fail(final ErrorCodeCarrier carrier) {
         return ApiResponse.failure(carrier, this.requestId(), null);

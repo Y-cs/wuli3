@@ -25,6 +25,7 @@ wuli3 分布式项目脚手架底座。项目使用 JDK 21、Gradle 9.6.0、多�
 | [`wuli3-audit-log-spring-boot-starter`](guide/wuli3-audit-log-spring-boot-starter.md) | 审计协议、上下文补全、事件写入与存储端口。 |
 | [`wuli3-opentelemetry-spring-boot-starter`](guide/wuli3-opentelemetry-spring-boot-starter.md) | OpenTelemetry Java Agent 适配、Trace 上下文访问与业务指标记录。 |
 | [`wuli3-web-spring-boot-starter`](guide/wuli3-web-spring-boot-starter.md) | Spring MVC 上下文、JSON、统一响应和异常处理。 |
+| [`wuli3-openfeign-spring-boot-starter`](guide/wuli3-openfeign-spring-boot-starter.md) | OpenFeign 出站上下文与 HTTP 错误头传播。 |
 | [`wuli3-mysql-spring-boot-starter`](guide/wuli3-mysql-spring-boot-starter.md) | MyBatis-Plus 依赖聚合。 |
 | [`wuli3-redis-spring-boot-starter`](guide/wuli3-redis-spring-boot-starter.md) | Redis String/JSON/Hash/Set 统一操作与分布式锁。 |
 | [`wuli3-rocketmq-spring-boot-starter`](guide/wuli3-rocketmq-spring-boot-starter.md) | RocketMQ v4/v5 远程事件发送适配。 |

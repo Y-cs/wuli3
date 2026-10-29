@@ -40,4 +40,11 @@ public class WebResponseProperties {
      * 是否在参数校验失败时返回字段级错误详情。
      */
     private boolean validationDetailEnabled = true;
+
+    /**
+     * 是否在错误响应头中写入完整错误传播字段。
+     *
+     * 注意：响应头包含未脱敏的诊断信息，只能用于可信内部 HTTP 边界；默认关闭。
+     */
+    private boolean errorHeaderPropagationEnabled = false;
 }
