@@ -4,6 +4,8 @@ wuli3 分布式项目脚手架底座。项目使用 JDK 21、Gradle 9.6.0、多�
 
 首次使用请阅读 [从建项目到业务开发教程](guide/tutorial/README.md)：创建并运行项目、使用工具类、接入扩展点与示例代码。
 
+设计文档站源码位于 [`wuli3-docs`](wuli3-docs/)，用于通过架构图、核心模型图、模块说明和代码示例解释 Wuli3 的设计。
+
 ## 模块
 
 | 模块 | 说明 |
@@ -111,7 +113,7 @@ Maven 项目引入：
     <dependency>
       <groupId>com.kjs.wuli3</groupId>
       <artifactId>wuli3-dependencies</artifactId>
-      <version>0.1.3-SNAPSHOT</version>
+      <version>1.0.0</version>
       <type>pom</type>
       <scope>import</scope>
     </dependency>

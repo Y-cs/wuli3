@@ -14,7 +14,7 @@ class ContextSnapshotTest {
 
     @Test
     void getReturnsEmptyWhenTypeIsAbsent() {
-        final ContextSnapshot snapshot = ContextSnapshot.of(new AuthContext(PrincipalType.CUSTOMER, "7", "alice"));
+        final ContextSnapshot snapshot = ContextSnapshot.of(new AuthContext(PrincipalType.CUSTOMER, "7"));
 
         assertThat(snapshot.get(ContextKey.of(InvocationContext.class))).isEmpty();
     }
@@ -22,11 +22,9 @@ class ContextSnapshotTest {
     @Test
     void sameContextTypeUsesLastValueAndValuesCannotBeMutated() {
         final ContextSnapshot snapshot = ContextSnapshot.of(
-                new AuthContext(PrincipalType.CUSTOMER, "7", "alice"),
-                new AuthContext(PrincipalType.ADMIN, "8", "bob"));
+                new AuthContext(PrincipalType.CUSTOMER, "7"), new AuthContext(PrincipalType.ADMIN, "8"));
 
-        assertThat(snapshot.get(ContextKey.of(AuthContext.class)))
-                .contains(new AuthContext(PrincipalType.ADMIN, "8", "bob"));
+        assertThat(snapshot.get(ContextKey.of(AuthContext.class))).contains(new AuthContext(PrincipalType.ADMIN, "8"));
         assertThatThrownBy(snapshot.values()::clear).isInstanceOf(UnsupportedOperationException.class);
     }
 }

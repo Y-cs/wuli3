@@ -79,7 +79,7 @@ class PermissionCheckerTest {
     @Test
     void missingTokenDoesNotLoadAndRequiresAuthentication() {
         this.assertUnauthorized();
-        this.backend.run(ContextState.of(new AuthContext(PrincipalType.ADMIN, "1", "用户")), this::assertUnauthorized);
+        this.backend.run(ContextState.of(new AuthContext(PrincipalType.ADMIN, "1")), this::assertUnauthorized);
         assertThat(this.loads).hasValue(0);
     }
 
@@ -115,7 +115,7 @@ class PermissionCheckerTest {
     }
 
     private void auth(final String token, final Runnable action) {
-        this.backend.run(ContextState.of(new AuthContext(PrincipalType.ADMIN, "1", "用户", token)), action);
+        this.backend.run(ContextState.of(new AuthContext(PrincipalType.ADMIN, "1", token)), action);
     }
 
     @PermissionResource(value = "ORDER", description = "订单")

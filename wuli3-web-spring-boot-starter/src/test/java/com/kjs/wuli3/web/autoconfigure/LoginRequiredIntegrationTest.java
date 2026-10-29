@@ -47,8 +47,7 @@ class LoginRequiredIntegrationTest {
         this.mockMvc
                 .perform(get("/protected")
                         .header(AuthContext.PRINCIPAL_TYPE, "CUSTOMER")
-                        .header(AuthContext.PRINCIPAL_ID, "42")
-                        .header(AuthContext.PRINCIPAL_NAME, "alice"))
+                        .header(AuthContext.PRINCIPAL_ID, "42"))
                 .andExpect(status().isOk());
     }
 

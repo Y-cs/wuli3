@@ -15,8 +15,8 @@ import org.junit.jupiter.api.Test;
 class ContextStateTest {
     @Test
     void ofKeepsLastValueForEachKeyAcrossBothPartitions() {
-        final AuthContext first = new AuthContext(PrincipalType.CUSTOMER, "1", "first");
-        final AuthContext last = new AuthContext(PrincipalType.ADMIN, "2", "last");
+        final AuthContext first = new AuthContext(PrincipalType.CUSTOMER, "1");
+        final AuthContext last = new AuthContext(PrincipalType.ADMIN, "2");
         final LocalContext local = new LocalContext("last");
         final ContextState state = ContextState.of(first, new LocalContext("first"), last, local);
 
@@ -28,8 +28,8 @@ class ContextStateTest {
 
     @Test
     void updatesDoNotModifyOriginalStateOrCapturedSnapshot() {
-        final AuthContext first = new AuthContext(PrincipalType.CUSTOMER, "1", "first");
-        final AuthContext last = new AuthContext(PrincipalType.ADMIN, "2", "last");
+        final AuthContext first = new AuthContext(PrincipalType.CUSTOMER, "1");
+        final AuthContext last = new AuthContext(PrincipalType.ADMIN, "2");
         final LocalContext local = new LocalContext("local");
         final LocalContext replacement = new LocalContext("replacement");
         final ContextState original = ContextState.of(first, local);

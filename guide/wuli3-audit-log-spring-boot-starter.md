@@ -30,7 +30,7 @@ final AuditLogReceipt receipt = auditLogRecorder.record(AuditLog.success(
 默认载荷包含：
 
 - 应用名、模块、目标 ID、动作、内容和成功/失败结果。
-- `principalType/principalId/principalName` 操作主体快照。
+- `principalType/principalId` 操作主体快照；审计事件不记录主体显示名称。
 - `requestId`、`traceId`、`spanId` 和来源 IP；对应上下文不存在时为空。
 - 固定协议版本。事件 ID 和发生时间由外层 `EventEnvelope` 提供。
 
@@ -50,6 +50,8 @@ final AuditLogReceipt receipt = auditLogRecorder.record(AuditLog.success(
 - 以 `eventId` 幂等写入。
 - 保存不可变操作主体和请求/追踪快照。
 - 将收到的 `EventEnvelope<AuditLogPayload>` 映射到自身的持久化模型。
+
+主体快照用于标识操作人，不包含显示名称。需要展示名称的页面应从用户服务获取；审计事件不固化历史名称。
 
 当容器中提供 `AuditLogStore` 时，自动配置会创建本地事件传输适配器，便于独立审计服务直接复用记录入口。
 

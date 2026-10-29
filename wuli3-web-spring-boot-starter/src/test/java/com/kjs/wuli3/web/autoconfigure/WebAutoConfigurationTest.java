@@ -189,8 +189,7 @@ class WebAutoConfigurationTest {
         mockMvc.perform(get("/security"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.principalType").value("CUSTOMER"))
-                .andExpect(jsonPath("$.data.principalId").value("42"))
-                .andExpect(jsonPath("$.data.principalName").value("alice"));
+                .andExpect(jsonPath("$.data.principalId").value("42"));
     }
 
     @Test
@@ -394,7 +393,7 @@ class WebAutoConfigurationTest {
         @Bean
         @Primary
         AuthContextResolver testSecurityContextResolver() {
-            return request -> java.util.Optional.of(new AuthContext(PrincipalType.CUSTOMER, "42", "alice"));
+            return request -> java.util.Optional.of(new AuthContext(PrincipalType.CUSTOMER, "42"));
         }
 
         @Bean
@@ -518,8 +517,7 @@ class WebAutoConfigurationTest {
         SecurityView security() {
             return new SecurityView(
                     authContextAccessor.principalType().orElse(PrincipalType.SYSTEM),
-                    authContextAccessor.principalId().orElse(""),
-                    authContextAccessor.principalName().orElse(""));
+                    authContextAccessor.principalId().orElse(""));
         }
 
         @GetMapping("/wrapped")
@@ -652,7 +650,7 @@ class WebAutoConfigurationTest {
 
     record ContextView(String requestId) {}
 
-    record SecurityView(PrincipalType principalType, String principalId, String principalName) {}
+    record SecurityView(PrincipalType principalType, String principalId) {}
 
     record ResourceView(
             @ResourcePath(type = TestResourcePathResolver.TYPE)

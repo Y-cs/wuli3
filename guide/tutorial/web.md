@@ -198,9 +198,12 @@ public class HttpIdentityConfiguration {
 }
 ```
 
-验证器需完成凭证真实性、有效期、吊销状态以及所选协议要求的校验，再返回例如 `new AuthContext(PrincipalType.CUSTOMER, userId, displayName, permissionToken)`。`PrincipalType` 的包为 `com.kjs.wuli3.propagation.internal`；当前提供 `CUSTOMER`、`ADMIN`、`SYSTEM`。
+验证器需完成凭证真实性、有效期、吊销状态以及所选协议要求的校验，再返回例如
+`new AuthContext(PrincipalType.CUSTOMER, userId, permissionToken)`；没有权限主体码时使用
+`new AuthContext(PrincipalType.CUSTOMER, userId)`。认证上下文不含显示名称，需要在页面展示时从用户服务读取。`PrincipalType` 的包为
+`com.kjs.wuli3.propagation.internal`；当前提供 `CUSTOMER`、`ADMIN`、`SYSTEM`。
 
-无凭证返回空身份不等于禁止请求：公开接口仍可执行，受保护用例通过[权限机制](errors-permissions.md)拒绝缺少权限 Token 的请求。只有三参数的 `AuthContext` 可以表示已认证用户，但不提供权限鉴权凭据。
+无凭证返回空身份不等于禁止请求：公开接口仍可执行，受保护用例通过[权限机制](errors-permissions.md)拒绝缺少权限 Token 的请求。两参数的 `AuthContext` 可以表示已认证用户，但不提供权限鉴权凭据。
 
 如果验证器依赖 Spring Security 先前建立的身份，必须核对过滤器顺序：Wuli3 默认很早执行，并不会自动等待 Security 的认证过滤器。调整 `wuli3.web.context.filter-order` 或在 Resolver 内完成认证，不要在身份尚未建立时读取它。
 

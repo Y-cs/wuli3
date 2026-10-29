@@ -29,6 +29,13 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
+      - name: Set up Node.js for documentation
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: wuli3-docs/package-lock.json
+
       # 版本号以代码为准 gradle.properties 的 wuli3.version
       # 这里校验 tag 与两个构建解析出的版本都一致，避免 tag 标称的版本和实际发布的版本分叉
       - name: Verify tag matches code version

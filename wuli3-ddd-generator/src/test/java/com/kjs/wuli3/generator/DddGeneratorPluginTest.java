@@ -67,6 +67,8 @@ final class DddGeneratorPluginTest {
                         DddGeneratorPlugin.TASK_NAME,
                         "--service",
                         "order-service",
+                        "--module-prefix",
+                        "billing",
                         "--base-package",
                         "com.example.order",
                         "--domain",
@@ -86,13 +88,12 @@ final class DddGeneratorPluginTest {
         assertThat(output.resolve("order-service/AGENTS.md")).isRegularFile();
         assertThat(
                         output.resolve(
-                                "order-service/order-service-app/src/main/java/com/example/order/app/facade/order/OrderFacadeImpl.java"))
+                                "order-service/billing-app/src/main/java/com/example/order/app/facade/order/OrderFacadeImpl.java"))
                 .isRegularFile();
-        assertThat(
-                        output.resolve(
-                                "order-service/order-service-adapter/src/main/java/com/example/order/adapter/mq/package-info.java"))
+        assertThat(output.resolve(
+                        "order-service/billing-adapter/src/main/java/com/example/order/adapter/mq/package-info.java"))
                 .isRegularFile();
         assertThat(Files.readString(output.resolve("order-service/.wuli3/generation.properties")))
-                .contains("template.version=2.2.0", "rpc=dubbo", "registry=nacos");
+                .contains("template.version=2.3.0", "rpc=dubbo", "registry=nacos");
     }
 }

@@ -27,12 +27,11 @@ public record AuditLogRuntimeSnapshot(
         Asserts.whenBlank(application).throwIllegalArgumentException("application cannot be blank");
     }
 
-    /** 操作主体的运行时身份快照。 */
-    public record AuditPrincipal(PrincipalType principalType, String principalId, String principalName) {
+    /** 操作主体的运行时身份快照；显示名称等资料由查询方按需获取。 */
+    public record AuditPrincipal(PrincipalType principalType, String principalId) {
         public AuditPrincipal {
             Asserts.whenNull(principalType).throwIllegalArgumentException("principalType cannot be null");
             Asserts.whenBlank(principalId).throwIllegalArgumentException("principalId cannot be blank");
-            Asserts.whenBlank(principalName).throwIllegalArgumentException("principalName cannot be blank");
         }
     }
 

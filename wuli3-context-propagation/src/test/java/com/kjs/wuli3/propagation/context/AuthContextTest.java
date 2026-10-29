@@ -12,27 +12,26 @@ class AuthContextTest {
 
     @Test
     @SuppressWarnings("NullAway")
-    void rejectsNullFields() {
-        assertThatThrownBy(() -> new AuthContext(null, "7", "alice")).isInstanceOf(ErrorCodeException.class);
-        assertThatThrownBy(() -> new AuthContext(PrincipalType.CUSTOMER, null, "alice"))
-                .isInstanceOf(ErrorCodeException.class);
-        assertThatThrownBy(() -> new AuthContext(PrincipalType.CUSTOMER, "7", null))
-                .isInstanceOf(ErrorCodeException.class);
+    void rejectsNullIdentityFields() {
+        assertThatThrownBy(() -> new AuthContext(null, "7")).isInstanceOf(ErrorCodeException.class);
+        assertThatThrownBy(() -> new AuthContext(PrincipalType.CUSTOMER, null)).isInstanceOf(ErrorCodeException.class);
     }
 
     @Test
-    void rejectsBlankTextFields() {
-        assertThatThrownBy(() -> new AuthContext(PrincipalType.CUSTOMER, " ", "alice"))
-                .isInstanceOf(ErrorCodeException.class);
-        assertThatThrownBy(() -> new AuthContext(PrincipalType.CUSTOMER, "7", "\t"))
-                .isInstanceOf(ErrorCodeException.class);
+    void rejectsBlankPrincipalId() {
+        assertThatThrownBy(() -> new AuthContext(PrincipalType.CUSTOMER, " ")).isInstanceOf(ErrorCodeException.class);
+        assertThatThrownBy(() -> new AuthContext(PrincipalType.CUSTOMER, "\t")).isInstanceOf(ErrorCodeException.class);
     }
 
     @Test
     void allowsMissingCodeButRejectsBlankCode() {
-        assertThat(new AuthContext(PrincipalType.CUSTOMER, "7", "alice").principalPermissionToken())
+        assertThat(new AuthContext(PrincipalType.CUSTOMER, "7").principalPermissionToken())
                 .isNull();
-        assertThatThrownBy(() -> new AuthContext(PrincipalType.CUSTOMER, "7", "alice", " "))
-                .isInstanceOf(ErrorCodeException.class);
+        assertThat(new AuthContext(PrincipalType.CUSTOMER, "7", null).principalPermissionToken())
+                .isNull();
+        for (final String blank : new String[] {"", " ", "\t"}) {
+            assertThatThrownBy(() -> new AuthContext(PrincipalType.CUSTOMER, "7", blank))
+                    .isInstanceOf(ErrorCodeException.class);
+        }
     }
 }

@@ -13,6 +13,7 @@ import javax.lang.model.SourceVersion;
  */
 record GeneratorOptions(
         String service,
+        String modulePrefix,
         String basePackage,
         String domain,
         String persistence,
@@ -27,10 +28,11 @@ record GeneratorOptions(
     static final String DEFAULT_PERSISTENCE = "none";
     static final String DEFAULT_MESSAGING = "none";
     static final String DEFAULT_SORT_FIELDS = "id,status";
-    static final String DEFAULT_WULI3_VERSION = "0.1.3-SNAPSHOT";
-    static final String DEFAULT_BUILD_LOGIC_VERSION = "0.1.3-SNAPSHOT";
+    static final String DEFAULT_WULI3_VERSION = "1.0.0";
+    static final String DEFAULT_BUILD_LOGIC_VERSION = "1.0.0";
     private static final List<String> KEYS = List.of(
             "service",
+            "module-prefix",
             "package",
             "domain",
             "persistence",
@@ -64,6 +66,10 @@ record GeneratorOptions(
         final String domain = GeneratorOptions.required(values, "domain");
         if (!service.matches("[a-z][a-z0-9]*(?:-[a-z0-9]+)*")) {
             throw new IllegalArgumentException("service 必须是小写字母、数字和单个连字符组成的名称");
+        }
+        final String modulePrefix = values.getOrDefault("module-prefix", GeneratorOptions.defaultModulePrefix(service));
+        if (!modulePrefix.matches("[a-z][a-z0-9]*(?:-[a-z0-9]+)*")) {
+            throw new IllegalArgumentException("module-prefix 必须是小写字母、数字和单个连字符组成的名称");
         }
         if (!domain.matches("[a-z][a-z0-9]*(?:-[a-z0-9]+)*")
                 || !SourceVersion.isName(domain.replace('-', '_'), SourceVersion.RELEASE_21)) {
@@ -99,6 +105,7 @@ record GeneratorOptions(
                 Path.of(values.getOrDefault("output", ".")).toAbsolutePath().normalize();
         return new GeneratorOptions(
                 service,
+                modulePrefix,
                 basePackage,
                 domain,
                 persistence,
@@ -134,5 +141,10 @@ record GeneratorOptions(
             result.append(Character.toUpperCase(part.charAt(0))).append(part.substring(1));
         }
         return result.toString();
+    }
+
+    /** 为模块目录生成简洁前缀；服务身份仍保留完整服务名。 */
+    static String defaultModulePrefix(final String service) {
+        return service.endsWith("-service") ? service.substring(0, service.length() - "-service".length()) : service;
     }
 }

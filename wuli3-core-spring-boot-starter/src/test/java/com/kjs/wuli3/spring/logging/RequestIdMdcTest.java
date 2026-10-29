@@ -50,7 +50,7 @@ class RequestIdMdcTest {
     void skipsWhenSnapshotHasNoInvocationContext() {
         MDC.put(LogMdcKeys.REQUEST_ID, "outer");
         final ContextSnapshot snapshot =
-                ContextSnapshot.of(new AuthContext(PrincipalType.CUSTOMER, "7", "alice", "permissions-v2"));
+                ContextSnapshot.of(new AuthContext(PrincipalType.CUSTOMER, "7", "permissions-v2"));
         try (final RequestIdMdc ignored = RequestIdMdc.open(snapshot)) {
             assertThat(MDC.get(LogMdcKeys.REQUEST_ID)).isEqualTo("outer");
         }

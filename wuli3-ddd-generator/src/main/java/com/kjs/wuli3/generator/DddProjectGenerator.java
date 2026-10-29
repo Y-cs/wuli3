@@ -23,9 +23,9 @@ import java.util.Set;
  */
 final class DddProjectGenerator {
     private static final String TEMPLATE_ROOT = "/ddd-template/";
-    private static final String TEMPLATE_VERSION = "2.2.0";
+    private static final String TEMPLATE_VERSION = "2.3.0";
 
-    /** 模块目录后缀；生成时统一加服务名前缀，避免多个服务的模块目录与制品重名。 */
+    /** 模块目录后缀；生成时统一加模块名前缀，避免多个服务的模块目录与制品重名。 */
     private static final Set<String> MODULE_DIRECTORIES =
             Set.of("shared-kernel", "domain", "api", "app", "infra", "adapter", "bootstrap");
 
@@ -247,6 +247,7 @@ final class DddProjectGenerator {
     private Map<String, String> variables(final GeneratorOptions options) {
         final Map<String, String> result = new LinkedHashMap<>();
         result.put("service", options.service());
+        result.put("modulePrefix", options.modulePrefix());
         result.put("serviceType", GeneratorOptions.toTypeName(options.service()));
         result.put("basePackage", options.basePackage());
         result.put("packagePath", options.basePackage().replace('.', '/'));
@@ -545,7 +546,7 @@ final class DddProjectGenerator {
             throws IOException {
         String content = this.readText(template.resource());
         String relativePath =
-                this.prefixModuleDirectory(template.target(), Objects.requireNonNull(variables.get("service")));
+                this.prefixModuleDirectory(template.target(), Objects.requireNonNull(variables.get("modulePrefix")));
         for (final Map.Entry<String, String> variable : variables.entrySet()) {
             final String token = "{{" + variable.getKey() + "}}";
             content = content.replace(token, variable.getValue());
@@ -558,16 +559,16 @@ final class DddProjectGenerator {
     }
 
     /**
-     * 为模块目录加服务名前缀。
+     * 为模块目录加模块名前缀。
      *
      * 注意：bootstrap 可执行 jar 的文件名由模板固定为 bootstrap.jar，不受目录前缀影响。
      */
-    private String prefixModuleDirectory(final String path, final String service) {
+    private String prefixModuleDirectory(final String path, final String modulePrefix) {
         final int separator = path.indexOf('/');
         if (separator < 0 || !DddProjectGenerator.MODULE_DIRECTORIES.contains(path.substring(0, separator))) {
             return path;
         }
-        return service + "-" + path;
+        return modulePrefix + "-" + path;
     }
 
     private void copyResource(final Path root, final String resource, final String target) throws IOException {

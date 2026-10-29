@@ -32,7 +32,7 @@ class WebContextAutoConfigurationTest {
     @Test
     void customAuthContextResolverReplacesDefault() {
         final AuthContextResolver customResolver =
-                request -> Optional.of(new AuthContext(PrincipalType.CUSTOMER, "42", "alice"));
+                request -> Optional.of(new AuthContext(PrincipalType.CUSTOMER, "42"));
 
         this.contextRunner
                 .withBean(AuthContextResolver.class, () -> customResolver)

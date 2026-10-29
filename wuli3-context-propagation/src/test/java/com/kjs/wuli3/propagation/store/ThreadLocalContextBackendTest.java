@@ -17,8 +17,8 @@ class ThreadLocalContextBackendTest {
     @Test
     void nestedScopesRestorePreviousState() {
         final ThreadLocalContextBackend store = new ThreadLocalContextBackend();
-        final AuthContext first = new AuthContext(PrincipalType.CUSTOMER, "1", "first");
-        final AuthContext second = new AuthContext(PrincipalType.ADMIN, "2", "second");
+        final AuthContext first = new AuthContext(PrincipalType.CUSTOMER, "1");
+        final AuthContext second = new AuthContext(PrincipalType.ADMIN, "2");
         final ContextManager manager = new ContextManager(store, store);
         manager.with(ContextState.of(first)).run(() -> {
             manager.with(ContextState.of(second))
@@ -33,7 +33,7 @@ class ThreadLocalContextBackendTest {
     void propagationSnapshotExcludesLocalContext() {
         final ThreadLocalContextBackend store = new ThreadLocalContextBackend();
         final LocalContext local = new LocalContext("local");
-        final AuthContext auth = new AuthContext(PrincipalType.CUSTOMER, "7", "alice");
+        final AuthContext auth = new AuthContext(PrincipalType.CUSTOMER, "7");
         final ContextManager manager = new ContextManager(store, store);
         manager.with(ContextState.of(local, auth)).run(() -> {
             final ContextSnapshot snapshot = manager.capture();
@@ -46,8 +46,8 @@ class ThreadLocalContextBackendTest {
     void wrappedCallableUsesCapturedContextAndRestoresCallerContext() throws Exception {
         final ThreadLocalContextBackend store = new ThreadLocalContextBackend();
         final ContextManager manager = new ContextManager(store, store);
-        final AuthContext captured = new AuthContext(PrincipalType.CUSTOMER, "1", "captured");
-        final AuthContext caller = new AuthContext(PrincipalType.CUSTOMER, "2", "caller");
+        final AuthContext captured = new AuthContext(PrincipalType.CUSTOMER, "1");
+        final AuthContext caller = new AuthContext(PrincipalType.CUSTOMER, "2");
         manager.with(ContextState.of(captured)).run(() -> {
             final Callable<String> wrapped = manager.from(manager.capture())
                     .wrap(() -> store.get(ContextKey.of(AuthContext.class))
@@ -69,8 +69,8 @@ class ThreadLocalContextBackendTest {
         final ThreadLocalContextBackend store = new ThreadLocalContextBackend();
         final ContextManager manager = new ContextManager(store, store);
         final AuthContextAccessor accessor = new AuthContextAccessor(store);
-        final AuthContext original = new AuthContext(PrincipalType.CUSTOMER, "7", "alice", "version-1");
-        final AuthContext rotated = new AuthContext(PrincipalType.CUSTOMER, "7", "alice", "version-2");
+        final AuthContext original = new AuthContext(PrincipalType.CUSTOMER, "7", "version-1");
+        final AuthContext rotated = new AuthContext(PrincipalType.CUSTOMER, "7", "version-2");
         manager.with(original).run(() -> {
             assertThat(accessor.principalPermissionToken()).contains("version-1");
             manager.with(rotated).run(() -> {
@@ -81,7 +81,7 @@ class ThreadLocalContextBackendTest {
             assertThat(accessor.principalPermissionToken()).contains("version-1");
         });
         assertThat(accessor.principalPermissionToken()).isEmpty();
-        manager.with(new AuthContext(PrincipalType.CUSTOMER, "7", "alice"))
+        manager.with(new AuthContext(PrincipalType.CUSTOMER, "7"))
                 .run(() -> assertThat(accessor.principalPermissionToken()).isEmpty());
     }
 

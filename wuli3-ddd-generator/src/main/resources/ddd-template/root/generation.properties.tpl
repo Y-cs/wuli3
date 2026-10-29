@@ -1,6 +1,7 @@
 generator=wuli3-ddd-generator
 template.version={{templateVersion}}
 service={{service}}
+module.prefix={{modulePrefix}}
 base.package={{basePackage}}
 domain={{domain}}
 persistence={{persistence}}

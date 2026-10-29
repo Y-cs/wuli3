@@ -18,9 +18,7 @@ class TrustedHttpAuthContextResolverTest {
         final MockHttpServletRequest request = new MockHttpServletRequest("GET", "/orders");
         request.addHeader(AuthContext.PRINCIPAL_TYPE, "CUSTOMER");
         request.addHeader(AuthContext.PRINCIPAL_ID, "42");
-        request.addHeader(AuthContext.PRINCIPAL_NAME, "alice");
-
-        assertThat(this.resolver.resolve(request)).contains(new AuthContext(PrincipalType.CUSTOMER, "42", "alice"));
+        assertThat(this.resolver.resolve(request)).contains(new AuthContext(PrincipalType.CUSTOMER, "42"));
     }
 
     @Test
@@ -32,8 +30,7 @@ class TrustedHttpAuthContextResolverTest {
 
     @Test
     void returnsEmptyWhenAnyAuthenticationHeaderIsMissing() {
-        for (final String field :
-                new String[] {AuthContext.PRINCIPAL_TYPE, AuthContext.PRINCIPAL_ID, AuthContext.PRINCIPAL_NAME}) {
+        for (final String field : new String[] {AuthContext.PRINCIPAL_TYPE, AuthContext.PRINCIPAL_ID}) {
             final MockHttpServletRequest request = TrustedHttpAuthContextResolverTest.validRequest();
             request.removeHeader(field);
 
@@ -56,8 +53,7 @@ class TrustedHttpAuthContextResolverTest {
 
     @Test
     void rejectsBlankAuthenticationHeadersWhenAllFieldsArePresent() {
-        for (final String field :
-                new String[] {AuthContext.PRINCIPAL_TYPE, AuthContext.PRINCIPAL_ID, AuthContext.PRINCIPAL_NAME}) {
+        for (final String field : new String[] {AuthContext.PRINCIPAL_TYPE, AuthContext.PRINCIPAL_ID}) {
             for (final String blank : new String[] {"", " ", "\t"}) {
                 final MockHttpServletRequest request = TrustedHttpAuthContextResolverTest.validRequest();
                 request.removeHeader(field);
@@ -75,7 +71,7 @@ class TrustedHttpAuthContextResolverTest {
         final MockHttpServletRequest request = TrustedHttpAuthContextResolverTest.validRequest();
         request.addHeader(AuthContext.PRINCIPAL_PERMISSION_TOKEN, "permissions-v2");
         assertThat(this.resolver.resolve(request))
-                .contains(new AuthContext(PrincipalType.CUSTOMER, "42", "alice", "permissions-v2"));
+                .contains(new AuthContext(PrincipalType.CUSTOMER, "42", "permissions-v2"));
         for (final String field : new AuthContext.Codec().fieldNames()) {
             final MockHttpServletRequest duplicate = TrustedHttpAuthContextResolverTest.validRequest();
             duplicate.addHeader(AuthContext.PRINCIPAL_PERMISSION_TOKEN, "permissions-v2");
@@ -98,7 +94,6 @@ class TrustedHttpAuthContextResolverTest {
         final MockHttpServletRequest request = new MockHttpServletRequest("GET", "/orders");
         request.addHeader(AuthContext.PRINCIPAL_TYPE, "CUSTOMER");
         request.addHeader(AuthContext.PRINCIPAL_ID, "42");
-        request.addHeader(AuthContext.PRINCIPAL_NAME, "alice");
         return request;
     }
 }

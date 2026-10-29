@@ -86,7 +86,8 @@ eventPublisher.publish(options, envelope);
 `ContextPropagator` 读取可选的 `ContextReader`，并按显式白名单把传播字段写入 `RocketMessageWrapper.headers`。`EventEnvelope` 不承载传输 header，其 JSON body 只包含事件语义字段。
 
 默认自动配置使用 `ContextPropagator.standardContextEncoder()`，当前会传播 `X-Wuli3-Request-Id`、`X-Wuli3-Origin-Ip`、
-`X-Wuli3-Principal-Type`、`X-Wuli3-Principal-Id` 和 `X-Wuli3-Principal-Name`。因此该 starter 应只用于允许传播认证信息的可信消息边界。
+`X-Wuli3-Principal-Type`、`X-Wuli3-Principal-Id`，以及携带权限主体码时的 `X-Wuli3-Principal-Permission-Token`。因此该 starter
+应只用于允许传播认证信息的可信消息边界。
 
 若边界只允许传播调用标识，应显式覆盖该 Bean：
 

@@ -122,7 +122,7 @@ class PermissionBeanLifecycleTest {
     }
 
     private void auth(final String token, final Runnable action) {
-        this.backend.run(ContextState.of(new AuthContext(PrincipalType.ADMIN, "1", "用户", token)), action);
+        this.backend.run(ContextState.of(new AuthContext(PrincipalType.ADMIN, "1", token)), action);
     }
 
     static class UnknownProductFactory implements FactoryBean<Object> {

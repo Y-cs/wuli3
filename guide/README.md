@@ -70,7 +70,7 @@ Gradle 项目推荐先导入 BOM，再声明无版本模块依赖：
 
 ```kotlin
 dependencies {
-    implementation(platform("com.kjs.wuli3:wuli3-dependencies:0.1.3-SNAPSHOT"))
+    implementation(platform("com.kjs.wuli3:wuli3-dependencies:1.0.0"))
     implementation("com.kjs.wuli3:wuli3-core")
 }
 ```

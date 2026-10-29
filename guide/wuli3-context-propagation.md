@@ -80,12 +80,16 @@ StructuredTaskScope 会继承 ScopedValue 全部绑定。需要过滤本地 Cont
 
 ## 可信身份与权限版本
 
-`AuthContext` 的四参构造器为 `(principalType, principalId, principalName, principalPermissionToken)`。
-三参构造器仅表示已认证但未提供权限主体码；该状态不能通过权限鉴权。非 null 的码不得空白。
+`AuthContext` 只传播 `principalType`、`principalId` 和可选的 `principalPermissionToken`。两参构造器
+`(principalType, principalId)` 表示已认证但未提供权限主体码；三参构造器
+`(principalType, principalId, principalPermissionToken)` 可携带可信入口提供的权限主体码。没有权限主体码的上下文不能通过权限鉴权；
+非 null 的码不得空白。旧版把显示名称作为第三参的调用必须迁移为两参构造器；只有传入真实权限主体码时才使用三参构造器，
+不能把旧名称值当作权限主体码。认证上下文不承载用户显示名称，页面需要展示名称时应从用户服务读取。
 `AuthContextAccessor.principalPermissionToken()` 返回可选码，权限模块不从用户 ID 推导该码。
 
 统一标准协议字段为 `X-Wuli3-Request-Id`、`X-Wuli3-Origin-Ip`、`X-Wuli3-Principal-Type`、
-`X-Wuli3-Principal-Id`、`X-Wuli3-Principal-Name`、`X-Wuli3-Principal-Permission-Token`。
+`X-Wuli3-Principal-Id`、`X-Wuli3-Principal-Permission-Token`。主体类型和 ID 是恢复认证上下文的必需字段，权限主体码可缺省；
+名称不属于认证传播协议。
 旧字段不参与解码。`reservedFieldNames()` 始终包含标准字段及注册的自定义字段；
 `isReservedFieldName()` 额外按大小写无关方式预留整个 `X-Wuli3-` 命名空间。
 网关应清洗外部全部此前缀字段后重新注入，服务间传播仍依赖可信网络边界。

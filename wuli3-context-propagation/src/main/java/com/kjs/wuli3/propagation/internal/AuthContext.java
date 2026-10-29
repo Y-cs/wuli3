@@ -14,9 +14,10 @@ import org.jspecify.annotations.Nullable;
 /**
  * 业务代码可读取的认证与授权元数据。
  *
+ * <p>仅包含主体标识与可选权限凭据；显示名称等资料由调用方按需查询用户服务。
+ *
  * @param principalType 认证主体类型
  * @param principalId 认证主体的唯一标识
- * @param principalName 认证主体的显示名称
  * @param principalPermissionToken 可信入口提供的可轮换权限主体码；缺失时不具备权限鉴权凭据
  *
  * @author GuoYang create on 2026/8/17 11:53
@@ -24,31 +25,27 @@ import org.jspecify.annotations.Nullable;
 public record AuthContext(
         PrincipalType principalType,
         String principalId,
-        String principalName,
-        @Nullable String principalPermissionToken)
-        implements PropagationContext {
+        @Nullable String principalPermissionToken) implements PropagationContext {
 
     public static final String PRINCIPAL_TYPE = "X-Wuli3-Principal-Type";
     public static final String PRINCIPAL_ID = "X-Wuli3-Principal-Id";
-    public static final String PRINCIPAL_NAME = "X-Wuli3-Principal-Name";
 
     public static final String PRINCIPAL_PERMISSION_TOKEN = "X-Wuli3-Principal-Permission-Token";
 
     private static final ContextCodec<AuthContext> CODEC = new Codec();
 
-    /** 创建字段完整的认证主体快照。 */
+    /** 创建主体标识完整、权限凭据可选的认证快照。 */
     public AuthContext {
         Asserts.whenNull(principalType).throwIllegalArgumentException("principalType must not be null");
         AuthContext.requireNonBlank(principalId, "principalId");
-        AuthContext.requireNonBlank(principalName, "principalName");
         if (principalPermissionToken != null) {
             AuthContext.requireNonBlank(principalPermissionToken, "principalPermissionToken");
         }
     }
 
     /** 创建不携带权限鉴权凭据的认证上下文。 */
-    public AuthContext(final PrincipalType principalType, final String principalId, final String principalName) {
-        this(principalType, principalId, principalName, null);
+    public AuthContext(final PrincipalType principalType, final String principalId) {
+        this(principalType, principalId, null);
     }
 
     /**
@@ -79,11 +76,7 @@ public record AuthContext(
 
         @Override
         public Set<String> fieldNames() {
-            return Set.of(
-                    AuthContext.PRINCIPAL_TYPE,
-                    AuthContext.PRINCIPAL_ID,
-                    AuthContext.PRINCIPAL_NAME,
-                    AuthContext.PRINCIPAL_PERMISSION_TOKEN);
+            return Set.of(AuthContext.PRINCIPAL_TYPE, AuthContext.PRINCIPAL_ID, AuthContext.PRINCIPAL_PERMISSION_TOKEN);
         }
 
         @Override
@@ -93,7 +86,6 @@ public record AuthContext(
             actualFieldWriter.accept(
                     AuthContext.PRINCIPAL_TYPE, actualContext.principalType().name());
             actualFieldWriter.accept(AuthContext.PRINCIPAL_ID, actualContext.principalId());
-            actualFieldWriter.accept(AuthContext.PRINCIPAL_NAME, actualContext.principalName());
             final String principalPermissionToken = actualContext.principalPermissionToken();
             if (principalPermissionToken != null) {
                 actualFieldWriter.accept(AuthContext.PRINCIPAL_PERMISSION_TOKEN, principalPermissionToken);
@@ -106,16 +98,12 @@ public record AuthContext(
             Objects.requireNonNull(fieldReader, "fieldReader");
             final String principalTypeStr = fieldReader.apply(AuthContext.PRINCIPAL_TYPE);
             final String principalId = fieldReader.apply(AuthContext.PRINCIPAL_ID);
-            final String principalName = fieldReader.apply(AuthContext.PRINCIPAL_NAME);
-            if (principalTypeStr == null || principalId == null || principalName == null) {
+            if (principalTypeStr == null || principalId == null) {
                 return Optional.empty();
             }
             final PrincipalType principalType = PrincipalType.parse(principalTypeStr);
             return Optional.of(new AuthContext(
-                    principalType,
-                    principalId,
-                    principalName,
-                    fieldReader.apply(AuthContext.PRINCIPAL_PERMISSION_TOKEN)));
+                    principalType, principalId, fieldReader.apply(AuthContext.PRINCIPAL_PERMISSION_TOKEN)));
         }
     }
 }

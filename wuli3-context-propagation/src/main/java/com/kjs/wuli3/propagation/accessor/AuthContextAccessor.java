@@ -44,15 +44,6 @@ public class AuthContextAccessor {
     }
 
     /**
-     * 获取当前认证主体的显示名称。
-     *
-     * @return 当前主体名称；未设置认证上下文时为空
-     */
-    public Optional<String> principalName() {
-        return this.current().map(AuthContext::principalName);
-    }
-
-    /**
      * 获取可信入口提供的权限主体码，用于定位当前授权版本。
      *
      * @return 当前权限主体码；未认证或未携带权限凭据时为空

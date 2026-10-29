@@ -7,6 +7,7 @@ import org.gradle.api.file.DirectoryProperty;
 import org.gradle.api.provider.Property;
 import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.Internal;
+import org.gradle.api.tasks.Optional;
 import org.gradle.api.tasks.TaskAction;
 import org.gradle.api.tasks.UntrackedTask;
 import org.gradle.api.tasks.options.Option;
@@ -24,6 +25,12 @@ public abstract class GenerateDddServiceTask extends DefaultTask {
     @Input
     @Option(option = "service", description = "设置小写服务名，可包含数字和连字符。")
     public abstract Property<String> getService();
+
+    /** 返回显式模块前缀；未设置时省略服务名末尾的 -service。 */
+    @Input
+    @Optional
+    @Option(option = "module-prefix", description = "设置模块名前缀，默认省略服务名末尾的 -service。")
+    public abstract Property<String> getModulePrefix();
 
     /** 返回生成源码使用的 Java 基础包名。 */
     @Input
@@ -82,6 +89,10 @@ public abstract class GenerateDddServiceTask extends DefaultTask {
         final GeneratorOptions options = GeneratorOptions.parse(new String[] {
             "--service",
             this.getService().get(),
+            "--module-prefix",
+            this.getModulePrefix()
+                    .getOrElse(GeneratorOptions.defaultModulePrefix(
+                            this.getService().get())),
             "--package",
             this.getBasePackage().get(),
             "--domain",
