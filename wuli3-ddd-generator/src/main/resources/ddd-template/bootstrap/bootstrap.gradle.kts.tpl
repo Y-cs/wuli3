@@ -3,8 +3,8 @@ plugins {
 }
 
 dependencies {
-    implementation(project(":{{service}}-infra"))
-    implementation(project(":{{service}}-adapter"))
+    implementation(project(":{{modulePrefix}}-infra"))
+    implementation(project(":{{modulePrefix}}-adapter"))
     implementation("org.springframework.boot:spring-boot-starter")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     testImplementation("org.springframework.boot:spring-boot-starter-test")

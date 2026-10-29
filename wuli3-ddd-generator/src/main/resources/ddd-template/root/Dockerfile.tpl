@@ -46,7 +46,7 @@ WORKDIR $BASE_HOME
 # JUL FileHandler 和 Spring Boot 文件日志都要求日志目录在启动前存在。
 RUN mkdir -p logs
 
-COPY {{service}}-bootstrap/build/libs/bootstrap.jar bootstrap.jar
+COPY {{modulePrefix}}-bootstrap/build/libs/bootstrap.jar bootstrap.jar
 
 EXPOSE 8080 8099
 

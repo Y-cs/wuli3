@@ -34,7 +34,7 @@ description: 生成器参数、七模块职责和架构门禁的最小说明。
 - `adapter`：HTTP、消息消费和任务入口。
 - `bootstrap`：启动、最终装配和部署配置。
 
-以上是角色名。实际模块名包含服务名前缀，例如 `demo-order-app` 和 `demo-order-bootstrap`；Gradle 任务使用 `:demo-order-bootstrap:bootRun` 这样的路径。
+以上是角色名。实际模块名包含模块前缀（默认省略服务名末尾的 `-service`），例如 `demo-order-app` 和 `demo-order-bootstrap`；Gradle 任务使用 `:demo-order-bootstrap:bootRun` 这样的路径。
 
 入口层不编排多个局部事务；`app.service` 组织完整用例，读模型通过 QueryRepository，写模型通过领域聚合仓储。
 

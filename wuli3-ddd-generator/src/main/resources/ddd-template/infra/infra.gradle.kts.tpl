@@ -1,4 +1,4 @@
 dependencies {
-    implementation(project(":{{service}}-app"))
-    implementation(project(":{{service}}-domain"))
+    implementation(project(":{{modulePrefix}}-app"))
+    implementation(project(":{{modulePrefix}}-domain"))
 {{infraDependencies}}}

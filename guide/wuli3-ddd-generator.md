@@ -37,6 +37,7 @@ jbang --repos <内部仓库URL>,mavenlocal \
 | 参数                    | 必填 | 可选值                             | 默认值           | 说明                                                         |
 |-------------------------|------|------------------------------------|------------------|--------------------------------------------------------------|
 | `--service`             | 是   | 小写字母开头，可含数字和单个连字符 | —                | 服务名，同时作为生成目录名                                   |
+| `--module-prefix`       | 否   | 小写字母开头，可含数字和单个连字符 | 服务名去掉末尾 `-service` | 模块目录和工程名的前缀；可显式使用完整服务名恢复旧命名 |
 | `--package`             | 是   | 合法的小写 Java 包名               | —                | 生成源码的基础包名                                           |
 | `--domain`              | 是   | 小写字母开头，可含数字和单个连字符 | —                | 领域名                                                       |
 | `--persistence`         | 否   | `none`、`mysql`                    | `none`           | `mysql` 额外生成 MyBatis-Plus PO/Mapper 并引入 MySQL starter |
@@ -89,8 +90,9 @@ cd demo-web
 
 ## 模块边界
 
-生成工程包含七个 Gradle 模块，模块目录和工程名统一带服务名前缀：服务 `demo-web` 生成 `demo-web-shared-kernel`、
+生成工程包含七个 Gradle 模块，模块目录和工程名统一使用模块前缀，默认从服务名去掉末尾的 `-service`；不带该后缀时使用完整服务名：服务 `demo-web` 生成 `demo-web-shared-kernel`、
 `demo-web-domain`、`demo-web-api`、`demo-web-app`、`demo-web-infra`、`demo-web-adapter`、`demo-web-bootstrap`。
+服务 `foxtail-identity-service` 默认生成 `foxtail-identity-shared-kernel` 等模块；可用 `--module-prefix` 显式覆盖。根目录、根工程名、应用服务名和启动类仍使用完整服务名。
 `bootstrap` 模块的可执行 jar 仍固定为 `bootstrap.jar`，Dockerfile 和部署脚本无需感知前缀。启动类以服务名命名，
 例如 `demo-web` 生成 `DemoWebApplication`，对应测试为 `DemoWebApplicationTest`。
 
@@ -189,7 +191,7 @@ wuli3.ddd.types.infra-app-allowed-suffixes=QueryRepository,Query,DTO
 
 类型检查基于编译后字节码，不能识别反射字符串形成的动态依赖；声明检查不等同于完整传递依赖树扫描。
 
-模板版本为 2.2.0，模块目录带服务名前缀，包结构不兼容旧模板；Dubbo 发布位于 app.facade。仅生成新项目，不覆盖或自动迁移已有项目。
+模板版本为 2.3.0，模块目录使用独立模块前缀，包结构不兼容旧模板；Dubbo 发布位于 app.facade。仅生成新项目，不覆盖或自动迁移已有项目。
 使用时需要先发布包含 DDD 约定检查插件的 build-logic 版本，再通过 `--build-logic-version` 指定。
 
 ## Git 钩子

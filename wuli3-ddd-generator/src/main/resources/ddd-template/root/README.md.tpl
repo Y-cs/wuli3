@@ -6,7 +6,7 @@
 
 根工程统一应用 Java 约定插件：普通模块使用 `com.kjs.wuli3.java-conventions`，Spring 模块使用
 `com.kjs.wuli3.spring-conventions`，各模块先应用 `com.kjs.wuli3.ddd-conventions`。
-`{{service}}-bootstrap` 额外应用 Spring Boot 插件。Java 源码放在 `src/main/java`，测试放在 `src/test/java`。
+`{{modulePrefix}}-bootstrap` 额外应用 Spring Boot 插件。Java 源码放在 `src/main/java`，测试放在 `src/test/java`。
 
 ## 模块边界
 
@@ -18,14 +18,14 @@ RPC -> api.facade <- app.facade ────> app.service.<领域>
                                          └─ 外部业务能力 -> domain.gateway -> infra.acl
 ```
 
-- `{{service}}-api` 是内部 RPC 契约包，使用 Facade 和 DTO；`app.facade` 实现契约并委托 Service，通过 `@DubboService` 发布。
+- `{{modulePrefix}}-api` 是内部 RPC 契约包，使用 Facade 和 DTO；`app.facade` 实现契约并委托 Service，通过 `@DubboService` 发布。
 - `app.service` 按领域组织，按业务职责拆分；不强制为每个领域创建 Command/Query 两类 Service。
 - `adapter.api` 的 HTTP 类以 Api 结尾；`mq`、`job` 分别负责消费和任务入口，不承担完整业务编排。
 - 消息选项为 `{{messaging}}`；选择 RocketMQ 或 RabbitMQ 只引入对应 starter，不生成具体 Listener、拓扑或重试策略。
   消费入口应放在 `adapter.mq`，负责协议解析、幂等和上下文恢复，再委托 `app.service`。
-- `{{service}}-domain` 按领域组织聚合、规则和聚合仓储；查询仓储由 app 定义，返回查询投影，不强制还原聚合。
-- `{{service}}-infra` 实现仓储和 ACL，`infra.config` 拥有技术配置，`{{service}}-bootstrap` 负责组装与启动。
-- `{{service}}-shared-kernel` 保持纯净；插件检查生产依赖与类型依赖，不在项目中复制检查实现，也不静默删除违规依赖。
+- `{{modulePrefix}}-domain` 按领域组织聚合、规则和聚合仓储；查询仓储由 app 定义，返回查询投影，不强制还原聚合。
+- `{{modulePrefix}}-infra` 实现仓储和 ACL，`infra.config` 拥有技术配置，`{{modulePrefix}}-bootstrap` 负责组装与启动。
+- `{{modulePrefix}}-shared-kernel` 保持纯净；插件检查生产依赖与类型依赖，不在项目中复制检查实现，也不静默删除违规依赖。
 - 所有约定包均提供中文 `package-info.java`；空的 MQ、Job、ACL 包也保留职责与依赖约束。
 
 不因分层复制 Request/Response/Command/Result。契约同义时可复用 DTO，只有格式、安全、业务语义或独立演进确有差异时才转换。聚合和持久化实体不作为传播对象。
@@ -57,7 +57,7 @@ docker run --rm \
 
 ```bash
 ./gradlew check
-./gradlew :{{service}}-bootstrap:bootRun
+./gradlew :{{modulePrefix}}-bootstrap:bootRun
 ```
 
 DDD 约定插件检查七模块依赖方向、共享内核纯净性、domain 禁止 Spring、app 查询仓储接口及 infra 的应用类型后缀。
