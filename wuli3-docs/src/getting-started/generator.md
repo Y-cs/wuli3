@@ -30,7 +30,7 @@ description: 生成器参数、七模块职责和架构门禁的最小说明。
 - `domain`：聚合、规则、仓储契约，不依赖 Spring。
 - `api`：内部调用契约和传播 DTO。
 - `app`：完整业务用例、查询契约和 Facade 实现。
-- `infra`：仓储、外部 ACL 和技术配置。
+- `infra`：Repository、Gateway 实现和技术配置。
 - `adapter`：HTTP、消息消费和任务入口。
 - `bootstrap`：启动、最终装配和部署配置。
 
@@ -40,7 +40,7 @@ description: 生成器参数、七模块职责和架构门禁的最小说明。
 
 ## 架构门禁能证明什么
 
-`verifyDddDependencies` 和 `verifyDddTypes` 会检查依赖方向、domain 的 Spring 禁令、infra 引用 app 的后缀白名单、共享内核依赖和查询仓储接口。它们不能证明业务规则完整、SQL 一定只读或外部协议已经可靠。
+`verifyModuleDependencies` 和 `verifyTypeBoundaries` 会检查依赖方向、domain 的 Spring 禁令、infra 引用 app 的后缀白名单、共享内核依赖和查询仓储接口。它们不能证明业务规则完整、SQL 一定只读或外部协议已经可靠。
 
 需要更严格地检查事务位置时开启 `wuli3.ddd.transaction-review.enabled=true`。这仍是静态位置检查，传播行为、回滚策略和代理自调用要靠测试验证。
 

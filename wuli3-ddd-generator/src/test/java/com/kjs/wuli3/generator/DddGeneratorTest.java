@@ -138,7 +138,7 @@ final class DddGeneratorTest {
         assertThat(Files.readString(root.resolve("build.gradle.kts")))
                 .contains(
                         "java-conventions\") version \"4.5.6\"",
-                        "com.kjs.wuli3.spring-conventions",
+                        "com.kjs.wuli3.java-spring-conventions",
                         "com.kjs.wuli3.java-conventions",
                         "core.hooksPath",
                         "\".githooks\"")
@@ -265,14 +265,14 @@ final class DddGeneratorTest {
         assertThat(Files.readString(root.resolve("catalog-infra/build.gradle.kts")))
                 .contains("wuli3-mysql-spring-boot-starter", "wuli3-rocketmq-spring-boot-starter");
         assertThat(Files.readString(root.resolve("README.md"))).contains("消息选项为 `rocketmq`", "不生成具体 Listener");
-        assertThat(root.resolve("catalog-infra/src/main/java/com/example/catalog/infra/persistence/product_catalog/"
+        assertThat(root.resolve("catalog-infra/src/main/java/com/example/catalog/infra/persistence/productcatalog/"
                         + "mapper/ProductCatalogMapper.java"))
                 .exists();
         assertThat(root.resolve(
-                        "catalog-domain/src/main/java/com/example/catalog/domain/product_catalog/ProductCatalog.java"))
+                        "catalog-domain/src/main/java/com/example/catalog/domain/productcatalog/ProductCatalog.java"))
                 .exists();
-        assertThat(Files.readString(root.resolve(
-                        "catalog-infra/src/main/java/com/example/catalog/infra/persistence/product_catalog/"
+        assertThat(Files.readString(
+                        root.resolve("catalog-infra/src/main/java/com/example/catalog/infra/persistence/productcatalog/"
                                 + "ProductCatalogRepositoryImpl.java")))
                 .contains(
                         "public class ProductCatalogRepositoryImpl",
@@ -285,21 +285,36 @@ final class DddGeneratorTest {
                         "@MapperScan(basePackages = \"com.example.catalog.infra.persistence.**\"",
                         "@Configuration(proxyBeanMethods = false)",
                         "PaginationInnerInterceptor");
-        assertThat(Files.readString(root.resolve(
-                        "catalog-infra/src/main/java/com/example/catalog/infra/persistence/product_catalog/"
+        assertThat(Files.readString(
+                        root.resolve("catalog-infra/src/main/java/com/example/catalog/infra/persistence/productcatalog/"
                                 + "ProductCatalogQueryRepositoryImpl.java")))
                 .contains(
                         "implements ProductCatalogQueryRepository",
                         "this.mapper.selectById",
                         "PaginationHelper.toPageResult")
-                .doesNotContain("domain.product_catalog", "ProductCatalogRepository");
+                .doesNotContain("domain.productcatalog", "ProductCatalogRepository");
+        assertThat(Files.readString(
+                        root.resolve("catalog-infra/src/main/java/com/example/catalog/infra/persistence/productcatalog/"
+                                + "entity/ProductCatalogPo.java")))
+                .contains(
+                        "@TableName(\"`product_catalog`\")",
+                        "import com.example.catalog.domain.productcatalog.ProductCatalog;");
+        try (final var paths = Files.walk(root)) {
+            for (final Path path :
+                    paths.filter(file -> file.toString().endsWith(".java")).toList()) {
+                assertThat(Files.readString(path)).doesNotContain(".product_catalog");
+            }
+        }
+        assertThat(Files.readString(root.resolve(
+                        "catalog-domain/src/main/java/com/example/catalog/domain/productcatalog/package-info.java")))
+                .contains("package com.example.catalog.domain.productcatalog;");
         assertThat(Files.readString(root.resolve("catalog-bootstrap/src/main/resources/application.yml")))
                 .contains("name: catalog-service", "service-code: catalog-service", "${SERVER_PORT:8080}")
                 .doesNotContain("generator:", "messaging:");
         assertThat(Files.readString(root.resolve(
                         "catalog-bootstrap/src/test/java/com/example/catalog/CatalogServiceApplicationTest.java")))
                 .contains(
-                        "import com.example.catalog.infra.persistence.product_catalog.mapper.ProductCatalogMapper;",
+                        "import com.example.catalog.infra.persistence.productcatalog.mapper.ProductCatalogMapper;",
                         "@MockitoBean(types = ProductCatalogMapper.class)",
                         "application.persistence.enabled=false",
                         "@ImportAutoConfiguration(",
@@ -331,6 +346,8 @@ final class DddGeneratorTest {
         final Path root = this.output.resolve("order-service");
         assertThat(root.resolve("order-app/src/main/java/com/example/order/app/acl"))
                 .doesNotExist();
+        assertThat(root.resolve("order-infra/src/main/java/com/example/order/infra/acl"))
+                .doesNotExist();
         for (final String packagePath : List.of(
                 "api/facade",
                 "api/dto/order",
@@ -343,7 +360,7 @@ final class DddGeneratorTest {
                 "adapter/job",
                 "domain/order",
                 "infra/config",
-                "infra/acl",
+                "infra/gateway",
                 "infra/persistence/order",
                 "sharedkernel")) {
             final int separator = packagePath.indexOf('/');
@@ -355,6 +372,23 @@ final class DddGeneratorTest {
             assertThat(Files.readString(description))
                     .contains("/**", "@author", "package com.example.order." + packagePath.replace('/', '.') + ";")
                     .doesNotContain("{{");
+        }
+        assertThat(Files.readString(
+                        root.resolve("order-domain/src/main/java/com/example/order/domain/gateway/package-info.java")))
+                .contains("XxxGateway", "服务间调用", "外部系统");
+        assertThat(Files.readString(
+                        root.resolve("order-infra/src/main/java/com/example/order/infra/gateway/package-info.java")))
+                .contains("XxxGatewayImpl", "domain.gateway", "模型", "错误");
+        for (final String document : List.of("README.md", "AGENTS.md")) {
+            assertThat(Files.readString(root.resolve(document)))
+                    .contains(
+                            "domain.gateway",
+                            "infra.gateway",
+                            "XxxGateway",
+                            "XxxGatewayImpl",
+                            "XxxRepository",
+                            "XxxQueryRepository")
+                    .doesNotContain("infra.acl");
         }
         assertThat(root.resolve("order-app/src/main/java/com/example/order/app/port"))
                 .doesNotExist();
@@ -408,6 +442,10 @@ final class DddGeneratorTest {
     @ParameterizedTest
     @CsvSource({
         "com.example.class, order",
+        "com.example_product, order",
+        "com_example.order, order",
+        "com2.example, order",
+        "com.example.order, cl-ass",
         "class.example, order",
         "com.true.example, order",
         "com.example.null, order",

@@ -18,11 +18,12 @@ domain 不依赖 Spring；app 不依赖 infra；adapter 不绕过 app 直接依�
 
 | 问题 | 契约放在哪里 | 实现放在哪里 |
 | --- | --- | --- |
-| 列表、详情、统计、分页 | app 的 QueryRepository | infra 查询实现 |
-| 聚合修改与保存 | domain 的 Repository | infra 仓储实现 |
-| 访问外部业务系统 | domain.gateway | infra.acl |
+| 列表、详情、统计、分页 | app 的 XxxQueryRepository | infra.persistence |
+| 聚合修改与保存 | domain 的 XxxRepository | infra.persistence |
+| 服务间调用、外部系统调用 | domain.gateway.XxxGateway | infra.gateway.XxxGatewayImpl |
 
-查询仓储可以联表和投影，但不能借查询名义绕过权限或修改聚合。Gateway 使用本地业务语言，远端 DTO、状态和错误在 ACL 内转换。
+查询仓储可以联表和投影，但不能借查询名义绕过权限或修改聚合。持久层访问使用 Repository / QueryRepository，外部访问（含跨系统查询）统一通过 Gateway。
+ACL（防腐层）是设计概念，不作为代码包名或类名；Gateway 使用本地业务语言，远端 DTO、状态和错误在 Gateway 实现中转换。
 
 ## 什么时候需要独立对象
 

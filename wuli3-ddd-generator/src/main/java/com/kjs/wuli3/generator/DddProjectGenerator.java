@@ -252,7 +252,8 @@ final class DddProjectGenerator {
         result.put("basePackage", options.basePackage());
         result.put("packagePath", options.basePackage().replace('.', '/'));
         result.put("domain", options.domain());
-        result.put("domainPackage", options.domain().replace('-', '_'));
+        result.put("domainPackage", options.domainPackage());
+        result.put("domainTable", options.domain().replace('-', '_'));
         result.put("domainType", options.domainType());
         result.put("persistence", options.persistence());
         result.put("messaging", options.messaging());
@@ -363,8 +364,7 @@ final class DddProjectGenerator {
         if (!options.persistence().equals("mysql")) {
             return "";
         }
-        final String prefix =
-                options.basePackage() + ".infra.persistence." + options.domain().replace('-', '_');
+        final String prefix = options.basePackage() + ".infra.persistence." + options.domainPackage();
         return "import " + prefix + ".entity." + options.domainType() + "Po;\n" + "import " + prefix + ".mapper."
                 + options.domainType() + "Mapper;\n";
     }
@@ -442,8 +442,8 @@ final class DddProjectGenerator {
         }
         return String.join(
                 "\n",
-                "import " + options.basePackage() + ".infra.persistence."
-                        + options.domain().replace('-', '_') + ".mapper." + options.domainType() + "Mapper;",
+                "import " + options.basePackage() + ".infra.persistence." + options.domainPackage() + ".mapper."
+                        + options.domainType() + "Mapper;",
                 "import org.junit.jupiter.api.Test;",
                 "import org.springframework.boot.autoconfigure.ImportAutoConfiguration;",
                 "import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;",
@@ -493,14 +493,18 @@ final class DddProjectGenerator {
                         : "内部 Facade 实现；委托核心 Service，不承担业务编排。");
         packages.put("app.service", "业务用例服务；按业务领域分包，按内聚职责拆类，不强制按调用方或读写拆分。");
         packages.put("app.repository", "应用查询仓储契约；只定义单条与分页查询投影能力，聚合加载与保存契约归 domain。");
-        packages.put("domain.gateway", "外部业务能力的本地契约；由 infra 实现，使用本地模型，禁止泄漏外部 API、SDK、RPC DTO 和协议类型。");
+        packages.put(
+                "domain.gateway",
+                "服务间调用与外部系统访问的本地契约；接口命名为 XxxGateway，由 infra.gateway 实现，使用本地模型，禁止泄漏外部 API、SDK、RPC DTO 和协议类型。");
         packages.put("domain", "领域模型；按业务概念和聚合组织，领域规则不依赖应用层或基础设施。");
-        packages.put("infra", "基础设施实现；实现领域仓储、查询仓储与 ACL，不反向依赖应用 Service 或 Facade。");
+        packages.put("infra", "基础设施实现；持久化访问实现 Repository 与 QueryRepository，外部访问实现 Gateway，不反向依赖应用 Service 或 Facade。");
         packages.put("infra.config", "基础设施技术配置；显式限定扫描范围，运行凭据通过外部环境提供。");
-        packages.put("infra.persistence", "持久化实现；分别实现查询投影与聚合仓储，按业务领域组织。");
-        packages.put("infra.acl", "外部能力防腐实现；转换外部模型、状态和错误，仅此层引入外部服务 API，实现 domain.gateway 的本地能力契约。");
+        packages.put("infra.persistence", "持久化实现；以 XxxRepositoryImpl 与 XxxQueryRepositoryImpl 分别实现聚合仓储与查询仓储，按业务领域组织。");
+        packages.put(
+                "infra.gateway",
+                "服务间调用与外部系统访问的防腐实现；以 XxxGatewayImpl 实现 domain.gateway 的本地契约，转换外部模型、状态和错误，仅此层引入外部服务 API。");
         packages.put("sharedkernel", "稳定共享类型与约定；保持无框架依赖，由构建插件检查纯净边界。");
-        final String domain = options.domain().replace('-', '_');
+        final String domain = options.domainPackage();
         for (final String parent : List.of(
                 "api.dto",
                 "adapter.api",

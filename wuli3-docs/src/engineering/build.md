@@ -24,7 +24,7 @@ check 包含编译、JUnit、Checkstyle、Spotless、Forbidden APIs、Error Pron
 发布顺序建议：
 
 1. clean check。
-2. verifyBomConsumers 和 apiCompatibilityCheck。
+2. verifyBomConsumers。
 3. 需要真实设施时执行独立集成测试。
 4. 通过后才发布正式制品。
 

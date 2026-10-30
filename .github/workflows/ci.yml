@@ -38,9 +38,9 @@ jobs:
 
       # build 串联编译、单元测试、Checkstyle、Spotless、SpotBugs、Forbidden APIs、
       # Error Prone/NullAway、JaCoCo 覆盖率校验、javadoc(-Werror) 和打包；
-      # :build-logic:test 运行约定插件自身的测试。
+      # :wuli3-build-logic:test 运行约定插件自身的测试。
       - name: Run build and quality gates
-        run: ./gradlew --no-daemon clean build :build-logic:test --continue
+        run: ./gradlew --no-daemon clean build :wuli3-build-logic:test --continue
 
       - name: Upload reports
         if: failure()

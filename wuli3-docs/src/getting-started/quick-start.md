@@ -20,7 +20,7 @@ Wuli3 当前版本是 `1.0.0`。它可能只存在于本地或团队仓库，不
 首次从本仓库体验时，在 **Wuli3 仓库根目录**执行：
 
 ```bash
-./gradlew publishToMavenLocal :build-logic:publishToMavenLocal
+./gradlew publishToMavenLocal :wuli3-build-logic:publishToMavenLocal
 ```
 
 它将库、BOM、生成器和约定插件发布到本机 Maven 仓库。生成工程默认包含 `mavenLocal()`，可以解析本机制品。只发布 BOM 无法补齐 starter 和插件；首次下载依赖可能超过几分钟。
@@ -86,7 +86,7 @@ curl -i -X DELETE http://localhost:8080/api/order/order-1
 | 现象 | 检查方向 |
 | --- | --- |
 | JBang 找不到生成器 | 是否完成本地发布、是否带 `--repos mavenlocal` |
-| Gradle 找不到插件 | build-logic 实现和 plugin marker 是否发布、插件仓库是否配置 |
+| Gradle 找不到插件 | wuli3-build-logic 实现和 plugin marker 是否发布、插件仓库是否配置 |
 | BOM 可解析但 starter 不可解析 | 是否仅发布了 BOM、库版本是否一致 |
 | bootRun 找不到模块 | 模块名是否包含 `demo-order-` 前缀 |
 | 保存请求绑定失败 | `id` 必须是含 `value` 的对象，状态使用 `ACTIVE` 或 `INACTIVE` |

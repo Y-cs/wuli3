@@ -45,14 +45,14 @@ jobs:
         run: |
           expected="${TAG#v}"
           main_version=$(./gradlew -q :properties | sed -n 's/^version: //p' | head -1)
-          build_logic_version=$(./gradlew -q :build-logic:properties | sed -n 's/^version: //p' | head -1)
+          build_logic_version=$(./gradlew -q :wuli3-build-logic:properties | sed -n 's/^version: //p' | head -1)
           status=0
           if [ "$main_version" != "$expected" ]; then
             echo "::error::tag 是 $TAG，但 gradle.properties 的 wuli3.version 是 $main_version"
             status=1
           fi
           if [ "$build_logic_version" != "$expected" ]; then
-            echo "::error::tag 是 $TAG，但 build-logic 解析出的版本是 $build_logic_version"
+            echo "::error::tag 是 $TAG，但 wuli3-build-logic 解析出的版本是 $build_logic_version"
             status=1
           fi
           exit $status
@@ -82,6 +82,6 @@ jobs:
           CENTRAL_MAVEN_USERNAME: ${{ secrets.CENTRAL_MAVEN_USERNAME }}
           CENTRAL_MAVEN_PASSWORD: ${{ secrets.CENTRAL_MAVEN_PASSWORD }}
         run: |
-          ./gradlew --no-daemon check :build-logic:test \
-            :build-logic:publishAllPublicationsToCentralRepository \
+          ./gradlew --no-daemon check :wuli3-build-logic:test \
+            :wuli3-build-logic:publishAllPublicationsToCentralRepository \
             publishAllPublicationsToCentralRepository

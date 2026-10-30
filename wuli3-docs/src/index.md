@@ -44,7 +44,7 @@ features:
 
 ## 一条业务链路
 
-<FlowDiagram title="一次业务操作经过的边界" :steps="[{ title: '可信入口', detail: 'HTTP、RPC、消息和任务提供可信身份与协议输入。' }, { title: '应用用例', detail: '完成归属校验、事务与幂等，组织完整业务操作。' }, { title: '领域规则', detail: '由聚合和值对象保护业务不变量。' }, { title: '出站端口', detail: '经仓储、ACL 和事件连接数据库与外部服务。' }]" />
+<FlowDiagram title="一次业务操作经过的边界" :steps="[{ title: '可信入口', detail: 'HTTP、RPC、消息和任务提供可信身份与协议输入。' }, { title: '应用用例', detail: '完成归属校验、事务与幂等，组织完整业务操作。' }, { title: '领域规则', detail: '由聚合和值对象保护业务不变量。' }, { title: '出站端口', detail: '经Repository、Gateway 和事件连接数据库与外部服务。' }]" />
 
 Wuli3 提供稳定的机制和扩展契约，但不会替应用选择认证系统、租户隔离、表结构、消息拓扑或部署网络。文档把这些责任写在相应边界旁，避免把“有接口”误认为“已经接通”。
 
