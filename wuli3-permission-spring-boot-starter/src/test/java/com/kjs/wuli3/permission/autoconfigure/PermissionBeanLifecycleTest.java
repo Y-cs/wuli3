@@ -16,6 +16,7 @@ import com.kjs.wuli3.propagation.internal.AuthContext;
 import com.kjs.wuli3.propagation.internal.PrincipalType;
 import com.kjs.wuli3.propagation.store.ContextReader;
 import com.kjs.wuli3.propagation.store.ThreadLocalContextBackend;
+import com.kjs.wuli3.spring.autoconfigure.CoreSpringBootAutoConfiguration;
 import java.util.List;
 import java.util.Map;
 import org.jspecify.annotations.Nullable;
@@ -89,7 +90,9 @@ class PermissionBeanLifecycleTest {
     @Test
     void disablingEnforcementOnlyKeepsResourceDirectory() {
         new ApplicationContextRunner()
-                .withConfiguration(AutoConfigurations.of(PermissionAutoConfiguration.class))
+                .withConfiguration(
+                        AutoConfigurations.of(CoreSpringBootAutoConfiguration.class, PermissionAutoConfiguration.class))
+                .withPropertyValues("spring.application.name=order-service")
                 .withPropertyValues(
                         "wuli3.permission.enforcement-enabled=false",
                         "wuli3.permission.base-packages[0]=com.kjs.wuli3.permission.lifecyclefixture")
@@ -101,7 +104,7 @@ class PermissionBeanLifecycleTest {
                             .doesNotHaveBean("permissionAdvisor")
                             .doesNotHaveBean("permissionBeanValidator");
                     assertThat(context.getBean(LocalPermissionStore.class).requirement())
-                            .containsExactlyEntriesOf(Map.of("LIFECYCLE", 8L));
+                            .containsExactlyEntriesOf(Map.of("order-service:LIFECYCLE", 8L));
                 });
     }
 
@@ -112,7 +115,9 @@ class PermissionBeanLifecycleTest {
 
     private ApplicationContextRunner runner() {
         return new ApplicationContextRunner()
-                .withConfiguration(AutoConfigurations.of(PermissionAutoConfiguration.class))
+                .withConfiguration(
+                        AutoConfigurations.of(CoreSpringBootAutoConfiguration.class, PermissionAutoConfiguration.class))
+                .withPropertyValues("spring.application.name=order-service")
                 .withBean(LocalPermissionStore.class, () -> new LocalPermissionStore(List.of(ResourcePermission.class)))
                 .withBean(ContextReader.class, () -> this.backend)
                 .withBean(

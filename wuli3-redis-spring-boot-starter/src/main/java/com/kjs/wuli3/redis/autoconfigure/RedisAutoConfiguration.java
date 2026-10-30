@@ -6,6 +6,8 @@ import com.kjs.wuli3.redis.codec.JsonRedisCodec;
 import com.kjs.wuli3.redis.codec.RedisCodec;
 import com.kjs.wuli3.redis.lock.RedisLockExecutor;
 import com.kjs.wuli3.redis.lock.RedissonRedisLockExecutor;
+import com.kjs.wuli3.spring.autoconfigure.ApplicationServiceProperties;
+import com.kjs.wuli3.spring.autoconfigure.CoreSpringBootAutoConfiguration;
 import org.redisson.api.RedissonClient;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
@@ -13,9 +15,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
-import org.springframework.core.env.Environment;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
-import org.springframework.util.StringUtils;
 
 /**
  * 基于应用持有的 Redis 连接配置类型安全的结构化值操作和分布式锁，默认使用 JSON Codec。
@@ -23,6 +23,7 @@ import org.springframework.util.StringUtils;
  * @author GuoYang create on 2026/8/17 11:53
  */
 @AutoConfiguration(
+        after = CoreSpringBootAutoConfiguration.class,
         afterName = {
             "org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration",
             "org.redisson.spring.starter.RedissonAutoConfigurationV2"
@@ -53,8 +54,14 @@ public class RedisAutoConfiguration {
             havingValue = "true",
             matchIfMissing = true)
     RedisSupport redisSupport(
-            final RedisConnectionFactory connectionFactory, final RedisCodec codec, final Environment environment) {
-        return new RedisSupport(connectionFactory, codec, RedisAutoConfiguration.keyPrefix(environment));
+            final RedisConnectionFactory connectionFactory,
+            final RedisCodec codec,
+            final ApplicationServiceProperties serviceProperties) {
+        if (serviceProperties.getServiceCode().isBlank()) {
+            throw new IllegalStateException(
+                    "RedisSupport 要求配置 application.service.service-code 或 spring.application.name 作为 Redis key 前缀");
+        }
+        return new RedisSupport(connectionFactory, codec, RedisKeyPrefix.of(serviceProperties.getServiceCode()));
     }
 
     /** 创建默认 Redisson 锁执行器，但不接管 RedissonClient 的生命周期。 */
@@ -64,17 +71,5 @@ public class RedisAutoConfiguration {
     @ConditionalOnProperty(prefix = "wuli3.redis.lock", name = "enabled", havingValue = "true", matchIfMissing = true)
     RedisLockExecutor redisLockExecutor(final RedissonClient redissonClient) {
         return new RedissonRedisLockExecutor(redissonClient);
-    }
-
-    /**
-     * 解析服务级 key 前缀，只接受 spring.application.name。
-     * 注意：缺失时直接启动失败，避免未加前缀的 key 写入共用 Redis 实例。
-     */
-    private static RedisKeyPrefix keyPrefix(final Environment environment) {
-        final String applicationName = environment.getProperty("spring.application.name");
-        if (!StringUtils.hasText(applicationName)) {
-            throw new IllegalStateException("RedisSupport 要求配置 spring.application.name 作为 Redis key 前缀");
-        }
-        return RedisKeyPrefix.of(applicationName);
     }
 }

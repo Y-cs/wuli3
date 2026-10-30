@@ -14,6 +14,7 @@ import com.kjs.wuli3.redis.operation.HashRedisOperations;
 import com.kjs.wuli3.redis.operation.ObjectRedisOperations;
 import com.kjs.wuli3.redis.operation.SetRedisOperations;
 import com.kjs.wuli3.redis.operation.StringRedisOperations;
+import com.kjs.wuli3.spring.autoconfigure.CoreSpringBootAutoConfiguration;
 import java.nio.charset.StandardCharsets;
 import java.util.Objects;
 import org.junit.jupiter.api.Test;
@@ -29,7 +30,8 @@ import org.springframework.data.redis.serializer.StringRedisSerializer;
 class RedisAutoConfigurationTest {
 
     private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
-            .withConfiguration(AutoConfigurations.of(RedisAutoConfiguration.class))
+            .withConfiguration(
+                    AutoConfigurations.of(CoreSpringBootAutoConfiguration.class, RedisAutoConfiguration.class))
             .withPropertyValues("spring.application.name=order-service");
 
     @Test
@@ -142,9 +144,39 @@ class RedisAutoConfigurationTest {
     }
 
     @Test
+    void serviceCodeOverridesApplicationNameAndWorksWithoutIt() {
+        for (final String applicationName : new String[] {"order-service", ""}) {
+            this.contextRunner
+                    .withPropertyValues(
+                            "application.service.service-code=shared-service",
+                            "spring.application.name=" + applicationName)
+                    .withBean(RedisConnectionFactory.class, () -> mock(RedisConnectionFactory.class))
+                    .run(context -> {
+                        assertThat(context).hasNotFailed();
+                        assertThat(RedisAutoConfigurationTest.keySerializer(context.getBean(RedisSupport.class)
+                                                .redisTemplate())
+                                        .serialize("orders:1"))
+                                .isEqualTo("shared-service:orders:1".getBytes(StandardCharsets.UTF_8));
+                    });
+        }
+    }
+
+    @Test
+    void blankServiceCodeUsesApplicationNameForKeys() {
+        this.contextRunner
+                .withPropertyValues("application.service.service-code=   ")
+                .withBean(RedisConnectionFactory.class, () -> mock(RedisConnectionFactory.class))
+                .run(context -> assertThat(RedisAutoConfigurationTest.keySerializer(
+                                        context.getBean(RedisSupport.class).redisTemplate())
+                                .serialize("orders:1"))
+                        .isEqualTo("order-service:orders:1".getBytes(StandardCharsets.UTF_8)));
+    }
+
+    @Test
     void failsWithoutAnApplicationName() {
         new ApplicationContextRunner()
-                .withConfiguration(AutoConfigurations.of(RedisAutoConfiguration.class))
+                .withConfiguration(
+                        AutoConfigurations.of(CoreSpringBootAutoConfiguration.class, RedisAutoConfiguration.class))
                 .withBean(RedisConnectionFactory.class, () -> mock(RedisConnectionFactory.class))
                 .run(context ->
                         assertThat(context).hasFailed().getFailure().hasMessageContaining("spring.application.name"));

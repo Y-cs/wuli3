@@ -98,6 +98,12 @@ PrincipalPermissionLoader principalPermissionLoader(final UserPermissionClient c
 }
 ```
 
+默认 Spring 目录使用 `application.service.service-code` 作为服务标识，未配置或为空白时回退到 `spring.application.name`；两者均为空时启动失败。该标识由 `wuli3-core-spring-boot-starter` 的 `com.kjs.wuli3.spring.autoconfigure.ApplicationServiceProperties` 统一绑定，也供 Web 错误码及 Redis 前缀使用。
+
+例如服务标识为 `order-service` 时，`resources()`、`requirement()` 和最终 `PermissionKey.resourceCode()` 都使用 `order-service:ORDER`。`@PermissionResource("ORDER")`、`@Permission("ORDER:APPROVE")` 和枚举调用仍使用本地声明，不手动拼服务码。用户服务返回的授权 Map 必须使用相同的完整资源码；`ORDER` 或其他服务的同名资源不会匹配。直接构造 `PermissionKey` 时须提供完整资源码，推荐用 `PermissionResolver.resolve(store, enumConstant)` 从目录取得。
+
+升级需迁移既有权限目录与授权数据的资源码。自定义目录应显式调用 `new LocalPermissionStore(serviceCode, resourceTypes)`；单参数构造保留纯 Java 的无前缀行为，Spring 不会重写应用提供的目录。
+
 `UserPermissionClient` 是业务接口。加载参数包含可信上下文的 `PermissionToken` 和 `LocalPermissionStore.requirement()`。
 应用接入层负责 Redis 查询、未命中回源用户服务、回填、TTL 和撤权失效；用户服务负责授权管理。
 缓存键必须区分服务、Token 和资源范围。空 Map 表示成功查询但无权限，不等同于缓存未命中。

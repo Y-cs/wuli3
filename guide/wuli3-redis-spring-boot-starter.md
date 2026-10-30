@@ -32,7 +32,7 @@ wuli3:
       enabled: true
 ```
 
-`spring.application.name` 是必填项，`RedisSupport` 用它作为 key 前缀，缺失时启动失败。
+`RedisSupport` 使用公共服务标识作为 key 前缀：优先取 `application.service.service-code`，未配置或为空白时取 `spring.application.name`，两者均为空时启动失败。标识最多 64 个字母、数字、点、下划线或连字符。
 
 数据结构操作和锁默认开启。存在 `RedisConnectionFactory` 时创建 `RedisSupport` Bean，存在 `RedissonClient` 时创建 `RedisLockExecutor` Bean。应用可以关闭功能，也可以声明同类型 Bean 替换默认实现。
 
@@ -58,11 +58,11 @@ RedisCodec redisCodec() {
 
 ## 服务级 key 前缀
 
-`RedisSupport` 读写的 key 全部带 `spring.application.name` 前缀，用于隔离共用同一 Redis 实例的多个服务，不可关闭。
+`RedisSupport` 读写的 key 全部带公共服务标识前缀，用于隔离共用同一 Redis 实例的多个服务，不可关闭。
 
 前缀由 Codec 的 key 序列化器携带：`JsonRedisCodec` 用 `RedisKeyPrefix.KeySerializer` 在字符串序列化器之上叠加前缀，只改写 key，不改变字节编码方式。
 
-- 前缀固定取 `spring.application.name`，末尾的 `:` 会自动补齐，因此 `RedisKey.persistent("orders:1")` 实际写入 `order-service:orders:1`。
+- 前缀优先取 `application.service.service-code`，为空白时取 `spring.application.name`，末尾的 `:` 会自动补齐，因此 `RedisKey.persistent("orders:1")` 实际写入 `order-service:orders:1`。
 - 只改写 key。Hash field、Set member 和写入的 value 不受影响。
 - 读取按库中完整 key 匹配，修改服务名后旧 key 不会被新前缀读到。
 - 覆盖范围：四组 operation、`delete`/`exists`/`expire`、以及用 `new RedisMinuteIdGenerator(redisSupport, namespace)` 构造的 ID 生成器，其 counter key 形如 `order-service:wuli3:id:{order}:<epochMinute>`。
@@ -70,13 +70,7 @@ RedisCodec redisCodec() {
 
 `RedisSupport` 只接受 `(RedisConnectionFactory, RedisCodec, RedisKeyPrefix)` 构造，前缀是必填参数，不存在不加前缀的构造方式。
 
-- 前缀固定取 `spring.application.name`，末尾的 `:` 会自动补齐，因此 `RedisKey.persistent("orders:1")` 实际写入 `order-service:orders:1`。
-- 只改写 key。Hash field、Set member 和写入的 value 不受影响。
-- 读取按库中完整 key 匹配，修改服务名后旧 key 不会被新前缀读到。
-- 覆盖范围：四组 operation、`delete`/`exists`/`expire`、以及用 `new RedisMinuteIdGenerator(redisSupport, namespace)` 构造的 ID 生成器，其 counter key 形如 `order-service:wuli3:id:{order}:<epochMinute>`。
-- 不覆盖：应用自行注入的 `StringRedisTemplate` 或 `RedisTemplate` 写的 key（它们各自保留原配置；`RedisSupport` 只是复用同一个 `RedisConnectionFactory` 并持有自己的模板）、`RedisLockExecutor` 的锁 key、Spring Cache（用 `spring.cache.redis.key-prefix`）和 Spring Session（用 `spring.session.redis.namespace`）。
-
-`RedisSupport` 只接受 `(RedisConnectionFactory, RedisCodec, RedisKeyPrefix)` 构造，前缀是必填参数，不存在不加前缀的构造方式。
+升级注意：此前前缀固定取应用名；若已配置不同的 service-code，升级后将使用新的前缀，旧 key 不会自动迁移。需要保留原数据路径时，将 service-code 与原应用名保持一致，或先迁移数据。
 
 ## 统一入口
 

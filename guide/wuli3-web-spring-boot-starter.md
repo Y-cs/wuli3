@@ -293,7 +293,7 @@ Web 层复用其生成的 `ErrorCodeCarrier`，仅输出 `code/message`；`origi
 SERVICE_CODE.ERROR_MODULE.ERROR_NAME
 ```
 
-`SERVICE_CODE` 来自 `application.service.service-code`，未配置时省略。
+`SERVICE_CODE` 来自公共 Spring 基础模块的 `ApplicationServiceProperties`：优先取 `application.service.service-code`，未配置或为空白时取 `spring.application.name`，两者均为空时省略。服务标识最多 64 个字母、数字、点、下划线或连字符；输出错误码时转为大写。升级后，仅配置应用名的服务也会自动带服务前缀，客户端需同步调整错误码匹配。
 
 Dubbo 等协议适配层接收到跨边界传播的错误时会抛出携带 `ErrorCodeCarrier` 的 `ErrorCodeException`。`ErrorCodeCarrier` 是 `ErrorCode` 的远程实现，携带原始错误码、**完整错误码和消息**、来源、责任、严重程度以及最终对外可见性，不需要在消费端伪造业务枚举。Web starter 会沿用现有 `ErrorCodeException` 链路：
 

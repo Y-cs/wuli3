@@ -42,7 +42,7 @@ public enum OrderErrors implements ErrorCode {
 }
 ```
 
-当 `application.service.service-code=demo-order` 时，`NOT_FOUND` 对外公开错误码为 `DEMO-ORDER.ORDER.NOT_FOUND`。模块和常量名参与协议，发布后重命名会影响客户端判断；客户端匹配 `code`，不要依赖中文 `message`。
+服务标识优先取 `application.service.service-code`，为空白时取 `spring.application.name`。当最终服务标识为 `demo-order` 时，`NOT_FOUND` 对外公开错误码为 `DEMO-ORDER.ORDER.NOT_FOUND`。模块和常量名参与协议，发布后重命名会影响客户端判断；客户端匹配 `code`，不要依赖中文 `message`。
 
 三个维度分别表达不同含义：
 
@@ -176,7 +176,7 @@ public enum OrderPermissions implements PermissionCode {
 }
 ```
 
-资源编码使用大写字母、数字、下划线；一个资源内动作位不可重复。`READ` 位图为 8，`ACTION_4` 为 16，`ACTION_5` 为 32；权限组合用按位或，例如只允许读取和查看联系方式为 `8 | 16 = 24`。不要使用枚举 `ordinal()` 持久化权限，也不要在升级时复用旧动作位表示新含义。
+注解中的资源编码使用大写字母、数字、下划线；Spring 导出的目录、加载请求与授权快照使用 `服务标识:资源码`，例如 `demo-order:ORDER`。服务标识与 Web 错误码、Redis 前缀共用同一配置，缺少服务标识时默认权限目录拒绝启动。一个资源内动作位不可重复。`READ` 位图为 8，`ACTION_4` 为 16，`ACTION_5` 为 32；权限组合用按位或，例如只允许读取和查看联系方式为 `8 | 16 = 24`。不要使用枚举 `ordinal()` 持久化权限，也不要在升级时复用旧动作位表示新含义。
 
 本例把权限定义放在 `app`，供应用用例和 adapter 共用；如其他服务也需要这份契约，再提取到双方可依赖的契约模块。不要让 `app` 反向依赖 `adapter`。
 
@@ -281,13 +281,15 @@ public class PermissionDemoApi {
 注入 `com.kjs.wuli3.permission.PermissionChecker` 后，下面可放入应用方法体；导入 `PermissionKey`、`ActionCode`、`java.util.List`：
 
 ```java
-final PermissionKey read = new PermissionKey("ORDER", ActionCode.READ);
-final PermissionKey cancel = new PermissionKey("ORDER", ActionCode.ACTION_5);
+final PermissionKey read = new PermissionKey("demo-order:ORDER", ActionCode.READ);
+final PermissionKey cancel = new PermissionKey("demo-order:ORDER", ActionCode.ACTION_5);
 this.permissionChecker.require(read);
 this.permissionChecker.requireAny(List.of(read, cancel));
 final boolean showContact = this.permissionChecker.has(
-        new PermissionKey("ORDER", ActionCode.ACTION_4));
+        new PermissionKey("demo-order:ORDER", ActionCode.ACTION_4));
 ```
+
+这里假设最终服务标识为 `demo-order`，直接构造 Key 必须与目录中的完整资源码一致。已知枚举时可调用 `PermissionResolver.resolve(store, OrderPermissions.READ)`，由目录补齐服务前缀。升级旧版本需同步迁移用户服务中的权限资源码及授权数据。
 
 三项是不同使用情境，不需要连续执行。`requireAll/requireAny` 各只加载一次快照，保证一次组合判断使用同一版本；多次独立调用 `has/require` 不保证共享快照。`has` 在缺少权限 Token 时返回 `false`，不触发加载；`require` 则抛 `UNAUTHORIZED`。Token 存在而授权不足时抛 `FORBIDDEN`。
 
