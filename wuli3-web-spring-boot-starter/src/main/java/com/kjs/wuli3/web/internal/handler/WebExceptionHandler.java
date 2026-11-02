@@ -89,7 +89,8 @@ public class WebExceptionHandler {
         if (this.responseProperties.isErrorHeaderPropagationEnabled()) {
             final ErrorCodeCarrier propagation = resolution.source() instanceof ErrorCodeException business
                     ? this.responseFactory.resolvePropagation(business)
-                    : this.responseFactory.resolvePropagation(resolution.code(), resolution.code().getMessage());
+                    : this.responseFactory.resolvePropagation(
+                            resolution.code(), resolution.code().getMessage());
             WebExceptionHandler.ERROR_PROPAGATOR.inject(propagation, headers::set);
         }
         if (NativeResponseSupport.isAll(request)) {
@@ -98,9 +99,7 @@ public class WebExceptionHandler {
                     .body(WebErrorResponseMapper.nativeError(resolution.status(), response)
                             .getBody());
         }
-        return ResponseEntity.status(resolution.status())
-                .headers(headers)
-                .body(response);
+        return ResponseEntity.status(resolution.status()).headers(headers).body(response);
     }
 
     /**

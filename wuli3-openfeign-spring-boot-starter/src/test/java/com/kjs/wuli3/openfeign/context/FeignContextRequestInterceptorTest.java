@@ -25,7 +25,7 @@ class FeignContextRequestInterceptorTest {
         final ThreadLocalContextBackend contextStore = new ThreadLocalContextBackend();
         final ContextState state = ContextState.of(
                 new InvocationContext("10.0.0.8", "request-42"),
-                new AuthContext(PrincipalType.CUSTOMER, "7", "alice", "permissions-v2"));
+                new AuthContext(PrincipalType.CUSTOMER, "7", "permissions-v2"));
         final FeignContextRequestInterceptor interceptor = new FeignContextRequestInterceptor(
                 contextStore, new ContextPropagator(ContextPropagator.standardContextEncoder()));
         final RequestTemplate template = new RequestTemplate();
@@ -33,7 +33,6 @@ class FeignContextRequestInterceptorTest {
         template.header(InvocationContext.ORIGIN_IP, "203.0.113.8");
         template.header(AuthContext.PRINCIPAL_TYPE, "ADMIN");
         template.header(AuthContext.PRINCIPAL_ID, "99");
-        template.header(AuthContext.PRINCIPAL_NAME, "mallory");
         template.header(AuthContext.PRINCIPAL_PERMISSION_TOKEN, "forged");
         template.header("x-wULi3-Future-Field", "forged");
 
@@ -43,7 +42,6 @@ class FeignContextRequestInterceptorTest {
         assertThat(template.headers().get(InvocationContext.ORIGIN_IP)).containsExactly("10.0.0.8");
         assertThat(template.headers().get(AuthContext.PRINCIPAL_TYPE)).containsExactly("CUSTOMER");
         assertThat(template.headers().get(AuthContext.PRINCIPAL_ID)).containsExactly("7");
-        assertThat(template.headers().get(AuthContext.PRINCIPAL_NAME)).containsExactly("alice");
         assertThat(template.headers().get(AuthContext.PRINCIPAL_PERMISSION_TOKEN))
                 .containsExactly("permissions-v2");
         assertThat(template.headers()).doesNotContainKey("x-wULi3-Future-Field");
@@ -60,7 +58,6 @@ class FeignContextRequestInterceptorTest {
         template.header(InvocationContext.ORIGIN_IP, "203.0.113.8");
         template.header(AuthContext.PRINCIPAL_TYPE, "ADMIN");
         template.header(AuthContext.PRINCIPAL_ID, "99");
-        template.header(AuthContext.PRINCIPAL_NAME, "mallory");
         template.header("x-wULi3-Future-Field", "forged");
 
         interceptor.apply(template);
@@ -70,7 +67,6 @@ class FeignContextRequestInterceptorTest {
                 .doesNotContainKey(InvocationContext.ORIGIN_IP)
                 .doesNotContainKey(AuthContext.PRINCIPAL_TYPE)
                 .doesNotContainKey(AuthContext.PRINCIPAL_ID)
-                .doesNotContainKey(AuthContext.PRINCIPAL_NAME)
                 .doesNotContainKey("x-wULi3-Future-Field");
     }
 }

@@ -42,7 +42,7 @@ wuli3:
 
 `FeignContextRequestInterceptor` 在每次 Feign 调用前读取当前 `ContextSnapshot`，写入标准上下文字段，并先删除调用方已有的保留字段，避免业务代码伪造 `X-Wuli3-*` 值。
 
-默认传播 `X-Wuli3-Request-Id`、`X-Wuli3-Origin-Ip`、`X-Wuli3-Principal-Type`、`X-Wuli3-Principal-Id`、`X-Wuli3-Principal-Name` 和 `X-Wuli3-Principal-Permission-Token`。需要缩小字段时，替换应用侧的 `ContextPropagator` Bean。
+默认传播 `X-Wuli3-Request-Id`、`X-Wuli3-Origin-Ip`、`X-Wuli3-Principal-Type`、`X-Wuli3-Principal-Id` 和 `X-Wuli3-Principal-Permission-Token`。需要缩小字段时，替换应用侧的 `ContextPropagator` Bean。
 
 提供方使用 `wuli3-web-spring-boot-starter` 时，`ContextFilter` 会从请求头恢复 `requestId` 和认证上下文，不需要额外配置。目标端必须属于可信内部服务。
 
