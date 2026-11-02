@@ -72,12 +72,12 @@ record GeneratorOptions(
             throw new IllegalArgumentException("module-prefix 必须是小写字母、数字和单个连字符组成的名称");
         }
         if (!domain.matches("[a-z][a-z0-9]*(?:-[a-z0-9]+)*")
-                || !SourceVersion.isName(domain.replace('-', '_'), SourceVersion.RELEASE_21)) {
+                || !SourceVersion.isName(GeneratorOptions.toDomainPackage(domain), SourceVersion.RELEASE_21)) {
             throw new IllegalArgumentException("domain 必须是小写字母、数字和单个连字符组成的名称，且转换后必须是合法 Java 包名");
         }
-        if (!basePackage.matches("[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)*")
+        if (!basePackage.matches("[a-z]+(\\.[a-z][a-z0-9]*)*")
                 || !SourceVersion.isName(basePackage, SourceVersion.RELEASE_21)) {
-            throw new IllegalArgumentException("package 必须是合法的小写 Java 包名");
+            throw new IllegalArgumentException("package 必须符合 Checkstyle 包名规则，首段仅含小写字母，后续各段以小写字母开头且仅含小写字母和数字");
         }
 
         final String persistence = values.getOrDefault("persistence", GeneratorOptions.DEFAULT_PERSISTENCE);
@@ -133,6 +133,15 @@ record GeneratorOptions(
             throw new IllegalArgumentException("sort-fields 必须是逗号分隔的数据库字段名");
         }
         return fields;
+    }
+
+    /** 领域包名沿用 Checkstyle 规则，移除服务命名中的连字符。 */
+    String domainPackage() {
+        return GeneratorOptions.toDomainPackage(this.domain);
+    }
+
+    private static String toDomainPackage(final String domain) {
+        return domain.replace("-", "");
     }
 
     static String toTypeName(final String value) {

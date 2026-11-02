@@ -13,7 +13,7 @@ import {{basePackage}}.sharedkernel.Status;
  * @param id 数据库主键
  * @author GuoYang create on 2026/9/7 15:30
  */
-@TableName("`{{domainPackage}}`")
+@TableName("`{{domainTable}}`")
 public record {{domainType}}Po(@TableId(type = IdType.INPUT) String id, Status status) {
     /** 转换为领域聚合。 */
     public {{domainType}} toDomain() {

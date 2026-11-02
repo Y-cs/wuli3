@@ -3,7 +3,7 @@
 本文适用于 `wuli3-ddd-generator` 2.1.0 生成的 Java 单体多模块工程，也作为后续业务开发的架构约定。
 目标是让领域规则保持独立、业务用例易于复用、读写职责明确，同时避免机械分层和重复对象转换。
 
-工程初始化见 [生成器使用指南](wuli3-ddd-generator.md)，构建约定见 [build-logic](build-logic.md)，完整目录示例见
+工程初始化见 [生成器使用指南](wuli3-ddd-generator.md)，构建约定见 [wuli3-build-logic](wuli3-build-logic.md)，完整目录示例见
 [order-service](../examples/order-service)。本文区分设计约定与插件已实现的检查，不能把通过构建等同于业务设计正确。
 
 ## 1. 模块职责与依赖方向
@@ -11,9 +11,9 @@
 | 模块 | 职责 | 允许依赖的业务模块 |
 | --- | --- | --- |
 | shared-kernel | 稳定共享标识、状态、值类型和约定 | 无 |
-| domain | 聚合、实体、值对象、领域规则、聚合仓储契约 | shared-kernel |
+| domain | 聚合、实体、值对象、领域规则、聚合仓储与外部 Gateway 契约 | shared-kernel |
 | api | 供内部调用方依赖的 RPC Facade 与传播 DTO | shared-kernel |
-| app | 完整业务用例、Facade 实现、查询仓储与 ACL 契约 | api、domain、shared-kernel |
+| app | 完整业务用例、Facade 实现、查询仓储契约 | api、domain、shared-kernel |
 | infra | 仓储实现、外部能力适配、基础设施配置 | app、domain、api、shared-kernel |
 | adapter | HTTP API、MQ 消费、Job 等入站协议适配 | app、api、domain、shared-kernel |
 | bootstrap | 启动、配置选择、最终组装 | 其余业务模块 |
@@ -21,7 +21,7 @@
 表中是当前门禁使用的可达依赖白名单：允许的依赖不代表每个模块都应全部声明。优先保留实现所需的最小依赖。
 禁止逆向依赖，例如 domain → app、app → infra、adapter → infra，以及 infra → adapter。
 
-调用方向与源码依赖方向不同：app 调用仓储或 ACL 接口，infra 实现接口，因此源码依赖仍然是 infra → app/domain。
+调用方向与源码依赖方向不同：app 调用 Repository、QueryRepository 或 Gateway 接口，infra 实现接口，因此源码依赖仍然是 infra → app/domain。
 
 ```text
 HTTP Api ──────────────┐
@@ -29,7 +29,7 @@ MQ Consumer ───────────┤
 Job ──────────────────┼──> app.service.<领域>
 RPC -> app.FacadeImpl ─┘          ├── 查询：app.QueryRepository ← infra 实现
         实现 api.Facade           ├── 写入：domain.Repository ← infra 实现
-                                └── 外部能力：domain.CustomerGateway ← infra 实现
+                                └── 外部能力：domain.gateway.CustomerGateway ← infra 实现
 ```
 
 ## 2. 目录与命名
@@ -61,7 +61,7 @@ domain
 
 infra
 ├── config/OrderPersistenceConfiguration
-├── acl/CustomerAclImpl
+├── gateway/CustomerGatewayImpl
 └── persistence/order
     ├── OrderRepositoryImpl
     ├── OrderQueryRepositoryImpl
@@ -72,7 +72,7 @@ infra
 以上是组织示例，不要求一次性创建所有类。生成器只提供初始领域的查询样例；聚合仓储当前示例只有加载方法，
 真实写用例需要按聚合语义补充保存契约与实现，不应把示例理解为完整订单系统。
 
-所有约定包都保留中文 `package-info.java`，即使暂时没有实现，例如 `adapter.mq`、`adapter.job`、`domain.gateway` 和 `infra.acl`。
+所有约定包都保留中文 `package-info.java`，即使暂时没有实现，例如 `adapter.mq`、`adapter.job`、`domain.gateway` 和 `infra.gateway`。
 包说明应包含职责、依赖边界、命名约束和禁止事项，并按仓库规范记录作者、创建时间。外部系统子包按实际需求增加。
 
 ## 3. Service 是完整用例的核心
@@ -152,10 +152,12 @@ Lombok 不作为运行时依赖引入；shared-kernel 不自动注入 SLF4J，�
 生成工程根目录包含与仓库模板一致的 `lombok.config`，设置 equals/hashCode、toString 的 callSuper 和链式访问器。
 使用 Lombok 仍需审查聚合身份、可变字段、继承和 equals/hashCode 语义，不能由注解代替领域设计。
 
-## 8. ACL 与基础设施配置
+## 8. Gateway 与基础设施配置
 
-domain.gateway 定义本应用需要的外部业务能力，使用本地业务语义；infra.acl 负责远程调用、模型、状态和错误转换。
-外部 SDK、远端 RPC DTO 不穿透为应用契约。跨系统查询也属于 ACL，与本地查询仓储不同。
+持久层访问使用 `XxxRepository` / `XxxQueryRepository`，实现放在 `infra.persistence`。
+外部访问（包括服务间调用、外部系统调用）统一通过 `domain.gateway.XxxGateway`，由 `infra.gateway.XxxGatewayImpl` 实现。
+ACL（防腐层）是设计概念，不作为代码中的包名或类名；Gateway 使用本地业务语义，实现负责远程调用、模型、状态和错误转换。
+外部 SDK、远端 RPC DTO 不穿透为应用契约。跨系统查询也通过 Gateway，不归入本地查询仓储。
 
 外部服务的 API 制品只在 `infra` 声明依赖和引用类型；不要通过 `api` 依赖导出给 app。
 app Service 调用 `domain.gateway` 本地接口，infra 实现接口并将远端 DTO 转为本地结果或值对象；
@@ -172,7 +174,8 @@ wuli3.ddd.external-api.packages=com.example.customer.api
 
 坐标检查直接生产依赖声明，包检查字节码引用。未登记的外部制品不会被自动识别；
 bootstrap 可通过 infra 的传递依赖完成运行时组装，但不得直接声明或引用已登记的外部 API。
-旧项目将 `app.acl` 接口迁移到 `domain.gateway`，同步迁移本地模型并调整 app/infra 导入。
+旧项目将 `app.acl` 接口迁移到 `domain.gateway`，命名为 `XxxGateway`；将 `infra.acl` 实现迁移到
+`infra.gateway`，原 `XxxAcl` / `XxxAclImpl` 实现改名为 `XxxGatewayImpl`。同步迁移本地模型并调整 app/infra 导入。
 
 MQ 消费属于 adapter.mq；业务执行过程中的消息发送属于出站基础设施能力。RPC FacadeImpl 在 app，Dubbo 选项下由 `@DubboService` 直接发布。
 
@@ -194,12 +197,12 @@ wuli3.ddd.transaction-review.allowed-infrastructure-type-suffixes=RepositoryImpl
 wuli3.ddd.types.infra-app-allowed-suffixes=QueryRepository,Query,DTO
 ```
 
-`verifyDddTransactions` 默认关闭；开启后，仅允许以下位置直接声明 Spring `@Transactional`，类和方法均适用：
+`verifyTransactionBoundaries` 默认关闭；开启后，仅允许以下位置直接声明 Spring `@Transactional`，类和方法均适用：
 
 1. `<基础包>.app.service` 及其子包。
 2. `<基础包>.infra.persistence` 及其子包中，以 `RepositoryImpl` 结尾的类，包括 `OrderQueryRepositoryImpl`。
 
-Api、FacadeImpl、Job、Mapper、infra.config、infra.acl 不在事务白名单中。即使类名叫 RepositoryImpl，位于 config/acl 包也不允许。
+Api、FacadeImpl、Job、Mapper、infra.config、infra.gateway 不在事务白名单中。即使类名叫 RepositoryImpl，位于 config/gateway 包也不允许。
 不强制所有 Service 开启事务；查询是否需要只读事务根据一致性要求决定。
 
 该审查仅检查直接注解位置，不推断组合注解、继承事务、编程式事务、传播行为、回滚规则、跨服务一致性或 Spring 自调用代理问题。
@@ -212,19 +215,25 @@ Api、FacadeImpl、Job、Mapper、infra.config、infra.acl 不在事务白名单
 ## 10. 构建门禁及检查边界
 
 插件 ID 为 `com.kjs.wuli3.ddd-conventions`，在标准七模块中先于 Java/Spring 约定应用，不替代语言构建插件。
-生成项目已配置接线；业务工程不复制架构检查代码。
+生成项目已配置接线；业务工程不复制架构检查代码。三个校验任务按检查职责命名，统一归入 `verification` 分组，
+由 `check` 调用；插件 ID 与 `wuli3.ddd.*` 配置前缀保持原名。
 
 | 任务 | 自动检查内容 |
 | --- | --- |
-| verifyDddDependencies | 生产依赖声明方向、domain Spring 禁令、shared-kernel 依赖白名单 |
-| verifyDddTypes | 字节码依赖方向、domain Spring 禁令、infra 后缀与 api.dto 边界、共享内核纯净、查询仓储接口 |
-| verifyDddTransactions | 开启时检查直接 Spring 事务注解的位置 |
+| verifyModuleDependencies | 生产依赖声明方向、domain Spring 禁令、shared-kernel 依赖白名单 |
+| verifyTypeBoundaries | 字节码依赖方向、domain Spring 禁令、infra 后缀与 api.dto 边界、共享内核纯净、查询仓储接口 |
+| verifyTransactionBoundaries | 开启时检查直接 Spring 事务注解的位置 |
+
+类型和事务检查使用 ArchUnit core，只导入当前模块的生产类文件；不自动解析外部类路径，
+缺失依赖仍按字节码中的类型名称校验。ASM 补充 ArchUnit 尚未建模的强转、数组创建等类型引用，
+保持原有类型依赖检查范围。事务检查只识别类和成员上直接声明的注解，
+没有类、查询仓储或事务注解时允许通过。三个任务保留 Gradle 配置缓存、增量检查和构建缓存支持。
 
 ```bash
 ./gradlew check
 ./gradlew check -Pwuli3.ddd.transaction-review.enabled=true
-./gradlew :infra:verifyDddTypes
-./gradlew :domain:verifyDddDependencies
+./gradlew :infra:verifyTypeBoundaries
+./gradlew :domain:verifyModuleDependencies
 ```
 
 基础包优先读取 `wuli3.ddd.base-package`，兼容回退到 `wuli3.conventions.nullaway.annotated-packages`，要求单个有效包名。

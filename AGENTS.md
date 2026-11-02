@@ -2,7 +2,7 @@
 
 ## 项目结构与模块组织
 
-本仓库是 JDK 21 + Gradle 9.6.0 的多模块 Java 项目。根目录的 `settings.gradle.kts` 声明所有模块，`build-logic/` 提供统一 Gradle 约定插件。业务源码位于各模块的 `src/main/java`，测试位于 `src/test/java`，Spring Boot 自动配置文件位于 `src/main/resources/META-INF/spring/`。
+本仓库是 JDK 21 + Gradle 9.6.0 的多模块 Java 项目。根目录的 `settings.gradle.kts` 声明所有模块，`wuli3-build-logic/` 提供统一 Gradle 约定插件。业务源码位于各模块的 `src/main/java`，测试位于 `src/test/java`，Spring Boot 自动配置文件位于 `src/main/resources/META-INF/spring/`。
 
 主要模块包括：
 
@@ -28,7 +28,7 @@
 
 Java 包名使用 `com.kjs.wuli3` 前缀。模块名使用 `wuli3-*`，Spring starter 模块使用 `wuli3-*-spring-boot-starter`。生产代码避免使用 `java.util.Date`、`Calendar`、`java.sql.Date/Time/Timestamp`，优先使用 `java.time`。使用 JSpecify 表达空安全语义，NullAway 会对 `com.kjs.wuli3` 包执行静态检查。
 
-普通 Java 模块使用 `com.kjs.wuli3.java-conventions`，Spring starter 模块使用 `com.kjs.wuli3.spring-conventions`，不要在模块中重复配置公共质量规则。
+普通 Java 模块使用 `com.kjs.wuli3.java-conventions`，Spring starter 模块使用 `com.kjs.wuli3.java-spring-conventions`，不要在模块中重复配置公共质量规则。
 
 ## 基石项目编码规范
 
@@ -66,7 +66,7 @@ PR 应说明变更目的、影响模块、验证命令和结果。涉及依赖�
 
 ## 配置与安全提示
 
-仓库地址统一配置在 `settings.gradle.kts` 的 `dependencyResolutionManagement` 中。依赖版本优先沉淀到 `wuli3-dependencies`，插件版本和构建约定放在 `build-logic`。不要提交本地路径、私有仓库凭据或 IDE 私有配置。
+仓库地址统一配置在 `settings.gradle.kts` 的 `dependencyResolutionManagement` 中。依赖版本优先沉淀到 `wuli3-dependencies`，插件版本和构建约定放在 `wuli3-build-logic`。不要提交本地路径、私有仓库凭据或 IDE 私有配置。
 
 ## Agent 工作约定
 

@@ -7,6 +7,8 @@ import com.kjs.wuli3.core.error.ErrorCodeException;
 import com.kjs.wuli3.permission.annotation.PermissionResource;
 import com.kjs.wuli3.permission.model.ActionCode;
 import com.kjs.wuli3.permission.model.PermissionCode;
+import com.kjs.wuli3.permission.model.PermissionToken;
+import com.kjs.wuli3.permission.model.PrincipalPermissions;
 import com.kjs.wuli3.permission.model.definition.PermissionActionDefinition;
 import com.kjs.wuli3.permission.model.definition.PermissionResourceDefinition;
 import com.kjs.wuli3.permission.store.LocalPermissionStore;
@@ -19,6 +21,38 @@ import org.junit.jupiter.api.Test;
  * @author 国杨 create on 2026/10/13 10:00
  */
 class LocalPermissionStoreTest {
+    @Test
+    void serviceScopeQualifiesExportedResourcesAndAllReferenceStyles() {
+        final LocalPermissionStore catalog = new LocalPermissionStore("order-service", List.of(ReadOnly.class));
+        final LocalPermissionStore other = new LocalPermissionStore("other-service", List.of(ReadOnly.class));
+        final var key = PermissionResolver.resolve(catalog, "ORDER:READ", PermissionCode.class);
+        assertThat(key.resourceCode()).isEqualTo("order-service:ORDER");
+        assertThat(key)
+                .isSameAs(PermissionResolver.resolve(catalog, ReadOnly.READ))
+                .isSameAs(PermissionResolver.resolve(catalog, "READ", ReadOnly.class));
+        assertThat(catalog.resources().getFirst().resourceCode()).isEqualTo(key.resourceCode());
+        assertThat(catalog.requirement()).containsExactlyEntriesOf(java.util.Map.of("order-service:ORDER", 8L));
+        assertThat(catalog.key("ORDER:READ")).isSameAs(key);
+        assertThat(catalog.resource("ORDER")).isSameAs(catalog.resource("order-service:ORDER"));
+        assertThat(key).isNotEqualTo(PermissionResolver.resolve(other, ReadOnly.READ));
+        assertThat(catalog.resource("other-service:ORDER")).isNull();
+        final PermissionToken token = new PermissionToken("token");
+        assertThat(new PrincipalPermissions(token, java.util.Map.of("order-service:ORDER", 8L)).contains(key))
+                .isTrue();
+        assertThat(new PrincipalPermissions(token, java.util.Map.of("other-service:ORDER", 8L)).contains(key))
+                .isFalse();
+        assertThat(new PrincipalPermissions(token, java.util.Map.of("ORDER", 8L)).contains(key))
+                .isFalse();
+    }
+
+    @Test
+    void invalidServiceScopesFailAtThePublicBoundary() {
+        for (final String serviceCode : List.of(" ", "bad:name", "bad/name", "a".repeat(65))) {
+            assertThatThrownBy(() -> new LocalPermissionStore(serviceCode, List.of(ReadOnly.class)))
+                    .isInstanceOf(ErrorCodeException.class);
+        }
+    }
+
     @Test
     void resolvesBothReferencesAndEnumWithConstantSpecificBody() {
         final LocalPermissionStore catalog = new LocalPermissionStore(List.of(ReadOnly.class, ReadOnly.class));
@@ -74,7 +108,8 @@ class LocalPermissionStoreTest {
         assertThatThrownBy(() -> resource.permissions().clear()).isInstanceOf(UnsupportedOperationException.class);
         assertThatThrownBy(() -> new PermissionResourceDefinition(" ", "订单", ReadOnly.class, List.of()))
                 .isInstanceOf(ErrorCodeException.class);
-        assertThatThrownBy(() -> new PermissionResourceDefinition("ORDER:READ", "订单", ReadOnly.class, List.of()))
+        assertThatThrownBy(() ->
+                        new PermissionResourceDefinition("order-service:ORDER:READ", "订单", ReadOnly.class, List.of()))
                 .isInstanceOf(ErrorCodeException.class);
         assertThatThrownBy(() -> new PermissionResourceDefinition("order", "订单", ReadOnly.class, List.of()))
                 .isInstanceOf(ErrorCodeException.class);

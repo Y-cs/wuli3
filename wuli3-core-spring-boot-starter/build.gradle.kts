@@ -1,5 +1,5 @@
 plugins {
-    id("com.kjs.wuli3.spring-conventions")
+    id("com.kjs.wuli3.java-spring-conventions")
 }
 
 description = "Shared Spring Boot infrastructure, logging, encryption, and graceful shutdown support."

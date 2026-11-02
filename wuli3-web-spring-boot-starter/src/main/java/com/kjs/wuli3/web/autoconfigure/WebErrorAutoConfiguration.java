@@ -1,20 +1,19 @@
 package com.kjs.wuli3.web.autoconfigure;
 
 import com.kjs.wuli3.core.error.resolver.ErrorResolver;
-import com.kjs.wuli3.web.config.ApplicationServiceProperties;
+import com.kjs.wuli3.spring.autoconfigure.ApplicationServiceProperties;
+import com.kjs.wuli3.spring.autoconfigure.CoreSpringBootAutoConfiguration;
 import com.kjs.wuli3.web.error.WebErrorStatusResolver;
 import com.kjs.wuli3.web.internal.handler.DefaultWebErrorStatusResolver;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
-import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 
 /** Configures the web-facing error model.
  *
  * @author GuoYang create on 2026/8/17 11:53
  */
-@AutoConfiguration
-@EnableConfigurationProperties(ApplicationServiceProperties.class)
+@AutoConfiguration(after = CoreSpringBootAutoConfiguration.class)
 public class WebErrorAutoConfiguration {
 
     @Bean

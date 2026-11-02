@@ -1,7 +1,7 @@
 @file:Suppress("UnstableApiUsage")
 
 pluginManagement {
-    includeBuild("build-logic")
+    includeBuild("wuli3-build-logic")
     repositories {
         gradlePluginPortal()
         mavenCentral()

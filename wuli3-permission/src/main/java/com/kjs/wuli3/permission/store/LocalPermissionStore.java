@@ -30,9 +30,22 @@ public final class LocalPermissionStore {
     private final Map<Class<?>, PermissionResourceDefinition> byType;
     private final Map<String, Long> requirement;
     private final Map<String, PermissionKey> keys;
+    private final String prefix;
 
     /** 校验资源枚举并一次性构建不可变资源和权限索引。 */
     public LocalPermissionStore(final Collection<Class<?>> resourceTypes) {
+        this("", resourceTypes);
+    }
+
+    /**
+     * 构建服务隔离的目录；导出资源及授权请求使用服务码:资源码，本地引用仍使用资源码:动作名。
+     * 注意：空服务码仅供无需跨服务共享授权数据的纯 Java 场景使用。
+     */
+    public LocalPermissionStore(final String serviceCode, final Collection<Class<?>> resourceTypes) {
+        Asserts.whenNull(serviceCode).throwIllegalArgumentException("服务编码不能为空");
+        Asserts.whenFalse(serviceCode.isEmpty() || serviceCode.matches("[A-Za-z0-9._-]{1,64}"))
+                .throwIllegalArgumentException("服务编码必须为最多 64 个字母、数字、点、下划线或连字符");
+        this.prefix = serviceCode.isEmpty() ? "" : serviceCode + ":";
         Asserts.whenNull(resourceTypes).throwIllegalArgumentException("权限资源类型不能为空");
 
         final Map<String, PermissionResourceDefinition> codes = new TreeMap<>();
@@ -42,7 +55,7 @@ public final class LocalPermissionStore {
             if (types.containsKey(type)) {
                 continue;
             }
-            final PermissionResourceDefinition definition = LocalPermissionStore.read(type);
+            final PermissionResourceDefinition definition = LocalPermissionStore.read(type, this.prefix);
             Asserts.whenTrue(codes.putIfAbsent(definition.resourceCode(), definition) != null)
                     .throwException(PermissionErrors.DECLARATION_CONFLICT, "资源编码重复：" + definition.resourceCode());
             types.put(type, definition);
@@ -68,7 +81,8 @@ public final class LocalPermissionStore {
     /** 返回预先构建的规范权限键；未知引用返回空。 */
     public @Nullable PermissionKey key(final String reference) {
         Asserts.whenBlank(reference).throwIllegalArgumentException("权限引用不能为空");
-        return this.keys.get(reference);
+        final PermissionKey key = this.keys.get(reference);
+        return key == null ? this.keys.get(this.prefix + reference) : key;
     }
 
     /** 返回完整资源声明，供展示或入库使用。 */
@@ -79,10 +93,11 @@ public final class LocalPermissionStore {
     public Map<String, Long> requirement() {
         return this.requirement;
     }
-    /** 按资源编码查找声明；未注册返回空。 */
+    /** 按本地或包含当前服务前缀的资源编码查找声明；未注册返回空。 */
     public @Nullable PermissionResourceDefinition resource(final String code) {
         Asserts.whenBlank(code).throwIllegalArgumentException("资源编码不能为空");
-        return this.byCode.get(code);
+        final PermissionResourceDefinition resource = this.byCode.get(code);
+        return resource == null ? this.byCode.get(this.prefix + code) : resource;
     }
     /** 按声明枚举类型查找资源；未注册返回空。 */
     public @Nullable PermissionResourceDefinition resource(final Class<?> type) {
@@ -90,7 +105,7 @@ public final class LocalPermissionStore {
         return this.byType.get(type);
     }
 
-    private static PermissionResourceDefinition read(final Class<?> type) {
+    private static PermissionResourceDefinition read(final Class<?> type, final String prefix) {
         final String locationClass = type.getName();
         Asserts.whenFalse(type.isEnum() && PermissionCode.class.isAssignableFrom(type))
                 .throwException(PermissionErrors.INVALID_DECLARATION, "资源须为权限枚举：" + locationClass);
@@ -125,6 +140,6 @@ public final class LocalPermissionStore {
             permissions.add(new PermissionActionDefinition(actionName, action, actionDescription));
         }
         return new PermissionResourceDefinition(
-                resourceCode, resourceDescription, type.asSubclass(PermissionCode.class), permissions);
+                prefix + resourceCode, resourceDescription, type.asSubclass(PermissionCode.class), permissions);
     }
 }

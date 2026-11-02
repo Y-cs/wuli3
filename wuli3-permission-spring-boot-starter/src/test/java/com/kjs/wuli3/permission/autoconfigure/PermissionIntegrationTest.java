@@ -23,6 +23,7 @@ import com.kjs.wuli3.propagation.internal.AuthContext;
 import com.kjs.wuli3.propagation.internal.PrincipalType;
 import com.kjs.wuli3.propagation.store.ContextReader;
 import com.kjs.wuli3.propagation.store.ThreadLocalContextBackend;
+import com.kjs.wuli3.spring.autoconfigure.CoreSpringBootAutoConfiguration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -43,6 +44,50 @@ class PermissionIntegrationTest {
     private final PermissionResourceScanner scanner =
             new PermissionResourceScanner(this.getClass().getClassLoader());
     private final ThreadLocalContextBackend backend = new ThreadLocalContextBackend();
+
+    @Test
+    void explicitServiceCodeScopesTheDirectoryAndAuthorization() {
+        this.runner()
+                .withPropertyValues("application.service.service-code=billing")
+                .withBean(OrderService.class)
+                .withBean(PrincipalPermissionLoader.class, () -> (token, resources) -> {
+                    assertThat(resources).containsExactlyEntriesOf(Map.of("billing:ORDER", Long.MIN_VALUE | 24L));
+                    return new PrincipalPermissions(token, Map.of("billing:ORDER", 24L));
+                })
+                .run(context -> {
+                    assertThat(context).hasNotFailed();
+                    assertThat(context.getBean(LocalPermissionStore.class)
+                                    .resources()
+                                    .getFirst()
+                                    .resourceCode())
+                            .isEqualTo("billing:ORDER");
+                    this.auth(
+                            "allow",
+                            () -> assertThat(context.getBean(Contract.class).approve())
+                                    .isEqualTo("approved"));
+                });
+    }
+
+    @Test
+    void blankServiceCodeUsesApplicationNameForTheDirectory() {
+        this.runner()
+                .withPropertyValues(
+                        "application.service.service-code=   ", "wuli3.permission.enforcement-enabled=false")
+                .withBean(OrderService.class)
+                .run(context -> assertThat(
+                                context.getBean(LocalPermissionStore.class).requirement())
+                        .containsEntry("order-service:ORDER", Long.MIN_VALUE | 24L));
+    }
+
+    @Test
+    void missingServiceIdentityFailsEvenWhenOnlyBuildingTheDirectory() {
+        this.runner()
+                .withPropertyValues("spring.application.name=", "wuli3.permission.enforcement-enabled=false")
+                .run(context -> assertThat(context)
+                        .hasFailed()
+                        .getFailure()
+                        .hasStackTraceContaining("spring.application.name"));
+    }
 
     @Test
     void scansNonBeanEnumsAndExplicitExternalReferences() {
@@ -84,7 +129,9 @@ class PermissionIntegrationTest {
     @Test
     void missingContextReaderFailsAtStartupAndUnprotectedCallsDoNotLoadPermissions() {
         new ApplicationContextRunner()
-                .withConfiguration(AutoConfigurations.of(PermissionAutoConfiguration.class))
+                .withConfiguration(
+                        AutoConfigurations.of(CoreSpringBootAutoConfiguration.class, PermissionAutoConfiguration.class))
+                .withPropertyValues("spring.application.name=order-service")
                 .withBean(
                         PrincipalPermissionLoader.class,
                         () -> (token, resources) -> new PrincipalPermissions(token, Map.of()))
@@ -121,9 +168,9 @@ class PermissionIntegrationTest {
                 .withBean(OrderService.class)
                 .withBean(PrincipalPermissionLoader.class, () -> (token, resources) -> {
                     loads.incrementAndGet();
-                    assertThat(resources).containsEntry("ORDER", Long.MIN_VALUE | 24L);
+                    assertThat(resources).containsEntry("order-service:ORDER", Long.MIN_VALUE | 24L);
                     return new PrincipalPermissions(
-                            token, Map.of("ORDER", token.token().equals("allow") ? 24L : 0L));
+                            token, Map.of("order-service:ORDER", token.token().equals("allow") ? 24L : 0L));
                 })
                 .run(context -> {
                     assertThat(context).hasNotFailed();
@@ -253,7 +300,9 @@ class PermissionIntegrationTest {
 
     private ApplicationContextRunner runner() {
         return new ApplicationContextRunner()
-                .withConfiguration(AutoConfigurations.of(PermissionAutoConfiguration.class))
+                .withConfiguration(
+                        AutoConfigurations.of(CoreSpringBootAutoConfiguration.class, PermissionAutoConfiguration.class))
+                .withPropertyValues("spring.application.name=order-service")
                 .withBean(ContextReader.class, () -> this.backend);
     }
 

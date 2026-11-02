@@ -11,6 +11,8 @@ import com.kjs.wuli3.permission.scan.PermissionResourceScanner;
 import com.kjs.wuli3.permission.spi.PrincipalPermissionLoader;
 import com.kjs.wuli3.permission.store.LocalPermissionStore;
 import com.kjs.wuli3.propagation.store.ContextReader;
+import com.kjs.wuli3.spring.autoconfigure.ApplicationServiceProperties;
+import com.kjs.wuli3.spring.autoconfigure.CoreSpringBootAutoConfiguration;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -42,7 +44,7 @@ import org.springframework.core.type.AnnotationMetadata;
  *
  * @author 国杨 create on 2026/10/9 10:00
  */
-@AutoConfiguration
+@AutoConfiguration(after = CoreSpringBootAutoConfiguration.class)
 @EnableConfigurationProperties(PermissionProperties.class)
 @Import(PermissionAutoConfiguration.ProxyRegistrar.class)
 public class PermissionAutoConfiguration {
@@ -82,10 +84,16 @@ public class PermissionAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     LocalPermissionStore localPermissionStore(
-            final PermissionProperties properties, final ConfigurableListableBeanFactory factory) {
+            final PermissionProperties properties,
+            final ConfigurableListableBeanFactory factory,
+            final ApplicationServiceProperties serviceProperties) {
+        if (serviceProperties.getServiceCode().isBlank()) {
+            throw new IllegalStateException("权限资源隔离要求配置 application.service.service-code 或 spring.application.name");
+        }
         final PermissionResourceScanner scanner = new PermissionResourceScanner(java.util.Objects.requireNonNullElse(
                 factory.getBeanClassLoader(), PermissionAutoConfiguration.class.getClassLoader()));
-        return new LocalPermissionStore(scanner.resources(this.permissionScan(properties, factory)));
+        return new LocalPermissionStore(
+                serviceProperties.getServiceCode(), scanner.resources(this.permissionScan(properties, factory)));
     }
 
     /** 资源注册完成后统一校验使用点；自定义存储也必须通过相同校验。 */

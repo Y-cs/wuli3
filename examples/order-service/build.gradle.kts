@@ -1,7 +1,7 @@
 plugins {
     base
     id("com.kjs.wuli3.java-conventions") version "1.0.0" apply false
-    id("com.kjs.wuli3.spring-conventions") version "1.0.0" apply false
+    id("com.kjs.wuli3.java-spring-conventions") version "1.0.0" apply false
     id("com.kjs.wuli3.ddd-conventions") version "1.0.0" apply false
     id("org.springframework.boot") version "3.5.15" apply false
 }
@@ -17,7 +17,7 @@ subprojects {
     val springModules = setOf("app", "infra", "adapter", "bootstrap")
     pluginManager.apply(
         if (name in springModules) {
-            "com.kjs.wuli3.spring-conventions"
+            "com.kjs.wuli3.java-spring-conventions"
         } else {
             "com.kjs.wuli3.java-conventions"
         })

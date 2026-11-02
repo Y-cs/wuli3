@@ -68,7 +68,7 @@ Dubbo Nacos 注册中心与 Spring Cloud Nacos Config 共用同一客户端版�
 
 ### 本仓库子模块
 
-本仓库的 Java 子模块已经通过 `build-logic` 中的 `com.kjs.wuli3.java-conventions` 约定插件自动接入。根项目 `gradle.properties` 中设置了：
+本仓库的 Java 子模块已经通过 `wuli3-build-logic` 中的 `com.kjs.wuli3.java-conventions` 约定插件自动接入。根项目 `gradle.properties` 中设置了：
 
 ```properties
 wuli3.conventions.use-project-bom=true
@@ -122,7 +122,7 @@ dependencies {
 
 ### 外部 Gradle 项目接入
 
-如果外部 Gradle 项目不使用 `build-logic` 约定插件，可以直接导入已发布的 BOM。
+如果外部 Gradle 项目不使用 `wuli3-build-logic` 约定插件，可以直接导入已发布的 BOM。
 
 本地验证时，先发布 BOM 到本地 Maven 仓库：
 
@@ -171,7 +171,7 @@ repositories {
 
 ### 外部 Gradle 业务服务使用约定插件
 
-如果业务服务使用 `build-logic` 发布出的约定插件：
+如果业务服务使用 `wuli3-build-logic` 发布出的约定插件：
 
 ```kotlin
 plugins {
@@ -213,7 +213,7 @@ dependencies {
 }
 ```
 
-Gradle 项目使用 `build-logic` 约定插件时，切换这里的版本：
+Gradle 项目使用 `wuli3-build-logic` 约定插件时，切换这里的版本：
 
 ```properties
 wuli3.conventions.bom-coordinates=com.kjs.wuli3:wuli3-dependencies:1.0.0
@@ -221,7 +221,7 @@ wuli3.conventions.bom-coordinates=com.kjs.wuli3:wuli3-dependencies:1.0.0
 
 Maven 项目使用 BOM 时，切换 `dependencyManagement` 中的 `<version>`。
 
-`build-logic` 插件版本和 `wuli3-dependencies` BOM 版本是两个独立入口。升级构建规则时改插件版本；只切换依赖版本基线时改 BOM 坐标。
+`wuli3-build-logic` 插件版本和 `wuli3-dependencies` BOM 版本是两个独立入口。升级构建规则时改插件版本；只切换依赖版本基线时改 BOM 坐标。
 
 ## Maven 项目使用
 

@@ -8,7 +8,7 @@ Wuli3 是一组可以组合的 Java 能力，不是把所有基础设施封装�
 
 ## 一张模块地图
 
-<FlowDiagram title="从入口到外部设施" :steps="[{ title: '入口', detail: 'HTTP、RPC、消息和任务' }, { title: '应用', detail: '校验、归属、事务、幂等' }, { title: '领域', detail: '聚合与业务不变量' }, { title: '端口', detail: '仓储、ACL、事件' }, { title: '设施', detail: '数据库、缓存、消息和第三方' } ]" />
+<FlowDiagram title="从入口到外部设施" :steps="[{ title: '入口', detail: 'HTTP、RPC、消息和任务' }, { title: '应用', detail: '校验、归属、事务、幂等' }, { title: '领域', detail: '聚合与业务不变量' }, { title: '端口', detail: 'Repository、Gateway、事件' }, { title: '设施', detail: '数据库、缓存、消息和第三方' } ]" />
 
 同一个业务用例可以从 HTTP、RPC 或消息进入，但不应为每种入口复制一套业务编排。入口解析可信身份和协议，应用服务组织完整动作，领域对象决定状态是否允许改变。
 
@@ -16,7 +16,7 @@ Wuli3 是一组可以组合的 Java 能力，不是把所有基础设施封装�
 
 | 要解决的问题 | 对应模块 | 下一步 |
 | --- | --- | --- |
-| 版本对齐、工程生成、质量门禁 | dependencies、ddd-generator、build-logic | [创建工程](/getting-started/generator)、[构建验证](/engineering/build) |
+| 版本对齐、工程生成、质量门禁 | dependencies、ddd-generator、wuli3-build-logic | [创建工程](/getting-started/generator)、[构建验证](/engineering/build) |
 | 错误、时间、ID、JSON、统一分页 | core、json、pagination | [基础契约](/capabilities/foundation) |
 | HTTP 入口、响应、资源动作权限 | web starter、permission、permission starter | [Web 与权限](/capabilities/web-security) |
 | 数据库、缓存、搜索和文档存储 | mysql、redis、elasticsearch、mongodb starter | [数据访问](/capabilities/data) |

@@ -1,5 +1,5 @@
 plugins {
-    id("com.kjs.wuli3.spring-conventions")
+    id("com.kjs.wuli3.java-spring-conventions")
 }
 
 description = "OpenTelemetry Java Agent integration, trace context access, and business metrics."
