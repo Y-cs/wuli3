@@ -2,6 +2,15 @@
 
 本文件适用于本项目的开发者和 AI/Agent。修改前先阅读相关模块的现有实现与测试，保持改动聚焦、可审查、可回退。
 
+## Wuli3 文档与源码
+
+- [Wuli3 文档站](https://weiran-tech.github.io/wuli3/)：优先查阅快速入门、设计边界、模块能力与扩展契约。
+- [GitHub 使用指南](https://github.com/weiran-tech/wuli3/blob/main/guide/README.md)：查阅各模块的配置说明与 API 示例。
+- [Wuli3 源码仓库](https://github.com/weiran-tech/wuli3)：核对实现、测试与版本差异。
+
+使用或扩展 Wuli3 能力前，先查阅相关文档，优先复用已有能力。文档默认面向主分支，涉及 API、配置或默认行为时，
+以本项目实际依赖的 Wuli3 和构建约定插件版本为准，必要时在源码仓库切换到对应版本核对实现与测试。
+
 ## 项目结构与模块边界
 
 本项目是 JDK 21 + Gradle Wrapper 的单体多模块 DDD 服务，Java 基础包名为 `{{basePackage}}`，初始领域为 `{{domain}}`。
