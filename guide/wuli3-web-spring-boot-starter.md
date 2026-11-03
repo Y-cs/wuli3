@@ -101,7 +101,12 @@ wuli3.web.response.exception-handler-enabled=true
 wuli3.web.response.wrap-response-entity-body=true
 wuli3.web.response.success-message=
 wuli3.web.response.validation-detail-enabled=true
+wuli3.web.response.error-header-propagation-enabled=false
 ```
+
+`error-header-propagation-enabled` 会在错误响应头写入完整的 `X-Wuli3-Error-*` 传播字段，供
+`wuli3-openfeign-spring-boot-starter` 的 `ErrorDecoder` 还原远程错误。响应头包含未脱敏的诊断信息，只能用于
+可信内部 HTTP 边界，默认关闭；响应体始终按可见性策略输出。
 
 应用侧扩展优先使用文档中列出的 SPI，例如 `WebErrorStatusResolver`、`ErrorAlertNotifier`、`RequestIdResolver` 和 `ClientIpResolver`。
 
