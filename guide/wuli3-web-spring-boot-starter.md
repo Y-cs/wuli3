@@ -145,6 +145,55 @@ final class BizErrorAlertNotifier implements ErrorAlertNotifier {
 
 告警通知拿到的是从当前请求中提取出的不可变快照，不会把原始 `HttpServletRequest` 传给业务实现。
 
+### 结构化错误日志
+
+MVC 统一异常出口对最终 5xx，以及严重度为 `CRITICAL` / `FATAL` 的错误记录一条 ERROR 日志；即使没有配置告警通知器也会记录。普通 4xx 不输出这类错误日志。事件名固定为 `web.request.failed`，message 固定为 `Web request failed`，原始异常通过日志 cause 保留完整堆栈。
+
+日志采用 SLF4J 原生键值字段，便于按字段检索，不依赖解析 `ErrorCodeCarrier.toString()`：
+
+| 字段 | 含义 |
+| --- | --- |
+| `eventName` | 固定事件名 `web.request.failed`。 |
+| `httpStatus` | 最终 HTTP 状态，按数值输出。 |
+| `errorCode` | 原始诊断错误码。 |
+| `responseCode` | 执行可见性规则后对外返回的错误码。 |
+| `errorOrigin` / `errorSeverity` / `errorVisibility` | 最终责任归属、严重度和可见性。 |
+| `sourceService` | 错误来源服务。 |
+| `httpMethod` / `httpPath` | 请求方法和 URI 路径，不附带查询串。 |
+| `httpRequestId` | 本次响应使用的请求 ID，缺失时为 null。与已有 MDC `requestId` 分开，避免 ECS 重复成员冲突。 |
+| `exceptionType` | 最外层原始异常类型，与记录的堆栈一致。 |
+
+默认文本格式通过 `%kvp` 显示这些字段。需要 JSON 日志时使用既有配置：
+
+```properties
+wuli3.logging.format=logstash
+```
+
+Logstash 输出示例片段如下，省略时间、Logger 和 MDC 等标准字段：
+
+```json
+{
+  "message": "Web request failed",
+  "eventName": "web.request.failed",
+  "httpStatus": 500,
+  "errorCode": "REMOTE.ORIGINAL.FAILURE",
+  "responseCode": "SYSTEM.INTERNAL_ERROR",
+  "errorOrigin": "SERVER",
+  "errorSeverity": "CRITICAL",
+  "errorVisibility": "INTERNAL",
+  "sourceService": "inventory-service",
+  "httpMethod": "POST",
+  "httpPath": "/orders/42",
+  "httpRequestId": "rid-logging",
+  "exceptionType": "java.util.concurrent.CompletionException",
+  "stack_trace": "原始异常及 cause 堆栈"
+}
+```
+
+`ecs`、`gelf` 同样使用既有编码器；GELF 的附加字段按该格式加 `_` 前缀。MDC 中的 `requestId`、`trace_id`、`span_id` 保持原有传播规则，记录错误时不额外修改 MDC。
+
+日志不主动附加查询串、请求头或正文；原始堆栈中的异常消息仍按既有规则记录，不自动脱敏。本节仅描述 MVC 异常出口，不扩大容器 `/error` 的日志覆盖范围。
+
 ## 标准响应结构
 
 成功和失败的统一响应都使用 `ApiResponse<T>`：

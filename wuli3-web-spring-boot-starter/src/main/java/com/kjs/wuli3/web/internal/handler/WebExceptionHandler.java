@@ -113,7 +113,7 @@ public class WebExceptionHandler {
         return null;
     }
 
-    /** 按最终责任和严重程度告警，同时保留原始异常用于内部诊断。 */
+    /** 按最终状态和严重度记录结构化诊断并通知告警，保留原始异常堆栈。 */
     private void alert(
             final Throwable original,
             final HttpServletRequest request,
@@ -124,14 +124,23 @@ public class WebExceptionHandler {
         if (!status.is5xxServerError() && severity != ErrorSeverity.CRITICAL && severity != ErrorSeverity.FATAL) {
             return;
         }
-        log.error(
-                "Web request failed: status={}, code={}, method={}, uri={}, requestId={}",
-                status.value(),
-                responseCode,
-                request.getMethod(),
-                request.getRequestURI(),
-                requestId,
-                original);
+        // 原始码与公开响应码分别记录；关联字段避免与既有 MDC requestId 重名，兼容 ECS 嵌套编码。
+        WebExceptionHandler.log
+                .atError()
+                .addKeyValue("eventName", "web.request.failed")
+                .addKeyValue("httpStatus", status.value())
+                .addKeyValue("errorCode", responseCode.originalCode())
+                .addKeyValue("responseCode", responseCode.code())
+                .addKeyValue("errorOrigin", responseCode.origin().name())
+                .addKeyValue("errorSeverity", severity.name())
+                .addKeyValue("errorVisibility", responseCode.visibility().name())
+                .addKeyValue("sourceService", responseCode.sourceService())
+                .addKeyValue("httpMethod", request.getMethod())
+                .addKeyValue("httpPath", request.getRequestURI())
+                .addKeyValue("httpRequestId", requestId)
+                .addKeyValue("exceptionType", original.getClass().getName())
+                .setCause(original)
+                .log("Web request failed");
         this.errorAlertNotifiers.dispatch(new ErrorAlertContext(
                 original,
                 status,
