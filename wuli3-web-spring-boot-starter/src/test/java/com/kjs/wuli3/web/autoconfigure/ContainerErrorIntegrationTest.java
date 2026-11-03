@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
@@ -13,6 +15,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -56,6 +59,16 @@ class ContainerErrorIntegrationTest {
         assertThat(response.getBody()).contains("\"code\":\"WEB.NOT_FOUND\"").doesNotContain("trace");
     }
 
+    /** 容器错误与 MVC 异常共用具体协议映射，公开响应不暴露容器消息。 */
+    @ParameterizedTest
+    @CsvSource({"405, METHOD_NOT_ALLOWED", "429, TOO_MANY_REQUESTS", "503, SERVICE_UNAVAILABLE", "504, GATEWAY_TIMEOUT"
+    })
+    void sendErrorKeepsSpecificProtocolCode(final int status, final String name) {
+        final ResponseEntity<String> response = this.restTemplate.getForEntity("/send-error/" + status, String.class);
+        assertThat(response.getStatusCode().value()).isEqualTo(status);
+        assertThat(response.getBody()).contains("\"code\":\"WEB." + name + "\"").doesNotContain("secret", "trace");
+    }
+
     /** 未处理异常在禁用 MVC advice 时由容器 ERROR dispatch 接管并隐藏异常详情。 */
     @Test
     void unhandledExceptionUsesApplicationErrorResponse() {
@@ -80,6 +93,12 @@ class ContainerErrorIntegrationTest {
         @GetMapping("/send-error")
         void sendError(final HttpServletResponse response) throws java.io.IOException {
             response.sendError(HttpServletResponse.SC_NOT_FOUND, "secret container message");
+        }
+
+        @GetMapping("/send-error/{status}")
+        void sendProtocolError(@PathVariable("status") final int status, final HttpServletResponse response)
+                throws java.io.IOException {
+            response.sendError(status, "secret container message");
         }
 
         @GetMapping("/unhandled")

@@ -250,12 +250,12 @@ import com.kjs.wuli3.core.error.ErrorCodeException;
 throw new ErrorCodeException(UserErrors.USER_NOT_FOUND);
 ```
 
-对于 `ErrorCodeException`，默认 HTTP 状态由 `ErrorOrigin` 决定，`ErrorSeverity` 只决定告警优先级：
+对于 `ErrorCodeException`，默认 HTTP 状态由 `ErrorOrigin` 决定。本地 `WebErrors` 协议错误保留与责任一致的具体 4xx 或 5xx；其他错误按责任回退为 400 或 500。`ErrorSeverity` 只决定告警优先级：
 
 | 条件 | HTTP 状态 | `code` | `message` |
 | --- | --- | --- | --- |
-| `ErrorOrigin.CALLER` | 400 | 真实业务错误码，除非可见性隐藏 | 异常消息或错误码默认消息，除非可见性隐藏 |
-| `ErrorOrigin.SERVER` | 500 | 真实业务错误码，除非可见性隐藏 | 异常消息或错误码默认消息，除非可见性隐藏 |
+| `ErrorOrigin.CALLER` | 已知 Web 协议 4xx，否则 400 | 真实业务错误码，除非可见性隐藏 | 异常消息或错误码默认消息，除非可见性隐藏 |
+| `ErrorOrigin.SERVER` | 已知 Web 协议 5xx，否则 500 | 真实业务错误码，除非可见性隐藏 | 异常消息或错误码默认消息，除非可见性隐藏 |
 | `ErrorVisibility.PUBLIC`（默认） | 按 origin | 真实业务错误码 | 真实错误消息 |
 | `ErrorVisibility.CODE_ONLY` | 按 origin | 真实业务错误码 | 按责任选择的安全占位消息 |
 | `ErrorVisibility.MESSAGE_ONLY` | 按 origin | 按责任选择的占位码 | 真实错误消息 |
@@ -266,7 +266,7 @@ throw new ErrorCodeException(UserErrors.USER_NOT_FOUND);
 wuli3-core 错误模型使用 `@ErrorMetadata` 注解声明错误的语义属性：
 
 - **ErrorOrigin**（责任归属）：`CALLER`（调用方可修正）或 `SERVER`（服务端问题）
-  - 决定 HTTP 状态码：CALLER → 400，SERVER → 500
+  - 约束 HTTP 状态系列：CALLER 使用 4xx，SERVER 使用 5xx；保留同系列的本地 Web 协议状态，否则分别回退为 400、500
   - 对于跨服务传播的错误（`ErrorCodeCarrier`），origin 会被保留，确保责任归属一致性
 
 - **ErrorSeverity**（严重程度）：`NORMAL`、`WARNING`、`CRITICAL`、`FATAL`
@@ -285,7 +285,9 @@ core 的 `ErrorResolver` 统一执行错误码和消息的可见性策略，CALL
 Web 层复用其生成的 `ErrorCodeCarrier`，仅输出 `code/message`；`originalCode`、来源服务与诊断元数据不进入公开响应。
 `WebErrorResponseMapper` 只承担 HTTP 响应映射，HTTP 状态、请求 ID 和验证明细仍由 Web 层处理。
 
-普通业务错误可以使用默认的 `CALLER`。数据库、缓存、消息投递、JSON 序列化等只能由服务端修复的错误，应在错误码类型或常量的 `@ErrorMetadata` 中声明 `origin = ErrorOrigin.SERVER`。应用可以注册 `WebErrorStatusResolver` 覆盖默认 400/500 映射。
+普通业务错误可以使用默认的 `CALLER`。数据库、缓存、消息投递、JSON 序列化等只能由服务端修复的错误，应在错误码类型或常量的 `@ErrorMetadata` 中声明 `origin = ErrorOrigin.SERVER`。应用可以注册 `WebErrorStatusResolver` 覆盖默认映射。
+
+`WebErrors.SERVICE_UNAVAILABLE` 默认返回 503，`WebErrors.TOO_MANY_REQUESTS` 默认返回 429。若通过 `withOrigin(...)` 把前者改为 CALLER，则回退为 400；把后者改为 SERVER，则回退为 500。状态映射不能违背运行时责任。传播错误的名称不参与猜测：远程 `WEB.SERVICE_UNAVAILABLE` 仍按传播的责任回退，需要具体状态时应在消费端显式映射。
 
 错误码格式由 `ErrorResolver` 生成：
 
@@ -318,8 +320,8 @@ Dubbo 等协议适配层接收到跨边界传播的错误时会抛出携带 `Err
 | `HttpMessageNotReadableException` | 400 | `WEB.BAD_REQUEST` | JSON 或请求体不可读。 |
 | `IllegalArgumentException`（含 `NumberFormatException`） | 400 | `COMMON.ILLEGAL_ARGUMENT` | 使用安全默认提示，不输出原始消息。 |
 | `IllegalStateException`、`NullPointerException` | 500 | `WEB.INTERNAL_ERROR` | 未识别内部故障。 |
-| `HttpRequestMethodNotSupportedException` | 405 | `WEB.BAD_REQUEST` | HTTP 方法不支持。 |
-| `HttpMediaTypeNotSupportedException` | 415 | `WEB.BAD_REQUEST` | 请求媒体类型不支持。 |
+| `HttpRequestMethodNotSupportedException` | 405 | `WEB.METHOD_NOT_ALLOWED` | HTTP 方法不支持。 |
+| `HttpMediaTypeNotSupportedException` | 415 | `WEB.UNSUPPORTED_MEDIA_TYPE` | 请求媒体类型不支持。 |
 | `NoHandlerFoundException`、`NoResourceFoundException` | 404 | `WEB.NOT_FOUND` | MVC handler 或静态资源不存在。 |
 | `ResponseStatusException` | 异常指定状态 | 按状态映射 | 使用安全默认提示；需要公开自定义消息时使用 WebErrorMapper。 |
 | `ErrorResponseException` | 异常指定状态 | 按状态映射 | 重建安全响应，不透传异常自带 body 或扩展属性。 |
@@ -327,15 +329,27 @@ Dubbo 等协议适配层接收到跨边界传播的错误时会抛出携带 `Err
 | `ErrorCodeException`（传播错误） | 按传播错误的 `ErrorOrigin` | 按当前 Web 边界可见性策略 | 协议适配层接收的跨边界传播错误。 |
 | 其他 `Exception` | 500 | `WEB.INTERNAL_ERROR` | 未分类异常。 |
 
-状态到错误码的收敛规则：
+状态与专用错误码由 `WebErrors` 统一声明，覆盖 28 个有效 4xx 和 10 个有效 5xx 协议状态。异常解析与响应投影共用此声明，MVC advice、原生 `ProblemDetail` 和容器错误出口保持一致。例如：
 
 | HTTP 状态 | 错误码 |
 | --- | --- |
 | 401 | `WEB.UNAUTHORIZED` |
 | 403 | `WEB.FORBIDDEN` |
 | 404 | `WEB.NOT_FOUND` |
-| 5xx | `WEB.INTERNAL_ERROR` |
-| 其他 4xx | `WEB.BAD_REQUEST` |
+| 405 | `WEB.METHOD_NOT_ALLOWED` |
+| 413 | `WEB.PAYLOAD_TOO_LARGE` |
+| 415 | `WEB.UNSUPPORTED_MEDIA_TYPE` |
+| 421 | `WEB.MISDIRECTED_REQUEST` |
+| 422 | `WEB.UNPROCESSABLE_ENTITY` |
+| 429 | `WEB.TOO_MANY_REQUESTS` |
+| 500 | `WEB.INTERNAL_ERROR` |
+| 502 / 503 / 504 | `WEB.BAD_GATEWAY` / `WEB.SERVICE_UNAVAILABLE` / `WEB.GATEWAY_TIMEOUT` |
+| 未覆盖的 4xx | `WEB.BAD_REQUEST` |
+| 未覆盖的 5xx | `WEB.INTERNAL_ERROR` |
+
+未分配、未使用或已废止状态（如 418、419、420、509、510）不新增专用错误码。Spring 未定义的数值状态仍按既有规则归一化：非标准 4xx 回退为 400，其他非标准或非错误状态回退为 500。Spring 6.2 对 421 使用历史名称，starter 按数值保留 421，并在生成 `ProblemDetail` 时使用当前标题 `Misdirected Request`。
+
+兼容性提示：405、415、429、503 等响应的 HTTP 状态保持原有语义，正文 `code` 从通用 `WEB.BAD_REQUEST` / `WEB.INTERNAL_ERROR` 细化为对应专用错误码。依赖旧通用错误码做分支判断的客户端需要同步适配。现有错误码名称和默认消息保持不变。
 
 starter 不直接依赖 Spring Security。异常 cause 链中出现以下类名时，会映射为安全错误：
 

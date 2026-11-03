@@ -242,11 +242,11 @@ class WebAutoConfigurationTest {
     void frameworkExceptionsUseSemanticHttpStatus() throws Exception {
         mockMvc.perform(post("/ok"))
                 .andExpect(status().isMethodNotAllowed())
-                .andExpect(jsonPath("$.code").value("WEB.BAD_REQUEST"));
+                .andExpect(jsonPath("$.code").value("WEB.METHOD_NOT_ALLOWED"));
 
         mockMvc.perform(post("/json-only").contentType(MediaType.TEXT_PLAIN).content("payload"))
                 .andExpect(status().isUnsupportedMediaType())
-                .andExpect(jsonPath("$.code").value("WEB.BAD_REQUEST"));
+                .andExpect(jsonPath("$.code").value("WEB.UNSUPPORTED_MEDIA_TYPE"));
     }
 
     @Test

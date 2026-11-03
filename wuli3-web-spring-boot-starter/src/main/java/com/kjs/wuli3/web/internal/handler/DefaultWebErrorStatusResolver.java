@@ -25,7 +25,7 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
  * Spring MVC 与 wuli 错误的默认 HTTP 状态映射。
  *
  * <p>从外到内优先识别业务责任、框架协议、状态注解与安全异常；外层已声明的语义不会被内层覆盖。
- * 业务错误以 {@link ErrorCodeException#getOrigin()} 为准，服务端责任统一返回 500，调用方错误保留已知 Web 状态。
+ * 业务错误以 {@link ErrorCodeException#getOrigin()} 为准，保留与责任一致的已知 Web 协议状态，其他错误按责任回退为 400 或 500。
  * 未声明状态时才使用已知 Web 错误码回退，并仅按顶层异常识别参数错误；未知异常返回 500。
  *
  * <p>为兼容返回 {@link HttpStatus} 的扩展接口，非标准 4xx 回退为 400，其他非标准或非错误状态回退为 500。
@@ -96,11 +96,11 @@ public final class DefaultWebErrorStatusResolver implements WebErrorStatusResolv
         while (current != null && visited.add(current)) {
             if (current instanceof ErrorCodeException coded) {
                 // getOrigin 同时尊重运行时覆盖和远程元数据，认证等错误名称不能覆盖服务端责任。
-                if (coded.getOrigin() == ErrorOrigin.SERVER) {
-                    return HttpStatus.INTERNAL_SERVER_ERROR;
-                }
                 final HttpStatus status = DefaultWebErrorStatusResolver.webStatus(coded.getErrorCode());
-                return status == null ? HttpStatus.BAD_REQUEST : status;
+                if (coded.getOrigin() == ErrorOrigin.SERVER) {
+                    return status != null && status.is5xxServerError() ? status : HttpStatus.INTERNAL_SERVER_ERROR;
+                }
+                return status != null && status.is4xxClientError() ? status : HttpStatus.BAD_REQUEST;
             }
             if (current instanceof ErrorResponse frameworkError) {
                 // Spring 已统一声明 404、405、406、413、415 等协议状态，无需逐个异常类重复映射。
@@ -122,21 +122,14 @@ public final class DefaultWebErrorStatusResolver implements WebErrorStatusResolv
     }
 
     /**
-     * 映射本模块明确声明的调用方协议错误，其他错误码返回 null。
+     * 读取本模块明确声明的协议状态，其他错误码返回 null。
      *
      * <p>远程传播值与本地枚举不是同一身份，不能只凭 NOT_FOUND 等名称末段猜测 HTTP 语义；
      * 需要转换时应由开发者显式映射。INTERNAL_ERROR 也可作为尚未归类时的占位码，不能在此强制覆盖状态。
      */
     private static @Nullable HttpStatus webStatus(final ErrorCode code) {
-        if (code instanceof WebErrors webError) {
-            return switch (webError) {
-                case BAD_REQUEST -> HttpStatus.BAD_REQUEST;
-                case UNAUTHORIZED -> HttpStatus.UNAUTHORIZED;
-                case FORBIDDEN -> HttpStatus.FORBIDDEN;
-                case NOT_FOUND -> HttpStatus.NOT_FOUND;
-                case PAYLOAD_TOO_LARGE -> HttpStatus.PAYLOAD_TOO_LARGE;
-                default -> null;
-            };
+        if (code instanceof WebErrors webError && webError != WebErrors.INTERNAL_ERROR) {
+            return webError.getHttpStatus();
         }
         return null;
     }

@@ -24,6 +24,8 @@ import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import java.util.Objects;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ProblemDetail;
@@ -142,6 +144,50 @@ class WebErrorBoundaryTest {
             if (result.getBody() instanceof ProblemDetail problem) {
                 assertThat(problem.getStatus()).isEqualTo(400);
             }
+        }
+    }
+
+    /** 普通与原生响应使用相同的具体协议错误码，保留状态且不泄露框架详情。 */
+    @ParameterizedTest
+    @CsvSource({
+        "405, METHOD_NOT_ALLOWED",
+        "406, NOT_ACCEPTABLE",
+        "408, REQUEST_TIMEOUT",
+        "409, CONFLICT",
+        "415, UNSUPPORTED_MEDIA_TYPE",
+        "421, MISDIRECTED_REQUEST",
+        "422, UNPROCESSABLE_ENTITY",
+        "429, TOO_MANY_REQUESTS",
+        "502, BAD_GATEWAY",
+        "503, SERVICE_UNAVAILABLE",
+        "504, GATEWAY_TIMEOUT"
+    })
+    void knownStatusesKeepSpecificCodesInBothModes(final int status, final String name) throws Exception {
+        final MockHttpServletRequest nativeRequest = new MockHttpServletRequest();
+        nativeRequest.setAttribute(
+                HandlerMapping.BEST_MATCHING_HANDLER_ATTRIBUTE,
+                new HandlerMethod(new NativeController(), NativeController.class.getDeclaredMethod("endpoint")));
+        final WebExceptionHandler handler = WebErrorBoundaryTest.handler(List.of());
+        for (final MockHttpServletRequest request : List.of(new MockHttpServletRequest(), nativeRequest)) {
+            final ProblemDetail unsafe =
+                    ProblemDetail.forStatusAndDetail(HttpStatusCode.valueOf(status), "secret detail");
+            unsafe.setProperty("stack", "secret stack");
+            final var result = handler.handleException(
+                    new ErrorResponseException(HttpStatus.valueOf(status), unsafe, null), request);
+            assertThat(result.getStatusCode().value()).isEqualTo(status);
+            if (result.getBody() instanceof ProblemDetail problem) {
+                assertThat(problem.getStatus()).isEqualTo(status);
+                assertThat(problem.getProperties())
+                        .containsEntry("code", "WEB." + name)
+                        .doesNotContainKey("stack");
+                if (status == 421) {
+                    assertThat(problem.getTitle()).isEqualTo("Misdirected Request");
+                }
+            } else {
+                assertThat(((ApiResponse<?>) Objects.requireNonNull(result.getBody())).code())
+                        .isEqualTo("WEB." + name);
+            }
+            assertThat(Objects.requireNonNull(result.getBody()).toString()).doesNotContain("secret");
         }
     }
 
