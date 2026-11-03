@@ -32,8 +32,9 @@ public final class ValidationErrorDetailsFactory {
         this.responseProperties = responseProperties;
     }
 
+    /** 提取已获准公开的请求校验详情；调用方负责校验错误来源、可见性及最终 HTTP 状态。 */
     @Nullable
-    public ValidationErrorDetails detail(final Exception ex) {
+    public ValidationErrorDetails detail(final Throwable ex) {
         if (!this.responseProperties.isValidationDetailEnabled()) {
             return null;
         }

@@ -44,7 +44,7 @@ dependencies {
 - 时间、级别和线程名；
 - `spring.application.name`（未设置时为 `application`）；
 - MDC 中的 `requestId`、`trace_id` 和 `span_id`；
-- Logger、消息和异常堆栈。
+- Logger、消息、SLF4J 原生键值字段和异常堆栈。
 
 `requestId` 由 Web 入口过滤器，以及 Dubbo provider、RocketMQ/RabbitMQ 消费作用域写入；OpenTelemetry Agent 可写入 `trace_id` 和 `span_id`；当前没有对应上下文时字段为空，日志模块不会自行生成这些标识。`requestId` 的字段名契约见 `LogMdcKeys`，绑定实现见 `RequestIdMdc`：入站作用域退出时按进入前的值还原而非直接移除，避免线程池复用把上一个调用的 `requestId` 留在 MDC。
 
@@ -57,8 +57,8 @@ wuli3:
     # text、ecs、gelf、logstash
     format: text
     pattern:
-      console: "%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX} %-5level [%thread] app=${spring.application.name:application} requestId=%X{requestId} traceId=%X{trace_id} spanId=%X{span_id} %logger{36} - %msg%n%wEx"
-      file: "%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX} %-5level [%thread] app=${spring.application.name:application} requestId=%X{requestId} traceId=%X{trace_id} spanId=%X{span_id} %logger{36} - %msg%n%wEx"
+      console: "%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX} %-5level [%thread] app=${spring.application.name:application} requestId=%X{requestId} traceId=%X{trace_id} spanId=%X{span_id} %logger{36} - %msg %kvp%n%wEx"
+      file: "%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX} %-5level [%thread] app=${spring.application.name:application} requestId=%X{requestId} traceId=%X{trace_id} spanId=%X{span_id} %logger{36} - %msg %kvp%n%wEx"
     file:
       enabled: false
       name: logs/${spring.application.name:application}.log
@@ -77,6 +77,7 @@ wuli3:
 - `logstash`：Logstash 兼容格式。
 
 结构化格式由 Spring Boot 3.5 的标准属性驱动，不需要额外 JSON 编码器。文件输出开启后，Wuli3 会设置 Spring Boot 的滚动归档默认值；也可以直接使用 `logging.file.*` 和 `logging.logback.rollingpolicy.*` 覆盖它们。
+SLF4J fluent API 的 `addKeyValue(...)` 字段由结构化编码器直接输出，默认文本布局通过 `%kvp` 显示；自定义 Logback 文本布局也需要包含 `%kvp` 才能显示这些字段，starter 不会覆盖应用自定义布局。
 日志初始化阶段会预创建文件日志的父目录，兼容没有 Logback、回退到 JUL `FileHandler` 的运行环境，避免 `logs/*.lck` 因父目录不存在而初始化失败。
 
 ### 3.3 使用边界

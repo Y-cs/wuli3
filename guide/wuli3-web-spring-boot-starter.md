@@ -129,6 +129,7 @@ final class BizErrorAlertNotifier implements ErrorAlertNotifier {
 - 可同时注册多个 `ErrorAlertNotifier` Bean；调用顺序遵守 Spring `@Order` / `Ordered`。
 - 没有注册 Bean 时不执行任何告警逻辑。
 - 告警实现抛出 `RuntimeException` 时会被 starter 捕获并记录 warn 日志，不会影响原始错误响应。
+- 通知器在请求线程同步依次执行；外部通知耗时会延长返错时间。需要异步投递时由应用提供有界队列及饱和、关闭策略。
 
 `ErrorAlertContext` 字段：
 
@@ -143,6 +144,55 @@ final class BizErrorAlertNotifier implements ErrorAlertNotifier {
 | `remoteAddr` | 请求来源地址。 |
 
 告警通知拿到的是从当前请求中提取出的不可变快照，不会把原始 `HttpServletRequest` 传给业务实现。
+
+### 结构化错误日志
+
+MVC 统一异常出口对最终 5xx，以及严重度为 `CRITICAL` / `FATAL` 的错误记录一条 ERROR 日志；即使没有配置告警通知器也会记录。普通 4xx 不输出这类错误日志。事件名固定为 `web.request.failed`，message 固定为 `Web request failed`，原始异常通过日志 cause 保留完整堆栈。
+
+日志采用 SLF4J 原生键值字段，便于按字段检索，不依赖解析 `ErrorCodeCarrier.toString()`：
+
+| 字段 | 含义 |
+| --- | --- |
+| `eventName` | 固定事件名 `web.request.failed`。 |
+| `httpStatus` | 最终 HTTP 状态，按数值输出。 |
+| `errorCode` | 原始诊断错误码。 |
+| `responseCode` | 执行可见性规则后对外返回的错误码。 |
+| `errorOrigin` / `errorSeverity` / `errorVisibility` | 最终责任归属、严重度和可见性。 |
+| `sourceService` | 错误来源服务。 |
+| `httpMethod` / `httpPath` | 请求方法和 URI 路径，不附带查询串。 |
+| `httpRequestId` | 本次响应使用的请求 ID，缺失时为 null。与已有 MDC `requestId` 分开，避免 ECS 重复成员冲突。 |
+| `exceptionType` | 最外层原始异常类型，与记录的堆栈一致。 |
+
+默认文本格式通过 `%kvp` 显示这些字段。需要 JSON 日志时使用既有配置：
+
+```properties
+wuli3.logging.format=logstash
+```
+
+Logstash 输出示例片段如下，省略时间、Logger 和 MDC 等标准字段：
+
+```json
+{
+  "message": "Web request failed",
+  "eventName": "web.request.failed",
+  "httpStatus": 500,
+  "errorCode": "REMOTE.ORIGINAL.FAILURE",
+  "responseCode": "SYSTEM.INTERNAL_ERROR",
+  "errorOrigin": "SERVER",
+  "errorSeverity": "CRITICAL",
+  "errorVisibility": "INTERNAL",
+  "sourceService": "inventory-service",
+  "httpMethod": "POST",
+  "httpPath": "/orders/42",
+  "httpRequestId": "rid-logging",
+  "exceptionType": "java.util.concurrent.CompletionException",
+  "stack_trace": "原始异常及 cause 堆栈"
+}
+```
+
+`ecs`、`gelf` 同样使用既有编码器；GELF 的附加字段按该格式加 `_` 前缀。MDC 中的 `requestId`、`trace_id`、`span_id` 保持原有传播规则，记录错误时不额外修改 MDC。
+
+日志不主动附加查询串、请求头或正文；原始堆栈中的异常消息仍按既有规则记录，不自动脱敏。本节仅描述 MVC 异常出口，不扩大容器 `/error` 的日志覆盖范围。
 
 ## 标准响应结构
 
@@ -250,12 +300,12 @@ import com.kjs.wuli3.core.error.ErrorCodeException;
 throw new ErrorCodeException(UserErrors.USER_NOT_FOUND);
 ```
 
-对于 `ErrorCodeException`，默认 HTTP 状态由 `ErrorOrigin` 决定，`ErrorSeverity` 只决定告警优先级：
+对于 `ErrorCodeException`，默认 HTTP 状态由 `ErrorOrigin` 决定。本地 `WebErrors` 协议错误保留与责任一致的具体 4xx 或 5xx；其他错误按责任回退为 400 或 500。`ErrorSeverity` 只决定告警优先级：
 
 | 条件 | HTTP 状态 | `code` | `message` |
 | --- | --- | --- | --- |
-| `ErrorOrigin.CALLER` | 400 | 真实业务错误码，除非可见性隐藏 | 异常消息或错误码默认消息，除非可见性隐藏 |
-| `ErrorOrigin.SERVER` | 500 | 真实业务错误码，除非可见性隐藏 | 异常消息或错误码默认消息，除非可见性隐藏 |
+| `ErrorOrigin.CALLER` | 已知 Web 协议 4xx，否则 400 | 真实业务错误码，除非可见性隐藏 | 异常消息或错误码默认消息，除非可见性隐藏 |
+| `ErrorOrigin.SERVER` | 已知 Web 协议 5xx，否则 500 | 真实业务错误码，除非可见性隐藏 | 异常消息或错误码默认消息，除非可见性隐藏 |
 | `ErrorVisibility.PUBLIC`（默认） | 按 origin | 真实业务错误码 | 真实错误消息 |
 | `ErrorVisibility.CODE_ONLY` | 按 origin | 真实业务错误码 | 按责任选择的安全占位消息 |
 | `ErrorVisibility.MESSAGE_ONLY` | 按 origin | 按责任选择的占位码 | 真实错误消息 |
@@ -266,7 +316,7 @@ throw new ErrorCodeException(UserErrors.USER_NOT_FOUND);
 wuli3-core 错误模型使用 `@ErrorMetadata` 注解声明错误的语义属性：
 
 - **ErrorOrigin**（责任归属）：`CALLER`（调用方可修正）或 `SERVER`（服务端问题）
-  - 决定 HTTP 状态码：CALLER → 400，SERVER → 500
+  - 约束 HTTP 状态系列：CALLER 使用 4xx，SERVER 使用 5xx；保留同系列的本地 Web 协议状态，否则分别回退为 400、500
   - 对于跨服务传播的错误（`ErrorCodeCarrier`），origin 会被保留，确保责任归属一致性
 
 - **ErrorSeverity**（严重程度）：`NORMAL`、`WARNING`、`CRITICAL`、`FATAL`
@@ -285,7 +335,9 @@ core 的 `ErrorResolver` 统一执行错误码和消息的可见性策略，CALL
 Web 层复用其生成的 `ErrorCodeCarrier`，仅输出 `code/message`；`originalCode`、来源服务与诊断元数据不进入公开响应。
 `WebErrorResponseMapper` 只承担 HTTP 响应映射，HTTP 状态、请求 ID 和验证明细仍由 Web 层处理。
 
-普通业务错误可以使用默认的 `CALLER`。数据库、缓存、消息投递、JSON 序列化等只能由服务端修复的错误，应在错误码类型或常量的 `@ErrorMetadata` 中声明 `origin = ErrorOrigin.SERVER`。应用可以注册 `WebErrorStatusResolver` 覆盖默认 400/500 映射。
+普通业务错误可以使用默认的 `CALLER`。数据库、缓存、消息投递、JSON 序列化等只能由服务端修复的错误，应在错误码类型或常量的 `@ErrorMetadata` 中声明 `origin = ErrorOrigin.SERVER`。应用可以注册 `WebErrorStatusResolver` 覆盖默认映射。
+
+`WebErrors.SERVICE_UNAVAILABLE` 默认返回 503，`WebErrors.TOO_MANY_REQUESTS` 默认返回 429。若通过 `withOrigin(...)` 把前者改为 CALLER，则回退为 400；把后者改为 SERVER，则回退为 500。状态映射不能违背运行时责任。传播错误的名称不参与猜测：远程 `WEB.SERVICE_UNAVAILABLE` 仍按传播的责任回退，需要具体状态时应在消费端显式映射。
 
 错误码格式由 `ErrorResolver` 生成：
 
@@ -316,10 +368,10 @@ Dubbo 等协议适配层接收到跨边界传播的错误时会抛出携带 `Err
 | `MethodArgumentTypeMismatchException` | 400 | `WEB.BAD_REQUEST` | 请求参数类型转换失败。 |
 | `ServletRequestBindingException` | 框架指定状态 | 按状态映射 | 尊重 ErrorResponse 状态，例如服务端缺失路径变量为 500。 |
 | `HttpMessageNotReadableException` | 400 | `WEB.BAD_REQUEST` | JSON 或请求体不可读。 |
-| `IllegalArgumentException`（含 `NumberFormatException`） | 400 | `COMMON.ILLEGAL_ARGUMENT` | 使用安全默认提示，不输出原始消息。 |
+| 裸 `IllegalArgumentException`（含 `NumberFormatException`） | 500 | `WEB.INTERNAL_ERROR` | 不能据此证明请求有错；明确的参数错误使用 Asserts 或显式映射。 |
 | `IllegalStateException`、`NullPointerException` | 500 | `WEB.INTERNAL_ERROR` | 未识别内部故障。 |
-| `HttpRequestMethodNotSupportedException` | 405 | `WEB.BAD_REQUEST` | HTTP 方法不支持。 |
-| `HttpMediaTypeNotSupportedException` | 415 | `WEB.BAD_REQUEST` | 请求媒体类型不支持。 |
+| `HttpRequestMethodNotSupportedException` | 405 | `WEB.METHOD_NOT_ALLOWED` | HTTP 方法不支持。 |
+| `HttpMediaTypeNotSupportedException` | 415 | `WEB.UNSUPPORTED_MEDIA_TYPE` | 请求媒体类型不支持。 |
 | `NoHandlerFoundException`、`NoResourceFoundException` | 404 | `WEB.NOT_FOUND` | MVC handler 或静态资源不存在。 |
 | `ResponseStatusException` | 异常指定状态 | 按状态映射 | 使用安全默认提示；需要公开自定义消息时使用 WebErrorMapper。 |
 | `ErrorResponseException` | 异常指定状态 | 按状态映射 | 重建安全响应，不透传异常自带 body 或扩展属性。 |
@@ -327,17 +379,29 @@ Dubbo 等协议适配层接收到跨边界传播的错误时会抛出携带 `Err
 | `ErrorCodeException`（传播错误） | 按传播错误的 `ErrorOrigin` | 按当前 Web 边界可见性策略 | 协议适配层接收的跨边界传播错误。 |
 | 其他 `Exception` | 500 | `WEB.INTERNAL_ERROR` | 未分类异常。 |
 
-状态到错误码的收敛规则：
+状态与专用错误码由 `WebErrors` 统一声明，覆盖 28 个有效 4xx 和 10 个有效 5xx 协议状态。异常解析与响应投影共用此声明，MVC advice、原生 `ProblemDetail` 和容器错误出口保持一致。例如：
 
 | HTTP 状态 | 错误码 |
 | --- | --- |
 | 401 | `WEB.UNAUTHORIZED` |
 | 403 | `WEB.FORBIDDEN` |
 | 404 | `WEB.NOT_FOUND` |
-| 5xx | `WEB.INTERNAL_ERROR` |
-| 其他 4xx | `WEB.BAD_REQUEST` |
+| 405 | `WEB.METHOD_NOT_ALLOWED` |
+| 413 | `WEB.PAYLOAD_TOO_LARGE` |
+| 415 | `WEB.UNSUPPORTED_MEDIA_TYPE` |
+| 421 | `WEB.MISDIRECTED_REQUEST` |
+| 422 | `WEB.UNPROCESSABLE_ENTITY` |
+| 429 | `WEB.TOO_MANY_REQUESTS` |
+| 500 | `WEB.INTERNAL_ERROR` |
+| 502 / 503 / 504 | `WEB.BAD_GATEWAY` / `WEB.SERVICE_UNAVAILABLE` / `WEB.GATEWAY_TIMEOUT` |
+| 未覆盖的 4xx | `WEB.BAD_REQUEST` |
+| 未覆盖的 5xx | `WEB.INTERNAL_ERROR` |
 
-starter 不直接依赖 Spring Security。异常 cause 链中出现以下类名时，会映射为安全错误：
+未分配、未使用或已废止状态（如 418、419、420、509、510）不新增专用错误码。Spring 未定义的数值状态仍按既有规则归一化：非标准 4xx 回退为 400，其他非标准或非错误状态回退为 500。Spring 6.2 对 421 使用历史名称，starter 按数值保留 421，并在生成 `ProblemDetail` 时使用当前标题 `Misdirected Request`。
+
+兼容性提示：405、415、429、503 等响应的 HTTP 状态保持原有语义，正文 `code` 从通用 `WEB.BAD_REQUEST` / `WEB.INTERNAL_ERROR` 细化为对应专用错误码。依赖旧通用错误码做分支判断的客户端需要同步适配。现有错误码名称和默认消息保持不变。
+
+starter 不直接依赖 Spring Security。当前异常或受支持的透明包装内的异常属于以下类型时，映射为安全错误：
 
 | 类名 | HTTP 状态 | 错误码 |
 | --- | --- | --- |
@@ -346,7 +410,7 @@ starter 不直接依赖 Spring Security。异常 cause 链中出现以下类名�
 
 ### 容器错误处理边界
 
-starter 在 Spring Boot 的 `ErrorMvcAutoConfiguration` 之前注册应用级 `WebErrorController`，接管容器可转交的 `/error` 请求。不存在的路径、`HttpServletResponse.sendError(...)` 以及未处理异常触发的 `ERROR` dispatch 均使用应用级默认 `ApiResponse` 格式；此类请求没有 Controller 方法，不能依赖 `@NativeResponse`。响应保留容器确定的 HTTP 状态，错误码和消息通过同一 Web 错误投影生成。
+starter 在 Spring Boot 的 `ErrorMvcAutoConfiguration` 之前注册应用级 `WebErrorController`，接管容器可转交的 `/error` 请求。不存在的路径、`HttpServletResponse.sendError(...)` 以及未处理异常触发的 `ERROR` dispatch 均使用应用级默认 `ApiResponse` 格式；此类请求没有 Controller 方法，不能依赖 `@NativeResponse`。响应保留容器确定的标准错误状态；非标准或非错误状态使用与 MVC 相同的归一化规则，错误码和消息通过同一 Web 错误投影生成。
 
 容器提供的异常消息、堆栈、原始异常类型和扩展属性不直接输出。响应已提交后不尝试重写，只保留容器日志或应用诊断记录。非法 HTTP 报文、请求头限制等在进入应用前由容器或网关拒绝的请求不属于 starter 可接管范围，应由容器配置或网关错误页统一处理。
 
@@ -356,18 +420,31 @@ starter 在 Spring Boot 的 `ErrorMvcAutoConfiguration` 之前注册应用级 `W
 
 注册 `WebErrorMapper` Bean 可将异常转换为明确的 `ErrorCodeException`。多个 mapper 按 Spring 顺序调用，第一个非 null 结果生效；返回 null 继续默认分类。优先级为 Web 显式映射 > 单次异常覆盖 > 远端元数据或本地错误声明 > 框架默认。HTTP 状态仍可通过 `WebErrorStatusResolver` 自定义。
 
-原生 IllegalArgumentException 默认 400 是本框架约定，不代表它天然证明客户端责任；服务端错误应显式设置 SERVER 或提供映射。不会沿任意 cause 链找到参数异常就降为 400。
+默认出口按以下顺序一次识别错误语义与协议信息：
 
-所有错误经同一投影路径输出；只有 PUBLIC 且为 4xx 的校验错误允许返回结构化详情。INTERNAL、CODE_ONLY、MESSAGE_ONLY 均不附带字段详情，避免内容绕过策略。原生 ProblemDetail 重新生成，只保留安全码、消息和 requestId；响应头仅保留 Allow、Accept、Retry-After、WWW-Authenticate 等明确协议头。MVC advice 不覆盖所有 Servlet Filter 或已提交响应。
+1. 执行显式 mapper；命中后使用映射结果，不继承原异常的协议头或校验详情。
+2. 识别当前异常的业务错误、Spring `ErrorResponse`、`@ResponseStatus`、安全异常或明确的请求输入错误。
+3. 当前层未声明语义时，仅解包 `CompletionException`、`ExecutionException`、`InvocationTargetException`，然后重复识别；循环包装安全终止。
+4. 普通异常及未知错误按 500 处理，不访问其内部 cause 来推断协议或业务语义。
 
-兼容性变化：原生 IllegalArgumentException 从 500 改为 400；隐藏调用方错误从 SYSTEM.INTERNAL_ERROR 改为 COMMON.REQUEST_REJECTED；ResponseStatusException/ProblemDetail 不再直接暴露原始消息和扩展属性。
+业务错误保留原异常及其全部元数据，框架错误仅采用安全默认码和消息。HTTP 状态、错误码、协议头来源保存为一个内部结果；不会为提取头再次遍历异常链，也不会为框架错误合成新的 `ErrorCodeException` 堆栈。公开可见性统一由 core 应用一次，再选择 `ApiResponse` 或 `ProblemDetail` 格式。
+
+裸 `IllegalArgumentException` 不再默认表示请求错误。公共请求参数校验应使用 `Asserts` 产生明确的 `ErrorCodeException`；第三方请求异常可用 `WebErrorMapper` 显式归类。
+
+自定义 `WebErrorStatusResolver` 在默认识别后调用一次，接收原始或显式映射后的异常以及实际已识别错误码。对业务错误仅覆盖 HTTP 状态，不改写业务码或元数据；对框架错误则按最终状态选择协议码。状态变化时丢弃原协议头，返回 2xx、3xx 等非错误状态时归一化为 500。直接调用默认状态 SPI 时仍兼容候选错误码回退，默认内部链路不使用 `INTERNAL_ERROR` 表达“未分类”。
+
+所有错误经同一投影路径输出；只有首次识别为请求校验错误、PUBLIC 且最终为 4xx 时才允许返回结构化详情。状态 SPI 将服务端错误改成 4xx 不会赋予其公开详情的资格。INTERNAL、CODE_ONLY、MESSAGE_ONLY 均不附带字段详情，避免内容绕过策略。原生 ProblemDetail 重新生成，只保留安全码、消息和 requestId；响应头仅保留 Allow、Accept、Retry-After、WWW-Authenticate 等明确协议头。MVC advice 不覆盖所有 Servlet Filter 或已提交响应。
+
+本次边界整理的兼容性变化：裸 `IllegalArgumentException` 从 400 改为 500；普通 `RuntimeException(cause)` 不再自动继承内部状态和业务语义，需要保留时应显式映射。自定义状态 SPI 收到实际协议码，而非未分类占位码；显式 mapper 不再隐式携带原异常的头或校验详情。透明包装内的业务错误会完整保留责任及可见性，避免先前只保留状态而丢失元数据。
+
+既有可见性契约保持：隐藏调用方错误使用 `COMMON.REQUEST_REJECTED`，服务端使用 `SYSTEM.INTERNAL_ERROR`；`ResponseStatusException` / `ProblemDetail` 不直接暴露原始消息和扩展属性。
 
 ## 参数校验详情
 
 `wuli3.web.response.validation-detail-enabled=true` 时，以下异常会在失败响应的 `data.errors` 中返回字段级详情：
 
 - `MethodArgumentNotValidException`
-- `ConstraintViolationException`
+- `ConstraintViolationException`（非空请求约束集合，不包含返回值约束）
 - `MissingServletRequestParameterException`
 - `MethodArgumentTypeMismatchException`
 

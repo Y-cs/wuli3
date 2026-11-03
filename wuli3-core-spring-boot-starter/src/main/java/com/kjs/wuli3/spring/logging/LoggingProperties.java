@@ -19,11 +19,11 @@ public class LoggingProperties {
     /** 向后兼容的日志配置前缀。 */
     public static final String PREFIX = "wuli3.logging";
 
-    /** 默认文本日志格式。 */
+    /** 默认文本日志格式，%kvp 保留 SLF4J 原生结构化字段。 */
     public static final String DEFAULT_TEXT_PATTERN =
             "[%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX}] [%-5level] [%thread] [app=${spring.application.name:application}] "
                     + "[requestId=%X{" + LogMdcKeys.REQUEST_ID + "}] [traceId=%X{trace_id}] [spanId=%X{span_id}] "
-                    + "%logger{36} - %msg%n%wEx";
+                    + "%logger{36} - %msg %kvp%n%wEx";
 
     /** 默认日志文件名。 */
     public static final String DEFAULT_FILE_NAME = "logs/${spring.application.name:application}.log";

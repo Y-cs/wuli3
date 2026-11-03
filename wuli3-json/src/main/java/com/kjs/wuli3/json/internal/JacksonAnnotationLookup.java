@@ -43,6 +43,7 @@ public final class JacksonAnnotationLookup {
             return annotation;
         }
         final AnnotatedElement annotatedElement = member.getAnnotated();
-        return annotatedElement.getAnnotation(annotationType);
+        // record 构造参数可能没有底层反射元素，此时视为未找到注解。
+        return annotatedElement == null ? null : annotatedElement.getAnnotation(annotationType);
     }
 }

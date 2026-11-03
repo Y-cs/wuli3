@@ -1,6 +1,5 @@
 package com.kjs.wuli3.web.response;
 
-import com.kjs.wuli3.core.error.ErrorCodeException;
 import com.kjs.wuli3.core.error.model.ErrorCode;
 import com.kjs.wuli3.core.error.model.ErrorVisibility;
 import com.kjs.wuli3.core.error.propagation.ErrorCodeCarrier;
@@ -49,7 +48,7 @@ public record ApiResponse<T>(
             final @Nullable String requestId,
             final ErrorResolver errorResolver,
             final @Nullable T data) {
-        final ErrorCodeCarrier carrier = errorResolver.resolveBoundary(new ErrorCodeException(errorCode, message));
+        final ErrorCodeCarrier carrier = errorResolver.resolveBoundary(errorCode, message);
         return ApiResponse.failure(carrier, requestId, data);
     }
     /** 仅向外投影已解析错误的展示码和消息，诊断字段留在服务内部。 */

@@ -30,6 +30,17 @@ class LoggingEnvironmentPostProcessorTest {
         assertThat(environment.getProperty("logging.pattern.file")).isEqualTo("custom-file");
     }
 
+    /** 控制台与文件的默认文本布局均保留 SLF4J 原生键值字段。 */
+    @Test
+    void textDefaultsIncludeKeyValuesForConsoleAndFile() {
+        final MockEnvironment environment = new MockEnvironment();
+
+        this.processor.postProcessEnvironment(environment, new SpringApplication(Object.class));
+
+        assertThat(environment.getProperty("logging.pattern.console")).contains("%kvp");
+        assertThat(environment.getProperty("logging.pattern.file")).contains("%kvp");
+    }
+
     @Test
     void mapsStructuredFormatToSpringBootProperties() {
         final MockEnvironment environment = new MockEnvironment().withProperty("wuli3.logging.format", "ecs");

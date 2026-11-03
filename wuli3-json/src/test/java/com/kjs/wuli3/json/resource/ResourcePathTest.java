@@ -15,6 +15,33 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class ResourcePathTest {
+    /** 验证未标注资源路径的 record 请求体不会因构造参数缺少反射元素而失败。 */
+    @Test
+    void resourcePathModuleDeserializesUnannotatedRecord() throws Exception {
+        final ObjectMapper objectMapper = ResourcePathTest.resourcePathObjectMapper(new CdnResolver());
+        final PlainSample sample = objectMapper.readValue("""
+                        {"name":"demo","count":2}
+                        """, PlainSample.class);
+
+        assertThat(sample).isEqualTo(new PlainSample("demo", 2));
+    }
+
+    /** 验证普通构造参数与资源路径参数共存时仍保留路径转换能力。 */
+    @Test
+    void resourcePathModuleDeserializesRecordWithAnnotatedAndUnannotatedComponents() throws Exception {
+        final ObjectMapper objectMapper = ResourcePathTest.resourcePathObjectMapper(new CdnResolver());
+        final MixedSample sample = objectMapper.readValue("""
+                        {"name":"demo","path":"https://static.example.com/files/demo.png"}
+                        """, MixedSample.class);
+
+        assertThat(sample).isEqualTo(new MixedSample("demo", "/files/demo.png"));
+        assertThat(objectMapper
+                        .readTree(objectMapper.writeValueAsString(sample))
+                        .get("path")
+                        .textValue())
+                .isEqualTo("https://static.example.com/files/demo.png");
+    }
+
     @Test
     void defaultResolverKeepsValueUnchanged() throws Exception {
         final ObjectMapper objectMapper = ResourcePathTest.resourcePathObjectMapper(new DefaultResourcePathResolver());
@@ -108,6 +135,12 @@ class ResourcePathTest {
         assertThat(objectMapper.writeValueAsString(new UnsupportedSample("files/demo.png")))
                 .contains("\"path\":\"files/demo.png\"");
     }
+
+    record PlainSample(String name, int count) {}
+
+    record MixedSample(
+            String name,
+            @ResourcePath(type = CdnResolver.TYPE) String path) {}
 
     record DefaultSample(@ResourcePath String path) {}
 

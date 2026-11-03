@@ -1,10 +1,12 @@
 package com.kjs.wuli3.core.error.resolver;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.kjs.wuli3.core.error.ErrorCodeException;
 import com.kjs.wuli3.core.error.builtin.CommonErrors;
 import com.kjs.wuli3.core.error.builtin.SystemErrors;
+import com.kjs.wuli3.core.error.model.ErrorCode;
 import com.kjs.wuli3.core.error.model.ErrorOrigin;
 import com.kjs.wuli3.core.error.model.ErrorSeverity;
 import com.kjs.wuli3.core.error.model.ErrorVisibility;
@@ -15,6 +17,49 @@ import org.junit.jupiter.api.Test;
 class ErrorResolverTest {
 
     private final ErrorResolver resolver = new ErrorResolver("group");
+
+    /** 无异常输入与原异常入口输出一致，服务前缀及本地元数据不能丢失。 */
+    @Test
+    void errorValuesMatchExceptionProjection() {
+        for (final ErrorCode code :
+                new ErrorCode[] {CommonErrors.ILLEGAL_ARGUMENT, SystemErrors.CONFIGURATION_MISSING}) {
+            assertThat(this.resolver.resolveBoundary(code, "override"))
+                    .isEqualTo(this.resolver.resolveBoundary(new ErrorCodeException(code, "override")));
+        }
+    }
+
+    /** 远程错误值保留原身份、来源和全部策略，消息覆盖后仍执行同一可见性过滤。 */
+    @Test
+    void remoteErrorValuesMatchExceptionProjection() {
+        for (final ErrorVisibility visibility : ErrorVisibility.values()) {
+            for (final ErrorOrigin origin : ErrorOrigin.values()) {
+                final ErrorCodeCarrier remote = new ErrorCodeCarrier(
+                        "REMOTE.ORIGINAL.FAILURE",
+                        "REMOTE.PUBLIC.FAILURE",
+                        "remote message",
+                        origin,
+                        ErrorSeverity.CRITICAL,
+                        "remote-service",
+                        visibility);
+                assertThat(this.resolver.resolveBoundary(remote, "override"))
+                        .isEqualTo(this.resolver.resolveBoundary(new ErrorCodeException(remote, "override")));
+            }
+        }
+    }
+
+    /** 错误值入口的非法输入进入统一参数错误链。 */
+    @Test
+    @SuppressWarnings("NullAway") // 刻意违反非空契约，验证公开入口的运行时校验。
+    void rejectsNullErrorValues() {
+        assertThatThrownBy(() -> this.resolver.resolveBoundary(null, "message"))
+                .isInstanceOfSatisfying(
+                        ErrorCodeException.class,
+                        error -> assertThat(error.getErrorCode()).isEqualTo(CommonErrors.ILLEGAL_ARGUMENT));
+        assertThatThrownBy(() -> this.resolver.resolveBoundary(CommonErrors.ILLEGAL_ARGUMENT, null))
+                .isInstanceOfSatisfying(
+                        ErrorCodeException.class,
+                        error -> assertThat(error.getErrorCode()).isEqualTo(CommonErrors.ILLEGAL_ARGUMENT));
+    }
 
     @Test
     void appliesVisibilityPolicies() {
