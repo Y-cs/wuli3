@@ -20,7 +20,10 @@ import com.kjs.wuli3.web.internal.error.WebErrorResponseMapper;
 import com.kjs.wuli3.web.response.ApiResponse;
 import com.kjs.wuli3.web.response.WebResponseProperties;
 import jakarta.servlet.http.HttpServletRequest;
+import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
 import org.springframework.http.HttpHeaders;
@@ -75,6 +78,7 @@ public class WebExceptionHandler {
             semanticError = mapped;
             status = this.webErrorStatusResolver.resolve(mapped, mapped.getErrorCode());
         } else {
+            // 这里只提供尚未归类的占位码，最终响应码仍由解析出的 HTTP 状态决定。
             status = this.webErrorStatusResolver.resolve(ex, WebErrors.INTERNAL_ERROR);
             final ErrorCode code = ex instanceof IllegalArgumentException && status == HttpStatus.BAD_REQUEST
                     ? CommonErrors.ILLEGAL_ARGUMENT
@@ -88,23 +92,47 @@ public class WebExceptionHandler {
                 : null;
         final ApiResponse<?> response = ApiResponse.failure(visible, this.requestId(), detail);
         this.alert(ex, semanticError, request, status, visible);
-        final HttpHeaders headers = new HttpHeaders();
-        if (ex instanceof ErrorResponse frameworkError) {
-            // 仅保留协议协商需要的头，诊断头不能绕过正文脱敏。
-            for (final String name : List.of(
-                    HttpHeaders.ALLOW, HttpHeaders.ACCEPT, HttpHeaders.RETRY_AFTER, HttpHeaders.WWW_AUTHENTICATE)) {
-                final List<String> values = frameworkError.getHeaders().get(name);
-                if (values != null) {
-                    headers.put(name, values);
-                }
-            }
-        }
+        final HttpHeaders headers = WebExceptionHandler.protocolHeaders(ex, status);
         if (NativeResponseSupport.isAll(request)) {
             return ResponseEntity.status(status)
                     .headers(headers)
                     .body(WebErrorResponseMapper.nativeError(status, response).getBody());
         }
         return ResponseEntity.status(status).headers(headers).body(response);
+    }
+
+    /**
+     * 从最近的框架异常复制与最终状态一致的协议协商头。
+     *
+     * <p>405 等状态即使被包装也需要保留 Allow 等协议头；业务异常和状态不一致的框架异常则形成边界，
+     * 不能继续向更深处拼接不相关的头。仅复制白名单，防止诊断头绕过正文的可见性过滤。
+     */
+    private static HttpHeaders protocolHeaders(final Throwable error, final HttpStatus status) {
+        final HttpHeaders headers = new HttpHeaders();
+        final Set<Throwable> visited = Collections.newSetFromMap(new IdentityHashMap<>());
+        Throwable current = error;
+        while (current != null && visited.add(current)) {
+            if (current instanceof ErrorCodeException) {
+                return headers;
+            }
+            if (current instanceof ErrorResponse frameworkError) {
+                if (status.isSameCodeAs(frameworkError.getStatusCode())) {
+                    for (final String name : List.of(
+                            HttpHeaders.ALLOW,
+                            HttpHeaders.ACCEPT,
+                            HttpHeaders.RETRY_AFTER,
+                            HttpHeaders.WWW_AUTHENTICATE)) {
+                        final List<String> values = frameworkError.getHeaders().get(name);
+                        if (values != null) {
+                            headers.put(name, values);
+                        }
+                    }
+                }
+                return headers;
+            }
+            current = current.getCause();
+        }
+        return headers;
     }
 
     /** 显式边界映射优先；未匹配时保留错误自身的责任和可见性。 */

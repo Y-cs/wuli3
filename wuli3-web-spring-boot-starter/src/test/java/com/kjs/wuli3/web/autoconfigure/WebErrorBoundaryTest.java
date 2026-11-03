@@ -25,12 +25,14 @@ import java.util.List;
 import java.util.Objects;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ProblemDetail;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.web.ErrorResponseException;
 import org.springframework.web.HttpMediaTypeNotAcceptableException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.method.HandlerMethod;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.servlet.HandlerMapping;
@@ -80,6 +82,67 @@ class WebErrorBoundaryTest {
                                 request)
                         .getStatusCode())
                 .isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+
+    /** 包装不会丢失框架声明的状态和协议协商头，也不会泄露异常原因。 */
+    @Test
+    void preservesWrappedProtocolErrors() {
+        final var result = WebErrorBoundaryTest.handler(List.of())
+                .handleException(
+                        new RuntimeException(new HttpRequestMethodNotSupportedException("POST", List.of("GET"))),
+                        new MockHttpServletRequest());
+        assertThat(result.getStatusCode()).isEqualTo(HttpStatus.METHOD_NOT_ALLOWED);
+        assertThat(result.getHeaders().getFirst("Allow")).isEqualTo("GET");
+        assertThat(Objects.requireNonNull(result.getBody()).toString()).doesNotContain("POST");
+    }
+
+    /** 显式映射改变状态时，不复制原状态的协商头；诊断头始终不对外输出。 */
+    @Test
+    void protocolHeadersRespectFinalStatusAndWhitelist() {
+        final ErrorResponseException error = new ErrorResponseException(HttpStatus.TOO_MANY_REQUESTS);
+        error.getHeaders().set("Retry-After", "60");
+        error.getHeaders().set("X-Diagnostic", "secret");
+        final var defaultResult = WebErrorBoundaryTest.handler(List.of())
+                .handleException(new RuntimeException(error), new MockHttpServletRequest());
+        assertThat(defaultResult.getStatusCode()).isEqualTo(HttpStatus.TOO_MANY_REQUESTS);
+        assertThat(defaultResult.getHeaders().getFirst("Retry-After")).isEqualTo("60");
+        assertThat(defaultResult.getHeaders()).doesNotContainKey("X-Diagnostic");
+        final var mappedResult = WebErrorBoundaryTest.handler(
+                        List.of(failure -> new ErrorCodeException(WebErrors.FORBIDDEN)))
+                .handleException(error, new MockHttpServletRequest());
+        assertThat(mappedResult.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(mappedResult.getHeaders()).doesNotContainKeys("Retry-After", "X-Diagnostic");
+    }
+
+    /** 注解的原因文本仍经过统一响应投影，不直接作为公开消息。 */
+    @Test
+    void responseStatusReasonDoesNotBypassVisibilityBoundary() {
+        final var result = WebErrorBoundaryTest.handler(List.of())
+                .handleException(new MissingResourceException(), new MockHttpServletRequest());
+        assertThat(result.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(((ApiResponse<?>) Objects.requireNonNull(result.getBody())).message())
+                .isEqualTo("资源不存在");
+        assertThat(result.getBody().toString()).doesNotContain("secret");
+    }
+
+    /** 非标准状态的回退在普通及原生响应模式下均不泄露框架详情。 */
+    @Test
+    void normalizesNonstandardStatusInBothResponseModes() throws Exception {
+        final MockHttpServletRequest nativeRequest = new MockHttpServletRequest();
+        nativeRequest.setAttribute(
+                HandlerMapping.BEST_MATCHING_HANDLER_ATTRIBUTE,
+                new HandlerMethod(new NativeController(), NativeController.class.getDeclaredMethod("endpoint")));
+        final WebExceptionHandler handler = WebErrorBoundaryTest.handler(List.of());
+        for (final MockHttpServletRequest request : List.of(new MockHttpServletRequest(), nativeRequest)) {
+            final ProblemDetail unsafe = ProblemDetail.forStatusAndDetail(HttpStatusCode.valueOf(499), "secret detail");
+            final var result = handler.handleException(
+                    new ErrorResponseException(HttpStatusCode.valueOf(499), unsafe, null), request);
+            assertThat(result.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+            assertThat(Objects.requireNonNull(result.getBody()).toString()).doesNotContain("secret");
+            if (result.getBody() instanceof ProblemDetail problem) {
+                assertThat(problem.getStatus()).isEqualTo(400);
+            }
+        }
     }
 
     /** 认证与授权错误保留 HTTP 状态语义，不能按调用方错误降为 400。 */
@@ -196,5 +259,12 @@ class WebErrorBoundaryTest {
         public String result() {
             return "value";
         }
+    }
+
+    /** 提供带内部原因文本的状态注解。 */
+    @ResponseStatus(code = HttpStatus.NOT_FOUND, reason = "secret reason")
+    private static class MissingResourceException extends RuntimeException {
+        @java.io.Serial
+        private static final long serialVersionUID = 1L;
     }
 }
