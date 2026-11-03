@@ -1,8 +1,7 @@
 name: CI
 
 on:
-  push:
-    branches: [main]
+  # 只在 PR 上运行：合并提交已包含 PR 已验证的同一份代码，main 上再跑一遍是重复。
   pull_request:
 
 permissions:
