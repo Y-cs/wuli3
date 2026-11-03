@@ -51,14 +51,14 @@ class WebErrorStatusMappingTest {
                 .isEqualTo(serverError ? HttpStatus.BAD_REQUEST : HttpStatus.INTERNAL_SERVER_ERROR);
     }
 
-    /** 仅在异常未声明状态时使用候选码，内部错误占位码不覆盖顶层参数错误。 */
+    /** 兼容旧状态 SPI 的候选码输入，未知参数异常不再默认属于请求错误。 */
     @ParameterizedTest
     @MethodSource("knownErrors")
     void knownCodeCanSupplyFallback(final int value, final String name) {
         final WebErrors code = WebErrors.valueOf(name);
         assertThat(this.resolver.resolve(new RuntimeException(), code)).isEqualTo(HttpStatus.valueOf(value));
         assertThat(this.resolver.resolve(new IllegalArgumentException(), WebErrors.INTERNAL_ERROR))
-                .isEqualTo(HttpStatus.BAD_REQUEST);
+                .isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
     }
 
     /** Spring 的历史别名共享数值状态，不能产生不同的公开错误码。 */

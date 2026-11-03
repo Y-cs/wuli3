@@ -1,8 +1,6 @@
 package com.kjs.wuli3.web.internal.handler;
 
 import com.kjs.wuli3.core.error.ErrorCodeException;
-import com.kjs.wuli3.core.error.builtin.CommonErrors;
-import com.kjs.wuli3.core.error.model.ErrorCode;
 import com.kjs.wuli3.core.error.model.ErrorSeverity;
 import com.kjs.wuli3.core.error.model.ErrorVisibility;
 import com.kjs.wuli3.core.error.propagation.ErrorCodeCarrier;
@@ -11,7 +9,6 @@ import com.kjs.wuli3.web.error.ErrorAlertContext;
 import com.kjs.wuli3.web.error.ErrorAlertNotifier;
 import com.kjs.wuli3.web.error.WebErrorMapper;
 import com.kjs.wuli3.web.error.WebErrorStatusResolver;
-import com.kjs.wuli3.web.error.WebErrors;
 import com.kjs.wuli3.web.internal.advice.ApiResponseFactory;
 import com.kjs.wuli3.web.internal.advice.NativeResponseSupport;
 import com.kjs.wuli3.web.internal.advice.ValidationErrorDetailsFactory;
@@ -20,16 +17,11 @@ import com.kjs.wuli3.web.internal.error.WebErrorResponseMapper;
 import com.kjs.wuli3.web.response.ApiResponse;
 import com.kjs.wuli3.web.response.WebResponseProperties;
 import jakarta.servlet.http.HttpServletRequest;
-import java.util.Collections;
-import java.util.IdentityHashMap;
 import java.util.List;
-import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.ErrorResponse;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -72,70 +64,45 @@ public class WebExceptionHandler {
     @ExceptionHandler(Exception.class)
     public ResponseEntity<?> handleException(final Exception ex, final HttpServletRequest request) {
         final ErrorCodeException mapped = this.map(ex);
-        final HttpStatus status;
-        final ErrorCodeException semanticError;
-        if (mapped != null) {
-            semanticError = mapped;
-            status = this.webErrorStatusResolver.resolve(mapped, mapped.getErrorCode());
-        } else {
-            // 这里只提供尚未归类的占位码，最终响应码仍由解析出的 HTTP 状态决定。
-            status = this.webErrorStatusResolver.resolve(ex, WebErrors.INTERNAL_ERROR);
-            final ErrorCode code = ex instanceof IllegalArgumentException && status == HttpStatus.BAD_REQUEST
-                    ? CommonErrors.ILLEGAL_ARGUMENT
-                    : WebErrorResponseMapper.responseCode(status);
-            // 不把库异常消息或框架 ProblemDetail 当成可直接公开的业务消息。
-            semanticError = new ErrorCodeException(code, code.getMessage(), ex);
-        }
-        final ErrorCodeCarrier visible = this.responseFactory.resolve(semanticError);
-        final Object detail = semanticError.getVisibility() == ErrorVisibility.PUBLIC && status.is4xxClientError()
-                ? this.validationErrorDetailsFactory.detail(ex)
+        final WebErrorResolution resolution = this.resolve(mapped == null ? ex : mapped);
+        final ErrorCodeCarrier visible = resolution.source() instanceof ErrorCodeException business
+                ? this.responseFactory.resolve(business)
+                : this.responseFactory.resolve(
+                        resolution.code(), resolution.code().getMessage());
+        final Object detail = resolution.validationDetailsAllowed()
+                        && visible.visibility() == ErrorVisibility.PUBLIC
+                        && resolution.status().is4xxClientError()
+                ? this.validationErrorDetailsFactory.detail(resolution.source())
                 : null;
-        final ApiResponse<?> response = ApiResponse.failure(visible, this.requestId(), detail);
-        this.alert(ex, semanticError, request, status, visible);
-        final HttpHeaders headers = WebExceptionHandler.protocolHeaders(ex, status);
+        final String requestId = this.requestId();
+        final ApiResponse<?> response = ApiResponse.failure(visible, requestId, detail);
+        this.alert(ex, request, resolution.status(), visible, requestId);
         if (NativeResponseSupport.isAll(request)) {
-            return ResponseEntity.status(status)
-                    .headers(headers)
-                    .body(WebErrorResponseMapper.nativeError(status, response).getBody());
+            return ResponseEntity.status(resolution.status())
+                    .headers(resolution.headers())
+                    .body(WebErrorResponseMapper.nativeError(resolution.status(), response)
+                            .getBody());
         }
-        return ResponseEntity.status(status).headers(headers).body(response);
+        return ResponseEntity.status(resolution.status())
+                .headers(resolution.headers())
+                .body(response);
     }
 
     /**
-     * 从最近的框架异常复制与最终状态一致的协议协商头。
+     * 默认实现复用完整识别结果；自定义状态 SPI 在识别后调用一次，只显式覆盖 HTTP 状态。
      *
-     * <p>405 等状态即使被包装也需要保留 Allow 等协议头；业务异常和状态不一致的框架异常则形成边界，
-     * 不能继续向更深处拼接不相关的头。仅复制白名单，防止诊断头绕过正文的可见性过滤。
+     * <p>保留原 SPI 的异常输入和业务码语义。框架错误传入已经识别的协议码，且非错误状态不能作为最终错误响应。
      */
-    private static HttpHeaders protocolHeaders(final Throwable error, final HttpStatus status) {
-        final HttpHeaders headers = new HttpHeaders();
-        final Set<Throwable> visited = Collections.newSetFromMap(new IdentityHashMap<>());
-        Throwable current = error;
-        while (current != null && visited.add(current)) {
-            if (current instanceof ErrorCodeException) {
-                return headers;
-            }
-            if (current instanceof ErrorResponse frameworkError) {
-                if (status.isSameCodeAs(frameworkError.getStatusCode())) {
-                    for (final String name : List.of(
-                            HttpHeaders.ALLOW,
-                            HttpHeaders.ACCEPT,
-                            HttpHeaders.RETRY_AFTER,
-                            HttpHeaders.WWW_AUTHENTICATE)) {
-                        final List<String> values = frameworkError.getHeaders().get(name);
-                        if (values != null) {
-                            headers.put(name, values);
-                        }
-                    }
-                }
-                return headers;
-            }
-            current = current.getCause();
+    private WebErrorResolution resolve(final Throwable error) {
+        final WebErrorResolution resolution = WebErrorResolver.resolve(error);
+        if (this.webErrorStatusResolver instanceof DefaultWebErrorStatusResolver) {
+            return resolution;
         }
-        return headers;
+        final HttpStatus status = this.webErrorStatusResolver.resolve(error, resolution.code());
+        return resolution.withStatus(WebErrorResponseMapper.normalize(status.value()));
     }
 
-    /** 显式边界映射优先；未匹配时保留错误自身的责任和可见性。 */
+    /** 按既有排序执行显式映射，命中后不再从原始异常继承语义或协议头。 */
     private @Nullable ErrorCodeException map(final Exception error) {
         for (final WebErrorMapper mapper : this.errorMappers) {
             final ErrorCodeException mapped = mapper.map(error);
@@ -143,17 +110,17 @@ public class WebExceptionHandler {
                 return mapped;
             }
         }
-        return error instanceof ErrorCodeException coded ? coded : null;
+        return null;
     }
 
     /** 按最终责任和严重程度告警，同时保留原始异常用于内部诊断。 */
     private void alert(
             final Throwable original,
-            final ErrorCodeException semanticError,
             final HttpServletRequest request,
             final HttpStatus status,
-            final ErrorCode responseCode) {
-        final ErrorSeverity severity = semanticError.getSeverity();
+            final ErrorCodeCarrier responseCode,
+            final @Nullable String requestId) {
+        final ErrorSeverity severity = responseCode.severity();
         if (!status.is5xxServerError() && severity != ErrorSeverity.CRITICAL && severity != ErrorSeverity.FATAL) {
             return;
         }
@@ -163,13 +130,13 @@ public class WebExceptionHandler {
                 responseCode,
                 request.getMethod(),
                 request.getRequestURI(),
-                this.requestId(),
+                requestId,
                 original);
         this.errorAlertNotifiers.dispatch(new ErrorAlertContext(
                 original,
                 status,
                 responseCode,
-                this.requestId(),
+                requestId,
                 request.getMethod(),
                 request.getRequestURI(),
                 request.getRemoteAddr()));

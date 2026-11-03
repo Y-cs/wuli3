@@ -12,8 +12,11 @@ import jakarta.validation.ConstraintViolationException;
 import java.io.Serial;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
+import java.lang.reflect.InvocationTargetException;
 import java.time.Duration;
 import java.util.Set;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutionException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -43,7 +46,8 @@ class DefaultWebErrorStatusResolverTest {
     })
     void preservesCallerWebStatuses(final WebErrors code, final HttpStatus expected) {
         assertThat(this.resolver.resolve(new ErrorCodeException(code), code)).isEqualTo(expected);
-        assertThat(this.resolver.resolve(new RuntimeException(new ErrorCodeException(code)), WebErrors.INTERNAL_ERROR))
+        assertThat(this.resolver.resolve(
+                        new CompletionException(new ErrorCodeException(code)), WebErrors.INTERNAL_ERROR))
                 .isEqualTo(expected);
     }
 
@@ -121,14 +125,14 @@ class DefaultWebErrorStatusResolverTest {
                 .isEqualTo(status);
     }
 
-    /** 支持 ResponseStatus 的别名、继承、组合注解与包装原因。 */
+    /** 支持 ResponseStatus 的别名、继承、组合注解与透明包装原因。 */
     @Test
     void honorsResponseStatusAnnotations() {
         for (final Throwable error : new Throwable[] {
             new MissingResourceException(),
             new InheritedMissingResourceException(),
             new ComposedMissingResourceException(),
-            new RuntimeException(new MissingResourceException())
+            new CompletionException(new MissingResourceException())
         }) {
             assertThat(this.resolver.resolve(error, WebErrors.INTERNAL_ERROR)).isEqualTo(HttpStatus.NOT_FOUND);
         }
@@ -145,15 +149,34 @@ class DefaultWebErrorStatusResolverTest {
                         new RuntimeException(new IllegalArgumentException()), WebErrors.INTERNAL_ERROR))
                 .isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
         assertThat(this.resolver.resolve(new IllegalArgumentException(), WebErrors.INTERNAL_ERROR))
-                .isEqualTo(HttpStatus.BAD_REQUEST);
+                .isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+
+    /** 只有明确的异步、反射包装可穿透，普通包装不隐式继承内部协议或业务语义。 */
+    @Test
+    void unwrapsOnlyTransparentWrappers() {
+        final ErrorCodeException business = new ErrorCodeException(WebErrors.NOT_FOUND);
+        assertThat(this.resolver.resolve(
+                        new CompletionException(new ExecutionException(new InvocationTargetException(business))),
+                        WebErrors.INTERNAL_ERROR))
+                .isEqualTo(HttpStatus.NOT_FOUND);
+        for (final Throwable cause : new Throwable[] {
+            business, new ErrorResponseException(HttpStatus.UNAUTHORIZED), new MissingResourceException()
+        }) {
+            assertThat(this.resolver.resolve(new RuntimeException(cause), WebErrors.INTERNAL_ERROR))
+                    .isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+        assertThat(this.resolver.resolve(new OpaqueException(), WebErrors.INTERNAL_ERROR))
+                .isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
     }
 
     /** 循环 cause 链不能阻塞异常出口。 */
     @Test
     void terminatesOnCyclicCauseChain() {
-        final RuntimeException first = new RuntimeException();
-        final RuntimeException second = new RuntimeException(first);
+        final CompletionException first = new TransparentException();
+        final CompletionException second = new TransparentException();
         first.initCause(second);
+        second.initCause(first);
         assertTimeoutPreemptively(
                 Duration.ofSeconds(1),
                 () -> assertThat(this.resolver.resolve(first, WebErrors.INTERNAL_ERROR))
@@ -165,6 +188,23 @@ class DefaultWebErrorStatusResolverTest {
     void emptyViolationsAreNotCallerErrors() {
         assertThat(this.resolver.resolve(new ConstraintViolationException(Set.of()), WebErrors.INTERNAL_ERROR))
                 .isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+
+    /** 模拟可形成循环的透明包装。 */
+    private static class TransparentException extends CompletionException {
+        @Serial
+        private static final long serialVersionUID = 1L;
+    }
+
+    /** 普通异常的 cause 不能被默认解析过程访问。 */
+    private static class OpaqueException extends RuntimeException {
+        @Serial
+        private static final long serialVersionUID = 1L;
+
+        @Override
+        public synchronized Throwable getCause() {
+            throw new AssertionError("不应检查普通异常的内部原因");
+        }
     }
 
     /** 声明 value 别名和内部原因文本，原因文本不影响 HTTP 语义。 */

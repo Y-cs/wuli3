@@ -1,6 +1,5 @@
 package com.kjs.wuli3.web.internal.error;
 
-import com.kjs.wuli3.core.error.ErrorCodeException;
 import com.kjs.wuli3.core.error.model.ErrorCode;
 import com.kjs.wuli3.web.internal.advice.ApiResponseFactory;
 import com.kjs.wuli3.web.response.ApiResponse;
@@ -43,25 +42,13 @@ public final class WebErrorController implements ErrorController {
                 this.errorAttributes.getErrorAttributes(webRequest, ErrorAttributeOptions.defaults());
         final HttpStatus status = WebErrorController.status(attributes, response.getStatus());
         final ErrorCode responseCode = WebErrorResponseMapper.responseCode(status);
-        final ErrorCodeException semanticError = new ErrorCodeException(responseCode, responseCode.getMessage());
-        final ApiResponse<Object> body = this.responseFactory.fail(semanticError);
+        final ApiResponse<Object> body = this.responseFactory.fail(responseCode, responseCode.getMessage());
         response.setStatus(status.value());
         return ResponseEntity.status(status).body(body);
     }
 
     private static HttpStatus status(final Map<String, Object> attributes, final int responseStatus) {
         final Object status = attributes.get("status");
-        if (status instanceof Number number) {
-            try {
-                return HttpStatus.valueOf(number.intValue());
-            } catch (final IllegalArgumentException ignored) {
-                // 使用容器状态或内部错误兜底，不暴露非法状态值。
-            }
-        }
-        try {
-            return HttpStatus.valueOf(responseStatus);
-        } catch (final IllegalArgumentException ignored) {
-            return HttpStatus.INTERNAL_SERVER_ERROR;
-        }
+        return WebErrorResponseMapper.normalize(status instanceof Number number ? number.intValue() : responseStatus);
     }
 }

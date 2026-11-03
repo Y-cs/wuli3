@@ -26,6 +26,15 @@ public final class WebErrorResponseMapper {
 
     private WebErrorResponseMapper() {}
 
+    /** 保持可表达的错误状态；未知 4xx 回退为 400，其他未知或非错误状态回退为 500。 */
+    public static HttpStatus normalize(final int statusCode) {
+        final HttpStatus status = HttpStatus.resolve(statusCode);
+        if (status != null && status.isError()) {
+            return status;
+        }
+        return statusCode >= 400 && statusCode < 500 ? HttpStatus.BAD_REQUEST : HttpStatus.INTERNAL_SERVER_ERROR;
+    }
+
     /** 返回已知协议状态的专用错误码，未覆盖的状态按调用方或服务端类别兜底。 */
     public static ErrorCode responseCode(final HttpStatus status) {
         final WebErrors code = WebErrorResponseMapper.STATUS_CODES.get(status.value());

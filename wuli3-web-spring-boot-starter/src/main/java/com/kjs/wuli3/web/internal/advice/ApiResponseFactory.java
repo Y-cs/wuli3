@@ -67,6 +67,11 @@ public class ApiResponseFactory {
         return this.errorResolver.resolveBoundary(exception);
     }
 
+    /** 将已识别的错误值直接投影到公开边界，不为普通协议错误构造异常堆栈。 */
+    public ErrorCodeCarrier resolve(final ErrorCode errorCode, final String message) {
+        return this.errorResolver.resolveBoundary(errorCode, message);
+    }
+
     /** 将已解析传播模型投影为对外响应，不重复解析。 */
     public <T> ApiResponse<T> fail(final ErrorCodeCarrier carrier) {
         return ApiResponse.failure(carrier, this.requestId(), null);

@@ -33,6 +33,7 @@ import com.kjs.wuli3.web.auth.AuthContextResolver;
 import com.kjs.wuli3.web.context.RequestIds;
 import com.kjs.wuli3.web.error.ErrorAlertContext;
 import com.kjs.wuli3.web.error.ErrorAlertNotifier;
+import com.kjs.wuli3.web.error.WebErrors;
 import com.kjs.wuli3.web.response.ApiResponse;
 import com.kjs.wuli3.web.response.NativeResponse;
 import com.kjs.wuli3.web.response.NativeResponseMode;
@@ -325,11 +326,11 @@ class WebAutoConfigurationTest {
     }
 
     @Test
-    void illegalArgumentIsTreatedAsBadRequest() throws Exception {
+    void unclassifiedIllegalArgumentIsServerFailure() throws Exception {
         mockMvc.perform(get("/illegal-argument"))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value("COMMON.ILLEGAL_ARGUMENT"))
-                .andExpect(jsonPath("$.message").value(CommonErrors.ILLEGAL_ARGUMENT.getMessage()));
+                .andExpect(status().isInternalServerError())
+                .andExpect(jsonPath("$.code").value("WEB.INTERNAL_ERROR"))
+                .andExpect(jsonPath("$.message").value(WebErrors.INTERNAL_ERROR.getMessage()));
     }
 
     /** 验证公开的远程错误保留完整字符串错误码、消息和请求标识。 */

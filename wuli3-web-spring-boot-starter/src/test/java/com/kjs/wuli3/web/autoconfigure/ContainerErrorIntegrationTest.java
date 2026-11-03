@@ -61,11 +61,17 @@ class ContainerErrorIntegrationTest {
 
     /** 容器错误与 MVC 异常共用具体协议映射，公开响应不暴露容器消息。 */
     @ParameterizedTest
-    @CsvSource({"405, METHOD_NOT_ALLOWED", "429, TOO_MANY_REQUESTS", "503, SERVICE_UNAVAILABLE", "504, GATEWAY_TIMEOUT"
+    @CsvSource({
+        "405, 405, METHOD_NOT_ALLOWED",
+        "429, 429, TOO_MANY_REQUESTS",
+        "503, 503, SERVICE_UNAVAILABLE",
+        "504, 504, GATEWAY_TIMEOUT",
+        "499, 400, BAD_REQUEST",
+        "599, 500, INTERNAL_ERROR"
     })
-    void sendErrorKeepsSpecificProtocolCode(final int status, final String name) {
+    void sendErrorKeepsSpecificProtocolCode(final int status, final int expectedStatus, final String name) {
         final ResponseEntity<String> response = this.restTemplate.getForEntity("/send-error/" + status, String.class);
-        assertThat(response.getStatusCode().value()).isEqualTo(status);
+        assertThat(response.getStatusCode().value()).isEqualTo(expectedStatus);
         assertThat(response.getBody()).contains("\"code\":\"WEB." + name + "\"").doesNotContain("secret", "trace");
     }
 
