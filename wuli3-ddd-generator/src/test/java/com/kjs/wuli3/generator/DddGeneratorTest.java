@@ -110,8 +110,7 @@ final class DddGeneratorTest {
                         "git add <path>",
                         "yyyy/M/d HH:mm")
                 .doesNotContain("{{", "/Users/", "OMX", "com.kjs.wuli3.generator", "kotlin", "Kotlin");
-        assertThat(Files.readString(root.resolve("CLAUDE.md")))
-                .isEqualTo("请阅读并遵循根目录 [AGENTS.md](AGENTS.md) 中的全部项目协作规范。\n");
+        assertThat(Files.readString(root.resolve("CLAUDE.md"))).isEqualTo("@AGENTS.md");
         assertThat(root.resolve("gradlew")).isExecutable();
         assertThat(Files.readString(root.resolve("settings.gradle.kts")))
                 .contains(
@@ -244,7 +243,7 @@ final class DddGeneratorTest {
                 .contains("sort.fields=id,created_at");
         final Path queryRepository = root.resolve(
                 "catalog-infra/src/main/java/com/example/catalog/infra/persistence/catalog/CatalogQueryRepositoryImpl.java");
-        assertThat(Files.readString(queryRepository)).contains("Set.of(\"id\",\"created_at\")");
+        assertThat(Files.readString(queryRepository)).contains("Set.of(\"id\", \"created_at\")");
     }
 
     /** 验证基础设施选项只修改 Infra 组合并生成对应持久化类型。 */

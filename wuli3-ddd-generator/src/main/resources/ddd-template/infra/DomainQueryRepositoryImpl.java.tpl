@@ -3,12 +3,10 @@ package {{basePackage}}.infra.persistence.{{domainPackage}};
 import {{basePackage}}.api.dto.{{domainPackage}}.{{domainType}}StatusDto;
 import {{basePackage}}.app.repository.{{domainPackage}}.{{domainType}}QueryRepository;
 {{repositoryImports}}import {{basePackage}}.sharedkernel.EntityId;
-import {{basePackage}}.sharedkernel.Status;
-import org.springframework.stereotype.Repository;
-import com.kjs.wuli3.core.assertion.Asserts;
-import com.kjs.wuli3.pagination.PageQuery;
+{{assertImport}}import com.kjs.wuli3.pagination.PageQuery;
 import com.kjs.wuli3.pagination.PageResult;
 import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Repository;
 
 /**
  * 实现 {{domainType}} 增删改查投影仓储。

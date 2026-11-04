@@ -2,6 +2,7 @@ package com.kjs.wuli3.openfeign.autoconfigure;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kjs.wuli3.propagation.codec.ContextPropagator;
 import com.kjs.wuli3.propagation.store.ThreadLocalContextBackend;
 import feign.RequestInterceptor;
@@ -13,12 +14,13 @@ import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 /**
  * 验证 OpenFeign 自动配置的默认组件和配置属性绑定。
  *
- * @author lipt create on 2026/10/29 18:21
+ * @author lipt create on 2026/11/4 11:20
  */
 class OpenFeignAutoConfigurationTest {
 
-    private final ApplicationContextRunner contextRunner =
-            new ApplicationContextRunner().withConfiguration(AutoConfigurations.of(OpenFeignAutoConfiguration.class));
+    private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
+            .withConfiguration(AutoConfigurations.of(OpenFeignAutoConfiguration.class))
+            .withBean(ObjectMapper.class);
 
     /** 默认注册上下文拦截器和错误解码器，并绑定开关属性。 */
     @Test

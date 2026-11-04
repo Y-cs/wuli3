@@ -15,7 +15,7 @@ import org.junit.jupiter.api.Test;
 /**
  * 验证 Feign 出站请求头按当前上下文重建。
  *
- * @author lipt create on 2026/10/29 18:21
+ * @author lipt create on 2026/11/4 11:20
  */
 class FeignContextRequestInterceptorTest {
 
