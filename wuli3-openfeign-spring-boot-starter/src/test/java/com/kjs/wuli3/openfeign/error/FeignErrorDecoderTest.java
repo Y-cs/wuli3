@@ -2,110 +2,113 @@ package com.kjs.wuli3.openfeign.error;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kjs.wuli3.core.error.ErrorCodeException;
 import com.kjs.wuli3.core.error.model.ErrorOrigin;
 import com.kjs.wuli3.core.error.model.ErrorSeverity;
 import com.kjs.wuli3.core.error.model.ErrorVisibility;
 import com.kjs.wuli3.core.error.propagation.ErrorCodeCarrier;
-import com.kjs.wuli3.core.error.propagation.ErrorCodePropagator;
 import feign.FeignException;
 import feign.Request;
 import feign.Response;
 import java.nio.charset.StandardCharsets;
-import java.util.Collection;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import org.junit.jupiter.api.Test;
 
 /**
- * 验证 Feign 错误响应头到远程错误语义的还原。
+ * 验证 Web 错误响应体到远程错误语义的还原。
  *
- * @author lipt create on 2026/10/29 18:21
+ * @author lipt create on 2026/11/4 11:20
  */
 class FeignErrorDecoderTest {
 
-    private final FeignErrorDecoder decoder = new FeignErrorDecoder();
+    private final FeignErrorDecoder decoder = new FeignErrorDecoder(new ObjectMapper());
 
-    /** 完整错误头转换为携带原始来源的 ErrorCodeException。 */
+    /** 统一响应体中的展示码和消息转换为 ErrorCodeException，并保留 Feign 异常作为 cause。 */
     @Test
-    void decodesCompleteErrorHeaders() {
-        final Map<String, Collection<String>> headers = new LinkedHashMap<>();
-        new ErrorCodePropagator()
-                .inject(
-                        new ErrorCodeCarrier(
-                                "ORDER.ORDER.NOT_FOUND",
-                                "ORDER.ORDER.NOT_FOUND",
-                                "denied",
-                                ErrorOrigin.CALLER,
-                                ErrorSeverity.NORMAL,
-                                "order-service",
-                                ErrorVisibility.INTERNAL),
-                        (name, value) -> headers.put(name, List.of(value)));
+    void decodesDisplayedErrorFromBody() {
+        final Response response = FeignErrorDecoderTest.response(
+                400,
+                "application/json",
+                "{\"code\":\"ORDER.NOT_FOUND\",\"message\":\"订单不存在\","
+                        + "\"timestamp\":1,\"requestId\":\"r-1\",\"data\":null}");
 
-        final Exception decoded = this.decoder.decode("OrderClient#find", FeignErrorDecoderTest.response(headers));
+        final Exception decoded = this.decoder.decode("OrderClient#find", response);
 
-        assertThat(decoded).isInstanceOf(ErrorCodeException.class).hasCauseInstanceOf(FeignException.class);
+        assertThat(decoded).isInstanceOf(ErrorCodeException.class).hasCauseInstanceOf(FeignException.BadRequest.class);
+        assertThat(decoded).hasMessage("订单不存在");
         final ErrorCodeCarrier carrier =
                 ((ErrorCodeException) decoded).asRemoteError().orElseThrow();
-        assertThat(carrier.code()).isEqualTo("ORDER.ORDER.NOT_FOUND");
-        assertThat(carrier.message()).isEqualTo("denied");
+        assertThat(carrier.code()).isEqualTo("ORDER.NOT_FOUND");
+        assertThat(carrier.originalCode()).isEqualTo("ORDER.NOT_FOUND");
+        assertThat(carrier.message()).isEqualTo("订单不存在");
         assertThat(carrier.origin()).isEqualTo(ErrorOrigin.CALLER);
         assertThat(carrier.severity()).isEqualTo(ErrorSeverity.NORMAL);
-        assertThat(carrier.sourceService()).isEqualTo("order-service");
-        assertThat(carrier.visibility()).isEqualTo(ErrorVisibility.INTERNAL);
+        assertThat(carrier.sourceService()).isEmpty();
+        assertThat(carrier.visibility()).isEqualTo(ErrorVisibility.PUBLIC);
+        assertThat(Objects.requireNonNull(decoded.getCause()).getMessage()).contains("ORDER.NOT_FOUND");
     }
 
-    /** HTTP 头名称不区分大小写，小写写法同样能够还原协议。 */
+    /** 5xx 归属服务方，供本地状态映射使用。 */
     @Test
-    void decodesErrorHeadersIgnoringCase() {
-        final Map<String, Collection<String>> headers = new LinkedHashMap<>();
-        new ErrorCodePropagator()
-                .inject(
-                        new ErrorCodeCarrier(
-                                "ORDER.ORDER.NOT_FOUND",
-                                "ORDER.ORDER.NOT_FOUND",
-                                "denied",
-                                ErrorOrigin.CALLER,
-                                ErrorSeverity.NORMAL,
-                                "order-service",
-                                ErrorVisibility.PUBLIC),
-                        (name, value) -> headers.put(name.toLowerCase(), List.of(value)));
+    void derivesServerOriginFromErrorStatus() {
+        final Response response = FeignErrorDecoderTest.response(
+                500, "application/json", "{\"code\":\"SYSTEM.INTERNAL_ERROR\",\"message\":\"内部错误\"}");
 
-        assertThat(this.decoder.decode("OrderClient#find", FeignErrorDecoderTest.response(headers)))
-                .isInstanceOf(ErrorCodeException.class);
+        final ErrorCodeCarrier carrier = ((ErrorCodeException) this.decoder.decode("OrderClient#find", response))
+                .asRemoteError()
+                .orElseThrow();
+
+        assertThat(carrier.origin()).isEqualTo(ErrorOrigin.SERVER);
     }
 
-    /** 错误头缺失或非法时保留 Feign 原始异常。 */
+    /** 非 JSON 响应体交给 Feign 默认解码，不解析二进制或 HTML 错误页。 */
     @Test
-    void fallsBackToFeignExceptionWhenHeadersAreNotDecodable() {
-        final Map<String, Collection<String>> missing = Map.of();
-        final Map<String, Collection<String>> invalid = Map.of(
-                ErrorCodePropagator.CODE, List.of("ORDER.ORDER.NOT_FOUND"),
-                ErrorCodePropagator.ORIGINAL_CODE, List.of("ORDER.ORDER.NOT_FOUND"),
-                ErrorCodePropagator.MESSAGE, List.of("denied"),
-                ErrorCodePropagator.ORIGIN, List.of("CALLER"),
-                ErrorCodePropagator.SEVERITY, List.of("NORMAL"),
-                ErrorCodePropagator.SOURCE_SERVICE, List.of("order-service"),
-                ErrorCodePropagator.VISIBILITY, List.of("UNKNOWN"));
+    void keepsFeignExceptionForNonJsonBody() {
+        final Response response = FeignErrorDecoderTest.response(500, "text/html", "<html><body>error</body></html>");
 
-        assertThat(this.decoder.decode("OrderClient#find", FeignErrorDecoderTest.response(missing)))
-                .isInstanceOf(FeignException.class);
-        assertThat(this.decoder.decode("OrderClient#find", FeignErrorDecoderTest.response(invalid)))
+        assertThat(this.decoder.decode("OrderClient#find", response)).isInstanceOf(FeignException.class);
+    }
+
+    /** 响应体缺少 code、使用成功码或不是合法 JSON 时保留 Feign 原始异常。 */
+    @Test
+    void keepsFeignExceptionWhenBodyIsNotAnErrorPayload() {
+        for (final String body :
+                List.of("{\"message\":\"missing code\"}", "{\"code\":\"0\",\"message\":\"\"}", "{not json")) {
+            final Response response = FeignErrorDecoderTest.response(400, "application/json", body);
+            assertThat(this.decoder.decode("OrderClient#find", response)).isInstanceOf(FeignException.class);
+        }
+    }
+
+    /** 无响应体时保持 Feign 默认解码。 */
+    @Test
+    void keepsFeignExceptionWithoutBody() {
+        assertThat(this.decoder.decode("OrderClient#find", FeignErrorDecoderTest.responseWithoutBody()))
                 .isInstanceOf(FeignException.class);
     }
 
-    private static Response response(final Map<String, Collection<String>> headers) {
+    private static Response response(final int status, final String contentType, final String body) {
+        return FeignErrorDecoderTest.request(status)
+                .headers(Map.of("content-type", List.of(contentType)))
+                .body(body, StandardCharsets.UTF_8)
+                .build();
+    }
+
+    private static Response responseWithoutBody() {
+        return FeignErrorDecoderTest.request(503).build();
+    }
+
+    private static Response.Builder request(final int status) {
         return Response.builder()
-                .status(400)
-                .reason("Bad Request")
+                .status(status)
+                .reason("failure")
                 .request(Request.create(
                         Request.HttpMethod.GET,
                         "http://order-service/orders",
                         Map.of(),
                         new byte[0],
-                        StandardCharsets.UTF_8))
-                .headers(headers)
-                .build();
+                        StandardCharsets.UTF_8));
     }
 }

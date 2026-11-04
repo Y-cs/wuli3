@@ -75,29 +75,6 @@ public final class ErrorResolver {
     }
 
     /**
-     * 为错误值生成可信传播模型，无需为协议错误创建异常堆栈。
-     *
-     * <p>远程错误的原始身份与来源保留，消息使用当前显式提供的值。
-     *
-     * @throws ErrorCodeException 错误码或消息为 null 时返回统一参数错误
-     */
-    public ErrorCodeCarrier resolvePropagation(final ErrorCode errorCode, final String message) {
-        Asserts.whenNull(errorCode).throwIllegalArgumentException("errorCode must not be null");
-        Asserts.whenNull(message).throwIllegalArgumentException("message must not be null");
-        final String code = this.resolveCode(errorCode);
-        final ErrorCodeCarrier remote = errorCode instanceof ErrorCodeCarrier carrier ? carrier : null;
-        final ErrorMetadataResolver metadata = ErrorMetadataResolver.instance();
-        return new ErrorCodeCarrier(
-                remote == null ? code : remote.originalCode(),
-                code,
-                message,
-                metadata.getOrigin(errorCode),
-                metadata.getSeverity(errorCode),
-                remote == null ? this.rawServiceCode : remote.sourceService(),
-                metadata.getVisibility(errorCode));
-    }
-
-    /**
      * 将错误值直接投影到公开边界，无需为协议错误创建异常堆栈。
      *
      * <p>使用错误码自身元数据；需要运行时责任或可见性覆盖时仍使用异常入口。
@@ -106,7 +83,19 @@ public final class ErrorResolver {
      * @throws ErrorCodeException 错误码或消息为 null 时返回统一参数错误
      */
     public ErrorCodeCarrier resolveBoundary(final ErrorCode errorCode, final String message) {
-        return this.boundary(this.resolvePropagation(errorCode, message));
+        Asserts.whenNull(errorCode).throwIllegalArgumentException("errorCode must not be null");
+        Asserts.whenNull(message).throwIllegalArgumentException("message must not be null");
+        final String code = this.resolveCode(errorCode);
+        final ErrorCodeCarrier remote = errorCode instanceof ErrorCodeCarrier carrier ? carrier : null;
+        final ErrorMetadataResolver metadata = ErrorMetadataResolver.instance();
+        return this.boundary(new ErrorCodeCarrier(
+                remote == null ? code : remote.originalCode(),
+                code,
+                message,
+                metadata.getOrigin(errorCode),
+                metadata.getSeverity(errorCode),
+                remote == null ? this.rawServiceCode : remote.sourceService(),
+                metadata.getVisibility(errorCode)));
     }
 
     /** 两个输入入口共用唯一的公开投影规则，原诊断信息仍保留在内部载体中。 */

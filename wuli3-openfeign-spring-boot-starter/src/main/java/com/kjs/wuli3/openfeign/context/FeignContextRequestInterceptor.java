@@ -10,16 +10,16 @@ import java.util.Objects;
 /**
  * 在 Feign 客户端发起调用前把当前 Wuli3 上下文写入请求头。
  *
- * 注意：写入前先删除调用方已有的保留字段，防止业务代码伪造传播值；目标端必须属于可信内部边界。
+ * <p>注意：写入前先删除调用方已有的保留字段，防止业务代码伪造传播值；目标端必须属于可信内部边界。
  *
- * @author lipt create on 2026/10/29 18:21
+ * @author lipt create on 2026/11/4 11:20
  */
 public final class FeignContextRequestInterceptor implements RequestInterceptor {
 
     private final ContextReader contextReader;
     private final ContextPropagator contextPropagator;
 
-    /** 创建使用指定上下文读取与编码组件的中断器。 */
+    /** 创建使用指定上下文读取与编码组件的拦截器。 */
     public FeignContextRequestInterceptor(
             final ContextReader contextReader, final ContextPropagator contextPropagator) {
         this.contextReader = Objects.requireNonNull(contextReader, "contextReader");
