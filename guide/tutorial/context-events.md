@@ -11,7 +11,6 @@ flowchart LR
     S -->|Spring 同步事件| L[本地监听器：当前线程]
     S -->|编码信封和上下文头| Q[消息队列]
     Q -->|消费者显式 runInScope| C[消费应用服务]
-    S -->|Boot Builder 创建客户端| R[下游 HTTP]
 ```
 
 | 类型 | 作用 | 什么时候用 |
@@ -41,7 +40,7 @@ dependencies {
 
 ## 2. 读取、绑定与异步捕获
 
-Web starter 自动提供 `ContextManager`、`ContextReader`、`ContextBinder`、两个 Accessor 和默认 `ContextPropagator`。业务服务优先注入只读 Accessor，只有需要建立边界的代码才注入 Manager。
+Web starter 自动提供 `ContextManager`、`ContextReader`、`ContextBinder` 和两个 Accessor，不会自动向 HTTP 客户端注入上下文传播器。业务服务优先注入只读 Accessor，只有需要建立边界的代码才注入 Manager；跨协议传播由对应适配器显式装配。
 
 ```java
 import com.kjs.wuli3.propagation.accessor.AuthContextAccessor;
@@ -216,7 +215,7 @@ this.contextManager.with(this.contextManager.state().with(tenant)).run(() -> {
 });
 ```
 
-对 MQ，已注册 codec 后，发送编码器和 `runInScope` 会使用它。对 HTTP，出站传播器也会编码它，但 **Web 入站过滤器只建立 Invocation/Auth，不会遍历所有 codec 自动绑定租户**。接收服务必须在可信认证之后、业务执行之前增加自己的入口作用域；不能仅加上述 Bean 就认为租户完成全链路传播。
+对 MQ，已注册 codec 后，发送编码器和 `runInScope` 会使用它。HTTP 出站传播由具体适配器显式装配；**Web 入站过滤器只建立 Invocation/Auth，不会遍历所有 codec 自动绑定租户**。接收服务必须在可信认证之后、业务执行之前增加自己的入口作用域；不能仅加上述 Bean 就认为租户完成全链路传播。
 
 ## 4. Web 的自动部分与业务责任
 

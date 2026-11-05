@@ -31,7 +31,7 @@ wuli3 提供安全默认值、稳定的集成边界和可验证的通用机制�
 | `trusted-proxy-cidrs` 默认空列表，只用于客户端 IP 解析 | 不信任转发 IP 头，不等于不信任身份头；生产环境不能照搬宽泛私网 CIDR 示例 | [WebContextProperties](../wuli3-web-spring-boot-starter/src/main/java/com/kjs/wuli3/web/context/WebContextProperties.java) |
 | 默认注册 `TrustedHttpAuthContextResolver`，直接解码请求头 | 假定上游已认证；该解析器本身不校验 peer、Token 或签名 | [自动配置](../wuli3-web-spring-boot-starter/src/main/java/com/kjs/wuli3/web/autoconfigure/WebContextAutoConfiguration.java)、[身份解析器](../wuli3-web-spring-boot-starter/src/main/java/com/kjs/wuli3/web/internal/auth/TrustedHttpAuthContextResolver.java) |
 | `ContextFilter` 在上下文作用域内执行请求并恢复状态 | 它构建上下文，不构成业务接口的认证或授权拦截规则 | [ContextFilter](../wuli3-web-spring-boot-starter/src/main/java/com/kjs/wuli3/web/internal/filter/ContextFilter.java) |
-| 默认 HTTP 出站拦截器传播调用与身份上下文 | 使用带该拦截器的客户端调用第三方时存在身份信息外传风险；目前没有目标域名信任判断 | [出站拦截器](../wuli3-web-spring-boot-starter/src/main/java/com/kjs/wuli3/web/internal/interceptor/ContextPropagationInterceptor.java) |
+| Web starter 不自动向 HTTP 客户端注入上下文传播拦截器 | HTTP 出站上下文传播由具体协议适配器显式装配，避免 Web 默认配置把内部身份带到外部目标 | [Web 自动配置](../wuli3-web-spring-boot-starter/src/main/java/com/kjs/wuli3/web/autoconfigure/WebContextAutoConfiguration.java) |
 | Web 错误映射声明消费已做可见性处理的响应；Dubbo 传播完整内部错误 | 内部错误 attachments 不能直接转成公开响应；完整调用链仍需验证 | [Web 错误映射](../wuli3-web-spring-boot-starter/src/main/java/com/kjs/wuli3/web/internal/error/WebErrorResponseMapper.java)、[Dubbo 指南](wuli3-dubbo-spring-boot-starter.md) |
 
 这些事实不构成完整安全审计。仓库无法证明线上入口、网络隔离或认证插件已经正确配置。

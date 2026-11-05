@@ -55,8 +55,6 @@ import org.springframework.boot.context.annotation.ImportCandidates;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
-import org.springframework.boot.web.client.RestClientCustomizer;
-import org.springframework.boot.web.client.RestTemplateCustomizer;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
@@ -116,11 +114,7 @@ class WebAutoConfigurationTest {
     }
 
     @Test
-    void requestContextBeansAreConfigured() {
-        assertThat(applicationContext.getBeansOfType(RestClientCustomizer.class))
-                .containsKey("wuli3InvocationContextRestClientCustomizer");
-        assertThat(applicationContext.getBeansOfType(RestTemplateCustomizer.class))
-                .containsKey("wuli3InvocationContextRestTemplateCustomizer");
+    void requestContextHeaderUsesStableName() {
         assertThat(RequestIds.HEADER_NAME).isEqualTo(InvocationContext.REQUEST_ID);
     }
 

@@ -51,12 +51,6 @@ List<Order> mine() { /* 业务 */ }
 请求头的调用方同样会通过校验。直连暴露的服务必须替换默认解析器。只标注 `@Permission` 而没有 `@LoginRequired`
 的接口，匿名请求由权限检查拒绝，错误码为 `PERMISSION.UNAUTHORIZED`，默认映射 400；需要 401 跳转登录时两个注解都要标注。
 
-Boot 管理的 `RestClient.Builder` 和 `RestTemplateBuilder` 会自动安装出站拦截器。当前拦截器使用
-`ContextPropagator.standardContextEncoder()`（包含 `InvocationContextCodec` 和 `AuthContextCodec`），
-会传播 `X-Wuli3-Request-Id`、`X-Wuli3-Origin-Ip`、`X-Wuli3-Principal-Type`、`X-Wuli3-Principal-Id`，以及携带权限主体码时的
-`X-Wuli3-Principal-Permission-Token`；
-现有自动配置没有提供缩小该 HTTP 白名单的扩展点，因此出站目标必须是可信内部服务。
-
 应用可以通过 Bean 替换以下默认 SPI：
 
 - `RequestIdResolver`
@@ -101,12 +95,9 @@ wuli3.web.response.exception-handler-enabled=true
 wuli3.web.response.wrap-response-entity-body=true
 wuli3.web.response.success-message=
 wuli3.web.response.validation-detail-enabled=true
-wuli3.web.response.error-header-propagation-enabled=false
 ```
 
-`error-header-propagation-enabled` 会在错误响应头写入完整的 `X-Wuli3-Error-*` 传播字段，供
-`wuli3-openfeign-spring-boot-starter` 的 `ErrorDecoder` 还原远程错误。响应头包含未脱敏的诊断信息，只能用于
-可信内部 HTTP 边界，默认关闭；响应体始终按可见性策略输出。
+错误响应只输出经过 `ErrorVisibility` 掩码处理的响应体，不输出内部错误传播协议头。
 
 应用侧扩展优先使用文档中列出的 SPI，例如 `WebErrorStatusResolver`、`ErrorAlertNotifier`、`RequestIdResolver` 和 `ClientIpResolver`。
 

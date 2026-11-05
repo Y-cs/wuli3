@@ -9,7 +9,6 @@ import com.kjs.wuli3.core.error.model.ErrorOrigin;
 import com.kjs.wuli3.core.error.model.ErrorSeverity;
 import com.kjs.wuli3.core.error.model.ErrorVisibility;
 import com.kjs.wuli3.core.error.propagation.ErrorCodeCarrier;
-import com.kjs.wuli3.core.error.propagation.ErrorCodePropagator;
 import com.kjs.wuli3.core.error.resolver.ErrorResolver;
 import com.kjs.wuli3.propagation.accessor.InvocationContextAccessor;
 import com.kjs.wuli3.web.error.ErrorAlertContext;
@@ -460,22 +459,17 @@ class WebErrorBoundaryTest {
         assertThat(ApiResponse.failure(carrier, "request", "secret").data()).isNull();
     }
 
-    /** 错误头传播默认关闭；开启后写入未脱敏传播字段，响应体仍执行可见性过滤。 */
+    /** 错误响应只保留掩码后的响应体，不输出内部错误传播协议头。 */
     @Test
-    void propagatesRawErrorHeadersOnlyWhenEnabled() {
+    void doesNotExposeErrorPropagationHeaders() {
         final WebResponseProperties properties = new WebResponseProperties();
         final WebExceptionHandler handler = WebErrorBoundaryTest.handler(List.of(), properties);
         final MockHttpServletRequest request = new MockHttpServletRequest();
         final ErrorCodeException error = new ErrorCodeException(CommonErrors.ILLEGAL_ARGUMENT, "secret")
                 .withVisibility(ErrorVisibility.INTERNAL);
 
-        assertThat(handler.handleException(error, request).getHeaders()).doesNotContainKey(ErrorCodePropagator.CODE);
-
-        properties.setErrorHeaderPropagationEnabled(true);
         final var result = handler.handleException(error, request);
-        assertThat(result.getHeaders().getFirst(ErrorCodePropagator.CODE)).isEqualTo("COMMON.ILLEGAL_ARGUMENT");
-        assertThat(result.getHeaders().getFirst(ErrorCodePropagator.MESSAGE)).isEqualTo("secret");
-        assertThat(result.getHeaders().getFirst(ErrorCodePropagator.VISIBILITY)).isEqualTo("INTERNAL");
+        assertThat(result.getHeaders().keySet()).noneMatch(name -> name.startsWith("X-Wuli3-Error-"));
         assertThat(((ApiResponse<?>) Objects.requireNonNull(result.getBody())).message())
                 .isEqualTo("请求未被接受");
     }

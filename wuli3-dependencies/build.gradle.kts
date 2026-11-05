@@ -33,7 +33,6 @@ dependencies {
         api("com.kjs.wuli3:wuli3-elasticsearch-spring-boot-starter:${project.version}")
         api("com.kjs.wuli3:wuli3-mongodb-spring-boot-starter:${project.version}")
         api("com.kjs.wuli3:wuli3-dubbo-spring-boot-starter:${project.version}")
-        api("com.kjs.wuli3:wuli3-openfeign-spring-boot-starter:${project.version}")
         api("org.jspecify:jspecify:1.0.0")
         api("com.google.errorprone:error_prone_core:2.50.0")
         api("com.uber.nullaway:nullaway:0.13.7")
@@ -56,7 +55,6 @@ dependencies {
         api("org.apache.dubbo:dubbo-spring-boot-starter:3.3.6")
         api("org.apache.dubbo:dubbo-config-spring:3.3.6")
         api("org.apache.dubbo:dubbo-registry-nacos:3.3.6")
-        api("org.springframework.cloud:spring-cloud-starter-openfeign:4.3.0")
         api("com.alibaba.cloud:spring-cloud-starter-alibaba-nacos-config")
     }
 }
