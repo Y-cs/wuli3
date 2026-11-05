@@ -64,17 +64,17 @@ pluginManagement {
 
 ```kotlin
 plugins {
-    id("com.kjs.wuli3.java-conventions") version "1.0.0"
+    id("com.kjs.wuli3.java-conventions") version "1.0.1-SNAPSHOT"
 }
 ```
 
-默认会导入 `com.kjs.wuli3:wuli3-dependencies:1.0.0` 作为 BOM，并启用 Spotless、Palantir Java Format、ktfmt、Checkstyle、SpotBugs、Forbidden APIs、Error Prone、NullAway 和 JaCoCo 覆盖率门禁。
+默认会导入 `com.kjs.wuli3:wuli3-dependencies:1.0.1-SNAPSHOT` 作为 BOM，并启用 Spotless、Palantir Java Format、ktfmt、Checkstyle、SpotBugs、Forbidden APIs、Error Prone、NullAway 和 JaCoCo 覆盖率门禁。
 Error Prone、NullAway、Lombok 和 JSpecify 的依赖版本统一由该 BOM 管理，质量配置不再重复指定版本。
 自定义 BOM 需要导入 Wuli3 BOM 或提供这些版本约束；生产与测试的注解处理器使用同一 BOM。
 业务项目可在 `gradle.properties` 覆盖默认值：
 
 ```properties
-wuli3.conventions.bom-coordinates=com.kjs.wuli3:wuli3-dependencies:1.0.0
+wuli3.conventions.bom-coordinates=com.kjs.wuli3:wuli3-dependencies:1.0.1-SNAPSHOT
 wuli3.conventions.java-version=21
 wuli3.conventions.spotless.enabled=true
 wuli3.conventions.palantir-java-format.version=2.97.0
@@ -114,13 +114,13 @@ wuli3.conventions.project-bom-path=:wuli3-dependencies
 本模块可以作为 Gradle 插件发布。默认坐标：
 
 ```text
-com.kjs.wuli3:wuli3-build-logic:1.0.0
+com.kjs.wuli3:wuli3-build-logic:1.0.1-SNAPSHOT
 ```
 
 默认版本与主构建共用同一个定义，配置在仓库根目录 `gradle.properties`：
 
 ```properties
-wuli3.version=1.0.0
+wuli3.version=1.0.1-SNAPSHOT
 ```
 
 构建约定插件时，Kotlin 插件依赖版本也从根目录 `gradle.properties` 读取：

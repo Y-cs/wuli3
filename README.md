@@ -112,7 +112,7 @@ Maven 项目引入：
     <dependency>
       <groupId>com.kjs.wuli3</groupId>
       <artifactId>wuli3-dependencies</artifactId>
-      <version>1.0.0</version>
+      <version>1.0.1-SNAPSHOT</version>
       <type>pom</type>
       <scope>import</scope>
     </dependency>
