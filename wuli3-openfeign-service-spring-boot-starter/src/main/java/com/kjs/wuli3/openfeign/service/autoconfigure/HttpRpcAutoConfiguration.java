@@ -49,7 +49,7 @@ public class HttpRpcAutoConfiguration {
         final String path = getPath(properties);
         final HttpRpcServlet servlet = new HttpRpcServlet(
                 application.getBeansWithAnnotation(HttpRpcService.class),
-                authenticator.getIfAvailable(()->request->true),
+                authenticator.getIfAvailable(() -> request -> true),
                 manager,
                 propagator,
                 service.getServiceCode());

@@ -18,8 +18,6 @@ import java.io.Serial;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-
-import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 import org.springframework.aop.support.AopUtils;
@@ -46,6 +44,7 @@ public final class HttpRpcServlet extends DispatcherServlet {
 
     @Serial
     private static final long serialVersionUID = 1L;
+
     private final Map<String, Object> services;
     private final HttpRpcAuthenticator authenticator;
     private final ContextManager contextManager;
