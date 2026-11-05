@@ -54,6 +54,9 @@ consumer Filter 捕获当前 `ContextSnapshot`，通过 Dubbo invocation attachm
 
 默认 `ContextPropagator` 传播 Wuli3 标准上下文字段。需要减少字段时，应在应用侧替换 `ContextPropagator` Bean，而不是修改 Dubbo Filter。
 
+上下文 Bean 由 [core Spring starter](wuli3-core-spring-boot-starter.md) 统一装配。Dubbo 可与
+[HTTP RPC / OpenFeign](wuli3-openfeign.md) 同时使用，两套适配共用后端、传播器和错误模型，业务服务按接口选择传输方式。
+
 对于返回 `CompletableFuture` 的业务方法，provider Filter 只保证调用服务方法这一段线程中的上下文。业务自行启动的异步任务不会自动继承 `ThreadLocal`，必须使用 `contexts.from(contexts.capture()).wrap(...)`、`wrapSupplier(...)`，或使用已经集成 Wuli3 上下文传播的执行器。作用域通过回调自动恢复和清理，不能把回调之外的 Future 完成阶段当作同一作用域使用。
 
 ## 5. 错误传播

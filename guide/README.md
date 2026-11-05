@@ -45,12 +45,14 @@
 | --- | --- |
 | [wuli3-permission-spring-boot-starter](wuli3-permission.md) | 权限目录提取、主体适配与方法授权。 |
 | [wuli3-event-spring-boot-starter](wuli3-event-spring-boot-starter.md) | LOCAL/REMOTE 事件路由和事务提交后发布。 |
-| [wuli3-core-spring-boot-starter](wuli3-core-spring-boot-starter.md) | 日志、配置加密与分阶段优雅关闭基础设施。 |
+| [wuli3-core-spring-boot-starter](wuli3-core-spring-boot-starter.md) | 共享上下文、日志、配置加密与分阶段优雅关闭基础设施。 |
 | [wuli3-aliyun-spring-boot-starter](wuli3-aliyun-spring-boot-starter.md) | AliYun OSS SDK V2 多套命名客户端配置。 |
 | [wuli3-audit-log-spring-boot-starter](wuli3-audit-log-spring-boot-starter.md) | 审计协议、上下文补全、事件写入与存储端口。 |
 | [wuli3-opentelemetry-spring-boot-starter](wuli3-opentelemetry-spring-boot-starter.md) | OpenTelemetry Java Agent 适配、Trace 上下文访问与业务指标记录。 |
 | [wuli3-web-spring-boot-starter](wuli3-web-spring-boot-starter.md) | Spring MVC 上下文、JSON、统一响应与异常处理。 |
 | [wuli3-dubbo-spring-boot-starter](wuli3-dubbo-spring-boot-starter.md) | Dubbo 调用上下文与协议无关错误传播。 |
+| [wuli3-openfeign-service-spring-boot-starter](wuli3-openfeign.md) | 独立于公开 Web 的内部同步 HTTP 服务入口。 |
+| [wuli3-openfeign-client-spring-boot-starter](wuli3-openfeign.md) | 显式选择的 Feign 上下文传播、内部 JSON 与错误还原。 |
 | [wuli3-mysql-spring-boot-starter](wuli3-mysql-spring-boot-starter.md) | MyBatis-Plus 依赖聚合与分页适配。 |
 | [wuli3-redis-spring-boot-starter](wuli3-redis-spring-boot-starter.md) | Redis String/JSON/Hash/Set 统一操作与分布式锁。 |
 | [wuli3-rocketmq-spring-boot-starter](wuli3-rocketmq-spring-boot-starter.md) | RocketMQ 远程事件发送适配。 |

@@ -3,6 +3,7 @@ package com.kjs.wuli3.web.internal.filter;
 import com.kjs.wuli3.propagation.ContextManager;
 import com.kjs.wuli3.propagation.context.ContextState;
 import com.kjs.wuli3.propagation.internal.InvocationContext;
+import com.kjs.wuli3.spring.context.ServletContextOwnership;
 import com.kjs.wuli3.web.auth.AuthContextResolver;
 import com.kjs.wuli3.web.context.ClientIpResolver;
 import com.kjs.wuli3.web.context.RequestIdResolver;
@@ -47,6 +48,16 @@ public final class ContextFilter extends OncePerRequestFilter {
         this.clientIpResolver = Objects.requireNonNull(clientIpResolver, "clientIpResolver");
         this.contextProperties = Objects.requireNonNull(contextProperties, "contextProperties");
         this.exceptionResolver = Objects.requireNonNull(exceptionResolver, "exceptionResolver");
+    }
+
+    /** 只信任容器注册信息，将上下文生命周期交给显式声明自行管理的 Servlet。 */
+    @Override
+    protected boolean shouldNotFilter(final HttpServletRequest request) {
+        final jakarta.servlet.ServletRegistration registration = request.getServletContext()
+                .getServletRegistration(request.getHttpServletMapping().getServletName());
+        return registration != null
+                && ServletContextOwnership.SERVLET.equals(
+                        registration.getInitParameter(ServletContextOwnership.INIT_PARAMETER));
     }
 
     /**

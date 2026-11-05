@@ -103,7 +103,7 @@ wuli3:
 
 默认出口一次确定错误语义、HTTP 状态和协议头，再由 core 统一脱敏。仅异步与反射透明包装可自动解包，普通包装形成错误边界；裸 `IllegalArgumentException` 默认按内部故障返回 500。明确的请求参数错误应通过 `Asserts` 或显式 `WebErrorMapper` 表达。
 
-需要业务特定状态时实现 `WebErrorStatusResolver`；需要对接告警系统时实现 `ErrorAlertNotifier`。默认通知范围为 5xx 或严重度达到 `CRITICAL`/`FATAL` 的业务异常；未提供通知实现就不会发送外部告警。
+需要业务特定状态时提供可选的 `WebErrorStatusCustomizer` Bean，直接读取已解析的错误上下文，无需修改时返回 `context.defaultStatus()`；需要对接告警系统时实现 `ErrorAlertNotifier`。默认通知范围为 5xx 或严重度达到 `CRITICAL`/`FATAL` 的业务异常；未提供通知实现就不会发送外部告警。
 
 告警通知器仍在请求线程同步执行，外部通知耗时可能延长错误响应时间。
 

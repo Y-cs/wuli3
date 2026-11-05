@@ -7,7 +7,8 @@
 | 扩展方式 | 典型入口 | 如何生效 |
 | --- | --- | --- |
 | 纯 Java 组合 | `ContextManager`、`ContextPropagator`、`RoutingEventPublisher` | 自己创建实例、传入依赖或调用注册方法，不依赖 Spring 扫描 |
-| Spring Bean 替换默认实现 | `AuthContextResolver`、`RequestIdResolver`、`WebErrorStatusResolver` | 在应用扫描范围内声明 `@Configuration` 和 `@Bean`；对应默认 Bean 通过缺失条件退让 |
+| Spring Bean 替换默认实现 | `AuthContextResolver`、`RequestIdResolver` | 在应用扫描范围内声明 `@Configuration` 和 `@Bean`；对应默认 Bean 通过缺失条件退让 |
+| Spring 可选定制 | `WebErrorStatusCustomizer` | 注册一个 Bean，在默认错误解析后定制 HTTP 状态；未命中条件时返回 `context.defaultStatus()`，未注册时直接使用默认结果，无默认定制器 Bean |
 | Spring 收集多个实现 | `WebErrorMapper`、`ErrorAlertNotifier`、`RoutingEventTransport<?>` | 注册实现 Bean，由对应自动配置或处理链收集；排序、首个命中等规则依扩展点而定 |
 | 协议适配 | `ContextCodec`、远程事件传输 | 完成编码、解码、信任校验及实际发送；仅声明一个接口实现并不等于协议已经接通 |
 

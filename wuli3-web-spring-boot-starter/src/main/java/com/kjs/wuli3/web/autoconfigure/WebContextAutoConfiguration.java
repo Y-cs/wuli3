@@ -2,10 +2,7 @@ package com.kjs.wuli3.web.autoconfigure;
 
 import com.kjs.wuli3.propagation.ContextManager;
 import com.kjs.wuli3.propagation.accessor.AuthContextAccessor;
-import com.kjs.wuli3.propagation.accessor.InvocationContextAccessor;
-import com.kjs.wuli3.propagation.store.ContextBinder;
-import com.kjs.wuli3.propagation.store.ContextReader;
-import com.kjs.wuli3.propagation.store.ThreadLocalContextBackend;
+import com.kjs.wuli3.spring.autoconfigure.ContextAutoConfiguration;
 import com.kjs.wuli3.web.auth.AuthContextResolver;
 import com.kjs.wuli3.web.auth.LoginRequired;
 import com.kjs.wuli3.web.context.ClientIpResolver;
@@ -24,6 +21,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
 import org.springframework.web.servlet.HandlerExceptionResolver;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
@@ -32,39 +30,10 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
  *
  * @author GuoYang create on 2026/8/17 11:53
  */
-@AutoConfiguration
+@AutoConfiguration(after = ContextAutoConfiguration.class)
+@Import(ContextAutoConfiguration.class)
 @EnableConfigurationProperties(WebContextProperties.class)
 public class WebContextAutoConfiguration {
-
-    /**
-     * 创建同时提供读取与作用域绑定能力的默认线程后端。
-     *
-     * 注意：Bean 名须为 contextReader，Dubbo Filter 依赖按 setter 属性名注入同一个上下文后端时使用该名称。
-     */
-    @Bean
-    @ConditionalOnMissingBean({ContextReader.class, ContextBinder.class})
-    ThreadLocalContextBackend contextReader() {
-        return new ThreadLocalContextBackend();
-    }
-
-    /** 使用同一后端的读取和绑定接口创建上下文管理器。 */
-    @Bean
-    @ConditionalOnMissingBean
-    ContextManager contextManager(final ContextReader reader, final ContextBinder binder) {
-        return new ContextManager(reader, binder);
-    }
-
-    @Bean
-    @ConditionalOnMissingBean
-    InvocationContextAccessor invocationContextAccessor(final ContextReader contextReader) {
-        return new InvocationContextAccessor(contextReader);
-    }
-
-    @Bean
-    @ConditionalOnMissingBean
-    AuthContextAccessor authContextAccessor(final ContextReader contextReader) {
-        return new AuthContextAccessor(contextReader);
-    }
 
     @Bean
     @ConditionalOnMissingBean

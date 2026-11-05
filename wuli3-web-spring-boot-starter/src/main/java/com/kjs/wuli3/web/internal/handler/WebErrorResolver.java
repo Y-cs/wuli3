@@ -24,7 +24,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 /**
- * 一次识别错误语义、HTTP 状态和协议头，供 MVC 出口与状态 SPI 共用。
+ * 为 MVC 出口一次识别错误语义、HTTP 状态和协议头。
  *
  * <p>当前异常的明确声明形成边界；只有异步和反射透明包装允许继续解包。普通异常及裸参数异常均不推断内部请求语义。
  * 业务错误完整保留其元数据，协议错误仅采用状态与白名单头，不公开库异常消息。
@@ -47,7 +47,7 @@ final class WebErrorResolver {
     }
 
     /** 当前层声明优先于透明解包；null 明确表示未识别，不携带占位错误码。 */
-    static @Nullable WebErrorResolution find(final Throwable error) {
+    private static @Nullable WebErrorResolution find(final Throwable error) {
         Throwable current = error;
         Set<Throwable> visited = null;
         while (true) {
@@ -111,7 +111,7 @@ final class WebErrorResolver {
     }
 
     /** 只有本地 Web 枚举声明了协议状态，其他错误按责任处理。 */
-    static @Nullable HttpStatus webStatus(final ErrorCode code) {
+    private static @Nullable HttpStatus webStatus(final ErrorCode code) {
         return code instanceof WebErrors web ? web.getHttpStatus() : null;
     }
 

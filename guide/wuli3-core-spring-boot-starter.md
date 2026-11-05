@@ -1,6 +1,6 @@
 # wuli3-core-spring-boot-starter 使用指南
 
-`wuli3-core-spring-boot-starter` 是 Wuli3 Spring Boot 模块共享的基础设施，统一提供日志策略、Jasypt 配置加密依赖和应用关闭协调能力。
+`wuli3-core-spring-boot-starter` 是 Wuli3 Spring Boot 模块共享的基础设施，统一提供上下文组件、日志策略、Jasypt 配置加密依赖和应用关闭协调能力。
 
 ## 1. 引入模块
 
@@ -30,10 +30,17 @@ dependencies {
 | 自动配置 | 生效条件 | 职责 |
 | --- | --- | --- |
 | `CoreSpringBootAutoConfiguration` | Spring Boot 应用 | 标记公共基础设施边界。 |
+| `ContextAutoConfiguration` | 缺少对应自定义 Bean | 装配默认线程后端、上下文管理器、传播器与类型化 Accessor，供各传输适配共用。 |
 | `LoggingAutoConfiguration` | classpath 存在 Logback，且 `wuli3.logging.enabled` 未关闭 | 注册日志属性。 |
 | `GracefulShutdownAutoConfiguration` | `wuli3.spring.shutdown.enabled` 未关闭 | 注册关闭钩子注册表、阶段执行器、协调器、注解钩子自动注册器、日志增强和进程内度量。 |
 
 如果应用显式设置 `logging.config`，日志环境处理器不会注入 Wuli3 默认日志属性；应用自己的 `logging.*` 配置始终优先。
+
+上下文基础组件由 core Spring starter 统一装配，Web、Dubbo、HTTP RPC 不再分别创建默认后端。
+默认 Bean 为 `contextReader`（同时实现 `ContextReader` 和 `ContextBinder`）、`contextManager`、
+`contextPropagator`、`invocationContextAccessor` 和 `authContextAccessor`。
+自定义后端需配套提供读取与绑定能力；只提供其中之一会在装配时失败，不会混用一个默认后端。
+Dubbo SPI 依赖 `contextReader`、`contextManager`、`contextPropagator` 的 Bean 名，替换相应组件时须保留这些名称。
 
 ## 3. 日志策略
 

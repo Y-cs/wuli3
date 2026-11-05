@@ -10,6 +10,7 @@ javaPlatform {
 dependencies {
     api(platform("org.springframework.boot:spring-boot-dependencies:3.5.15"))
     api(platform("com.alibaba.cloud:spring-cloud-alibaba-dependencies:2025.0.0.0"))
+    api(platform("org.springframework.cloud:spring-cloud-openfeign-dependencies:4.3.0"))
     api(platform("com.baomidou:mybatis-plus-bom:3.5.16"))
 
     constraints {
@@ -33,6 +34,8 @@ dependencies {
         api("com.kjs.wuli3:wuli3-elasticsearch-spring-boot-starter:${project.version}")
         api("com.kjs.wuli3:wuli3-mongodb-spring-boot-starter:${project.version}")
         api("com.kjs.wuli3:wuli3-dubbo-spring-boot-starter:${project.version}")
+        api("com.kjs.wuli3:wuli3-openfeign-service-spring-boot-starter:${project.version}")
+        api("com.kjs.wuli3:wuli3-openfeign-client-spring-boot-starter:${project.version}")
         api("org.jspecify:jspecify:1.0.0")
         api("com.google.errorprone:error_prone_core:2.50.0")
         api("com.uber.nullaway:nullaway:0.13.7")
