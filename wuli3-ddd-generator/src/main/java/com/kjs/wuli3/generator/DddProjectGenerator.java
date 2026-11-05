@@ -271,6 +271,7 @@ final class DddProjectGenerator {
         result.put("rpcConfiguration", this.rpcConfiguration(options));
         result.put("nacosConfiguration", this.nacosConfiguration(options));
         result.put("repositoryImports", this.repositoryImports(options));
+        result.put("assertImport", this.assertImport(options));
         result.put("queryRepositoryPage", this.queryRepositoryPage(options));
         result.put("queryRepositoryFindById", this.queryRepositoryFindById(options));
         result.put("repositoryFields", this.repositoryFields(options));
@@ -359,6 +360,11 @@ final class DddProjectGenerator {
                 + "\n  registry:\n    address: \"" + address + "\"" + configCenter;
     }
 
+    /** 仅 MySQL 仓储使用断言工具，内存仓储不产生该导入。 */
+    private String assertImport(final GeneratorOptions options) {
+        return options.persistence().equals("mysql") ? "import com.kjs.wuli3.core.assertion.Asserts;\n" : "";
+    }
+
     /** MySQL 仓储显式导入所属领域的持久化类型。 */
     private String repositoryImports(final GeneratorOptions options) {
         if (!options.persistence().equals("mysql")) {
@@ -378,7 +384,8 @@ final class DddProjectGenerator {
                 + "        Asserts.whenNull(stored).throwException(" + options.basePackage()
                 + ".sharedkernel.RecordErrors.NOT_FOUND);\n"
                 + "        return new " + options.domainType()
-                + "StatusDto(new EntityId(java.util.Objects.requireNonNull(stored).id()), stored.status());";
+                + "StatusDto(\n                new EntityId(java.util.Objects.requireNonNull(stored).id()),"
+                + " stored.status());";
     }
 
     /** 分页查询限制排序字段并稳定追加主键排序。 */
@@ -389,14 +396,15 @@ final class DddProjectGenerator {
         return "        final var page = com.kjs.wuli3.mysql.pagination.PaginationHelper.<"
                 + options.domainType() + "Po>toPage(query, field -> {\n"
                 + "            Asserts.whenFalse(java.util.Set.of(\""
-                + String.join("\",\"", options.sortFields())
+                + String.join("\", \"", options.sortFields())
                 + "\").contains(field))\n"
                 + "                    .throwIllegalArgumentException(\"不支持的排序字段\");\n"
                 + "            return field;\n        });\n"
                 + "        page.addOrder(com.baomidou.mybatisplus.core.metadata.OrderItem.asc(\"id\"));\n"
                 + "        this.mapper.selectPage(page, null);\n"
-                + "        return com.kjs.wuli3.mysql.pagination.PaginationHelper.toPageResult(page, stored -> new "
-                + options.domainType() + "StatusDto(new EntityId(stored.id()), stored.status()));";
+                + "        return com.kjs.wuli3.mysql.pagination.PaginationHelper.toPageResult(\n"
+                + "                page, stored -> new " + options.domainType()
+                + "StatusDto(new EntityId(stored.id()), stored.status()));";
     }
 
     /** 两种仓储共享同一个内存存储或 Mapper。 */

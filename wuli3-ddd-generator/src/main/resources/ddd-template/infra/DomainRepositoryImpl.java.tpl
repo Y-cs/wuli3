@@ -3,9 +3,8 @@ package {{basePackage}}.infra.persistence.{{domainPackage}};
 import {{basePackage}}.domain.{{domainPackage}}.{{domainType}};
 import {{basePackage}}.domain.{{domainPackage}}.{{domainType}}Repository;
 {{repositoryImports}}import {{basePackage}}.sharedkernel.EntityId;
+{{assertImport}}import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
-import com.kjs.wuli3.core.assertion.Asserts;
-import lombok.RequiredArgsConstructor;
 
 /**
  * {{domainType}} 聚合仓储的基础设施实现。
