@@ -10,7 +10,6 @@ import com.kjs.wuli3.spring.autoconfigure.ApplicationServiceProperties;
 import com.kjs.wuli3.spring.autoconfigure.ContextAutoConfiguration;
 import com.kjs.wuli3.spring.context.ServletContextOwnership;
 import org.jspecify.annotations.NonNull;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
@@ -42,14 +41,14 @@ public class HttpRpcAutoConfiguration {
     ServletRegistrationBean<HttpRpcServlet> httpRpcServletRegistration(
             final ApplicationContext application,
             final HttpRpcProperties properties,
-            final ObjectProvider<HttpRpcAuthenticator> authenticator,
+            final HttpRpcAuthenticator authenticator,
             final ContextManager manager,
             final ContextPropagator propagator,
             final ApplicationServiceProperties service) {
         final String path = getPath(properties);
         final HttpRpcServlet servlet = new HttpRpcServlet(
                 application.getBeansWithAnnotation(HttpRpcService.class),
-                authenticator.getIfAvailable(() -> request -> true),
+                authenticator,
                 manager,
                 propagator,
                 service.getServiceCode());

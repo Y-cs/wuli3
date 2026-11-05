@@ -40,10 +40,8 @@ import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandl
  * @author 国杨 create on 2026/11/5 10:00
  */
 @NullMarked
+@SuppressWarnings("serial")
 public final class HttpRpcServlet extends DispatcherServlet {
-
-    @Serial
-    private static final long serialVersionUID = 1L;
 
     private final Map<String, Object> services;
     private final HttpRpcAuthenticator authenticator;
