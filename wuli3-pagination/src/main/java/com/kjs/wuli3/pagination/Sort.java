@@ -1,6 +1,7 @@
 package com.kjs.wuli3.pagination;
 
 import com.kjs.wuli3.core.assertion.Asserts;
+import com.kjs.wuli3.core.error.builtin.CommonErrors;
 import java.io.Serializable;
 
 /**
@@ -13,7 +14,7 @@ import java.io.Serializable;
 public record Sort(String field, SortDirection direction) implements Serializable {
 
     public Sort {
-        Asserts.whenBlank(field).throwIllegalArgumentException("排序字段不能为空");
-        Asserts.whenNull(direction).throwIllegalArgumentException("排序方向不能为空");
+        Asserts.whenBlank(field).throwException(CommonErrors.ILLEGAL_ARGUMENT, "排序字段不能为空");
+        Asserts.whenNull(direction).throwException(CommonErrors.ILLEGAL_ARGUMENT, "排序方向不能为空");
     }
 }

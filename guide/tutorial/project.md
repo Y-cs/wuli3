@@ -134,7 +134,7 @@ curl -i -X POST http://localhost:8080/api/order \
 
 curl -i -X POST http://localhost:8080/api/order/page \
   -H 'Content-Type: application/json' \
-  -d '{"pageNumber":1,"pageSize":20,"sorts":[{"field":"id","direction":"ASC"}]}'
+  -d '{"page":1,"pageSize":20,"sorts":[{"field":"id","direction":"ASC"}]}'
 ```
 
 保存同一标识会更新其状态。分页响应的 `data` 包含 `items`、`total`、`pageNumber` 和 `pageSize`；全新工程只执行上述命令时，`total` 应为 `1`，记录状态为 `INACTIVE`。页码从 `1` 开始，每页最大 `200` 条；内存示例允许按 `id` 和 `status` 排序。

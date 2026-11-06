@@ -25,7 +25,7 @@ public final class PaginationHelper {
     public static <T> Page<T> toPage(final PageQuery query, final Function<String, String> fieldMapper) {
         Objects.requireNonNull(query, "query");
         Objects.requireNonNull(fieldMapper, "fieldMapper");
-        final Page<T> page = new Page<>(query.pageNumber(), query.pageSize());
+        final Page<T> page = new Page<>(query.page(), query.pageSize());
         final List<Sort> sorts = query.sorts();
         if (!sorts.isEmpty()) {
             page.addOrder(
