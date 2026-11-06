@@ -72,12 +72,12 @@ curl -i http://localhost:8080/api/order/order-1
 
 curl -i -X POST http://localhost:8080/api/order/page \
   -H 'Content-Type: application/json' \
-  -d '{"pageNumber":1,"pageSize":20,"sorts":[]}'
+  -d '{"page":1,"pageSize":20,"sorts":[]}'
 
 curl -i -X DELETE http://localhost:8080/api/order/order-1
 ```
 
-保存相同标识会更新状态；分页页码从 `1` 开始；`persistence=none` 的数据只存在于当前进程。请求 `pageNumber=0` 应进入统一错误码响应。
+保存相同标识会更新状态；分页页码从 `1` 开始；`persistence=none` 的数据只存在于当前进程。请求 `page=0` 会回落到默认页码 `1`，超过 `pageSize=200` 应进入统一错误码响应。
 
 成功响应的 `code` 为 `"0"`，保存后分页 `data.total` 应为 `1`；删除后再次分页应为 `0`。无中间件示例不保证事务回滚，也不生成真实业务规则。
 

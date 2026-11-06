@@ -137,7 +137,7 @@ curl -i -X POST http://localhost:8080/api/order/page \
   -d '{"page":1,"pageSize":20,"sorts":[{"field":"id","direction":"ASC"}]}'
 ```
 
-保存同一标识会更新其状态。分页响应的 `data` 包含 `items`、`total`、`pageNumber` 和 `pageSize`；全新工程只执行上述命令时，`total` 应为 `1`，记录状态为 `INACTIVE`。页码从 `1` 开始，每页最大 `200` 条；内存示例允许按 `id` 和 `status` 排序。
+保存同一标识会更新其状态。分页响应的 `data` 包含 `items`、`total`、`page` 和 `pageSize`；全新工程只执行上述命令时，`total` 应为 `1`，记录状态为 `INACTIVE`。页码从 `1` 开始，每页最大 `200` 条；内存示例允许按 `id` 和 `status` 排序。
 
 ### 删除并确认结果
 
@@ -146,7 +146,7 @@ curl -i -X DELETE http://localhost:8080/api/order/order-1
 
 curl -i -X POST http://localhost:8080/api/order/page \
   -H 'Content-Type: application/json' \
-  -d '{"pageNumber":1,"pageSize":20,"sorts":[]}'
+  -d '{"page":1,"pageSize":20,"sorts":[]}'
 ```
 
 此时 `data.items` 应为空、`data.total` 应为 `0`。删除不存在的记录也是幂等操作。再按 ID 查询已删除的记录会进入统一错误码响应，不会返回成功的空对象；不要把业务“记录不存在”直接等同于 HTTP 路由的 `404`。
@@ -156,7 +156,7 @@ curl -i -X POST http://localhost:8080/api/order/page \
 ```bash
 curl -i -X POST http://localhost:8080/api/order/page \
   -H 'Content-Type: application/json' \
-  -d '{"pageNumber":0,"pageSize":20,"sorts":[]}'
+  -d '{"page":1,"pageSize":201,"sorts":[]}'
 ```
 
 该请求应失败，响应 `code` 不为 `"0"`。这些读写数据只存在于当前进程，停止并重启应用后清空；内存示例也不提供数据库事务回滚语义。
@@ -250,7 +250,7 @@ Web starter 会带来统一响应、异常映射和请求上下文等行为。�
 | 找不到 BOM/starter | 不要只发布 BOM；检查工程依赖仓库和版本 |
 | 生成器拒绝输出目录 | 输出父目录下的同名服务目录必须不存在或为空 |
 | 启动端口冲突 | 同时检查业务 `8080` 和管理 `8099` 端口 |
-| JSON 绑定失败 | `id` 是对象，状态枚举使用 `ACTIVE`/`INACTIVE`，分页字段是 `pageNumber`/`pageSize` |
+| JSON 绑定失败 | `id` 是对象，状态枚举使用 `ACTIVE`/`INACTIVE`，分页字段是 `page`/`pageSize` |
 | 重启后数据没了 | `persistence=none` 是进程内示例；持久化需要 MySQL 等实际实现 |
 
 完整生成选项见 [生成器指南](../wuli3-ddd-generator.md)，依赖接入细节见 [BOM 指南](../wuli3-dependencies.md)，构建门禁与插件配置见 [构建约定指南](../wuli3-build-logic.md)。工具和扩展点的按场景示例从 [指南首页](../README.md) 继续阅读。

@@ -42,7 +42,7 @@ long total = result.total();
 List<Order> orders = result.items();
 ```
 
-结果列表不可变；`total` 表示满足条件的总记录数，`pageNumber` 和 `pageSize` 是本次查询
+结果列表不可变；`total` 表示满足条件的总记录数，`page` 和 `pageSize` 是本次查询
 实际使用的分页参数。
 
 ## MyBatis-Plus 适配

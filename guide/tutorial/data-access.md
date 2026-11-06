@@ -218,7 +218,7 @@ this.redisLockExecutor.execute(lock, () -> {
 
 ### 3.1 应用契约
 
-`PageQuery` 页码从 1 开始，页大小为 1～200，`sorts` 顺序表示优先级；`PageResult.items` 是不可变列表。
+`PageQuery` 页码从 1 开始，`page` 和 `pageSize` 缺省时取 1 和 10，最大页大小为 200，`sorts` 顺序表示优先级；`PageResult.items` 是不可变列表。
 
 ```java
 import com.kjs.wuli3.pagination.PageQuery;
@@ -488,10 +488,10 @@ public final class OrderPageApi {
 ```bash
 curl -X POST http://localhost:8080/demo/orders/page \
   -H 'Content-Type: application/json' \
-  -d '{"pageNumber":1,"pageSize":1,"sorts":[{"field":"createdAt","direction":"DESC"}]}'
+  -d '{"page":1,"pageSize":1,"sorts":[{"field":"createdAt","direction":"DESC"}]}'
 ```
 
-使用前面的测试数据，分页负载中的 `total` 为 2、`items` 只有 ID 102，`pageNumber` 为 1、`pageSize` 为 1。业务使用统一 Web 响应封装时该分页对象位于响应 `data` 内。分页拦截器负责 COUNT 与分页 SQL，`PaginationHelper` 本身不执行 SQL。
+使用前面的测试数据，分页负载中的 `total` 为 2、`items` 只有 ID 102，`page` 为 1、`pageSize` 为 1。业务使用统一 Web 响应封装时该分页对象位于响应 `data` 内。分页拦截器负责 COUNT 与分页 SQL，`PaginationHelper` 本身不执行 SQL。
 
 ```mermaid
 sequenceDiagram
@@ -601,22 +601,22 @@ public final class OrderSearch {
     public PageResult<OrderDocument> findPaid(final PageQuery request) {
         Asserts.whenNull(request).throwIllegalArgumentException("分页条件不能为空");
         Asserts.whenFalse(request.sorts().isEmpty()).throwIllegalArgumentException("当前搜索仅支持固定排序");
-        Asserts.whenTrue((long) request.pageNumber() * request.pageSize() > 10_000L)
+        Asserts.whenTrue((long) request.page() * request.pageSize() > 10_000L)
                 .throwIllegalArgumentException("搜索页超出结果窗口，请使用游标查询");
-        final PageRequest pageable = PageRequest.of(request.pageNumber() - 1, request.pageSize(),
+        final PageRequest pageable = PageRequest.of(request.page() - 1, request.pageSize(),
                 Sort.by(Sort.Order.desc("createdAt"), Sort.Order.desc("orderId")));
         final CriteriaQuery query = new CriteriaQuery(new Criteria("status").is("PAID"), pageable);
         query.setTrackTotalHits(true);
         final SearchHits<OrderDocument> hits = this.operations.search(query, OrderDocument.class);
         final List<OrderDocument> items = hits.getSearchHits().stream().map(SearchHit::getContent).toList();
-        return new PageResult<>(items, hits.getTotalHits(), request.pageNumber(), request.pageSize());
+        return new PageResult<>(items, hits.getTotalHits(), request.page(), request.pageSize());
     }
 }
 ```
 
 本类为基础设施示例，真实应用在返回 application 前将 `OrderDocument` 映射为查询 DTO，并实现自己的查询端口。要搜索标题，可组合 `new Criteria("title").matches(keyword)`；这会按字段分析器分词，不等同于字符串 `contains`。多租户查询还必须增加可信租户条件，不能只靠 Controller 限制入口。
 
-Spring Data `PageRequest` 从 0 开始，转换使用 `pageNumber - 1`。`setTrackTotalHits(true)` 请求精确总数，否则超过 ES 跟踪阈值时 `getTotalHits()` 可能只是下界。精确计数有额外成本；如果界面只需“还有下一页”，应设计游标结果而不是强行返回精确 `PageResult.total`。深分页使用 PIT + `search_after` 等方案，不能只调大 `pageSize`。
+Spring Data `PageRequest` 从 0 开始，转换使用 `page - 1`。`setTrackTotalHits(true)` 请求精确总数，否则超过 ES 跟踪阈值时 `getTotalHits()` 可能只是下界。精确计数有额外成本；如果界面只需“还有下一页”，应设计游标结果而不是强行返回精确 `PageResult.total`。深分页使用 PIT + `search_after` 等方案，不能只调大 `pageSize`。
 
 搜索可见性受 refresh 影响，按 ID get 成功不代表搜索马上命中。测试可在写入后显式 `operations.indexOps(OrderDocument.class).refresh()` 再断言搜索；业务逐条写入时不要机械强制刷新。
 
@@ -707,11 +707,11 @@ public final class MongoOrderQueries {
         Asserts.whenFalse(request.sorts().isEmpty()).throwIllegalArgumentException("当前查询仅支持固定排序");
         final Query countQuery = Query.query(Criteria.where("status").is("PAID"));
         final long total = this.mongoTemplate.count(countQuery, OrderMongo.class);
-        final PageRequest pageable = PageRequest.of(request.pageNumber() - 1, request.pageSize(),
+        final PageRequest pageable = PageRequest.of(request.page() - 1, request.pageSize(),
                 Sort.by(Sort.Order.desc("createdAt"), Sort.Order.desc("id")));
         final Query pageQuery = Query.query(Criteria.where("status").is("PAID")).with(pageable);
         final List<OrderMongo> items = this.mongoTemplate.find(pageQuery, OrderMongo.class);
-        return new PageResult<>(items, total, request.pageNumber(), request.pageSize());
+        return new PageResult<>(items, total, request.page(), request.pageSize());
     }
 }
 ```
