@@ -218,7 +218,7 @@ this.redisLockExecutor.execute(lock, () -> {
 
 ### 3.1 应用契约
 
-`PageQuery` 页码从 1 开始，页大小为 1～200，`sorts` 顺序表示优先级；`PageResult.items` 是不可变列表。
+`PageQuery` 页码从 1 开始，`page` 和 `pageSize` 缺省时取 1 和 10，最大页大小为 200，`sorts` 顺序表示优先级；`PageResult.items` 是不可变列表。
 
 ```java
 import com.kjs.wuli3.pagination.PageQuery;
