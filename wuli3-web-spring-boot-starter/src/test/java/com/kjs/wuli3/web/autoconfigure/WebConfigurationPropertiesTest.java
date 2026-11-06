@@ -16,7 +16,7 @@ import com.kjs.wuli3.propagation.internal.AuthContext;
 import com.kjs.wuli3.propagation.internal.PrincipalType;
 import com.kjs.wuli3.web.auth.AuthContextResolver;
 import com.kjs.wuli3.web.context.RequestIds;
-import com.kjs.wuli3.web.error.WebErrorStatusResolver;
+import com.kjs.wuli3.web.error.WebErrorStatusCustomizer;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -241,16 +241,16 @@ class WebConfigurationPropertiesTest {
             classes = {
                 TestApplication.class,
                 ControllerConfiguration.class,
-                CustomStatusResolverConfiguration.class,
+                CustomStatusCustomizerConfiguration.class,
             })
     @AutoConfigureMockMvc
     @Nested
-    class CustomStatusResolverTest {
+    class CustomStatusCustomizerTest {
         @Autowired
         private MockMvc mockMvc;
 
         @Test
-        void customStatusResolverCanOverrideDefaultStatus() throws Exception {
+        void customStatusCustomizerCanOverrideDefaultStatus() throws Exception {
             mockMvc.perform(get("/boom"))
                     .andExpect(status().isConflict())
                     .andExpect(jsonPath("$.code").value("COMMON.ILLEGAL_ARGUMENT"));
@@ -258,11 +258,11 @@ class WebConfigurationPropertiesTest {
     }
 
     @TestConfiguration
-    static class CustomStatusResolverConfiguration {
+    static class CustomStatusCustomizerConfiguration {
         @Bean
-        @Primary
-        WebErrorStatusResolver customWebErrorStatusResolver() {
-            return (error, responseCode) -> HttpStatus.CONFLICT;
+        WebErrorStatusCustomizer customWebErrorStatusCustomizer() {
+            return context ->
+                    context.code() == CommonErrors.ILLEGAL_ARGUMENT ? HttpStatus.CONFLICT : context.defaultStatus();
         }
     }
 

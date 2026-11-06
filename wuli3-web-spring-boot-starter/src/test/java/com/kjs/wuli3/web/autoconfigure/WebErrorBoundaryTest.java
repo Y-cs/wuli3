@@ -14,10 +14,9 @@ import com.kjs.wuli3.propagation.accessor.InvocationContextAccessor;
 import com.kjs.wuli3.web.error.ErrorAlertContext;
 import com.kjs.wuli3.web.error.ErrorAlertNotifier;
 import com.kjs.wuli3.web.error.WebErrorMapper;
-import com.kjs.wuli3.web.error.WebErrorStatusResolver;
+import com.kjs.wuli3.web.error.WebErrorStatusCustomizer;
 import com.kjs.wuli3.web.error.WebErrors;
 import com.kjs.wuli3.web.internal.advice.ApiResponseFactory;
-import com.kjs.wuli3.web.internal.handler.DefaultWebErrorStatusResolver;
 import com.kjs.wuli3.web.internal.handler.WebExceptionHandler;
 import com.kjs.wuli3.web.response.ApiResponse;
 import com.kjs.wuli3.web.response.NativeResponse;
@@ -81,7 +80,7 @@ class WebErrorBoundaryTest {
                     .validateReturnValue(
                             new ValidatedService(), ValidatedService.class.getDeclaredMethod("result"), null);
             final var response = WebErrorBoundaryTest.handler(
-                            List.of(), (source, code) -> HttpStatus.valueOf(status), List.of())
+                            List.of(), context -> HttpStatus.valueOf(status), List.of())
                     .handleException(new ConstraintViolationException(violations), new MockHttpServletRequest());
             assertThat(response.getStatusCode().value()).isEqualTo(status);
             final ApiResponse<?> body = (ApiResponse<?>) Objects.requireNonNull(response.getBody());
@@ -101,7 +100,7 @@ class WebErrorBoundaryTest {
                             ValidatedService.class.getDeclaredMethod("accept", String.class),
                             new Object[] {null});
             final var response = WebErrorBoundaryTest.handler(
-                            List.of(), (source, code) -> HttpStatus.TOO_MANY_REQUESTS, List.of())
+                            List.of(), context -> HttpStatus.TOO_MANY_REQUESTS, List.of())
                     .handleException(new ConstraintViolationException(violations), new MockHttpServletRequest());
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.TOO_MANY_REQUESTS);
             final ApiResponse<?> body = (ApiResponse<?>) Objects.requireNonNull(response.getBody());
@@ -323,7 +322,7 @@ class WebErrorBoundaryTest {
         assertThat(outer.getHeaders()).doesNotContainKey("Retry-After");
     }
 
-    /** 自定义状态 SPI 调用一次且得到实际候选码，变更状态后不携带原协议头。 */
+    /** 自定义状态定制器调用一次且得到已识别的完整状态上下文，变更状态后不携带原协议头。 */
     @Test
     void customStatusOverrideIsAppliedOnceAfterClassification() {
         final AtomicInteger calls = new AtomicInteger();
@@ -331,9 +330,11 @@ class WebErrorBoundaryTest {
         error.getHeaders().set("Retry-After", "60");
         final WebExceptionHandler handler = WebErrorBoundaryTest.handler(
                 List.of(),
-                (source, code) -> {
-                    assertThat(source).isSameAs(error);
-                    assertThat(code).isEqualTo(WebErrors.SERVICE_UNAVAILABLE);
+                context -> {
+                    assertThat(context.error()).isSameAs(error);
+                    assertThat(context.source()).isSameAs(error);
+                    assertThat(context.defaultStatus()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
+                    assertThat(context.code()).isEqualTo(WebErrors.SERVICE_UNAVAILABLE);
                     calls.incrementAndGet();
                     return HttpStatus.TOO_MANY_REQUESTS;
                 },
@@ -346,6 +347,75 @@ class WebErrorBoundaryTest {
                 .isEqualTo("WEB.TOO_MANY_REQUESTS");
     }
 
+    /** 定制器直接使用已解析来源和默认状态，透明包装只解包一次且原协议头得以保留。 */
+    @Test
+    void customizerCanKeepDefaultStatusWithoutReclassifying() {
+        final ErrorResponseException error = new ErrorResponseException(HttpStatus.TOO_MANY_REQUESTS);
+        error.getHeaders().set("Retry-After", "60");
+        final CountingWrapper wrapper = new CountingWrapper(error);
+        final AtomicInteger calls = new AtomicInteger();
+        final var result = WebErrorBoundaryTest.handler(
+                        List.of(),
+                        context -> {
+                            assertThat(context.error()).isSameAs(wrapper);
+                            assertThat(context.source()).isSameAs(error);
+                            assertThat(context.code()).isEqualTo(WebErrors.TOO_MANY_REQUESTS);
+                            assertThat(context.defaultStatus()).isEqualTo(HttpStatus.TOO_MANY_REQUESTS);
+                            calls.incrementAndGet();
+                            return context.defaultStatus();
+                        },
+                        List.of())
+                .handleException(wrapper, new MockHttpServletRequest());
+        assertThat(calls.get()).isEqualTo(1);
+        assertThat(wrapper.causeReads.get()).isEqualTo(1);
+        assertThat(result.getStatusCode()).isEqualTo(HttpStatus.TOO_MANY_REQUESTS);
+        assertThat(result.getHeaders().getFirst("Retry-After")).isEqualTo("60");
+    }
+
+    /** 显式映射后的异常形成新边界，定制器不必从原协议错误重新推导业务状态。 */
+    @Test
+    void customizerReceivesExplicitlyMappedBusinessContext() {
+        final ErrorCodeException mapped = new ErrorCodeException(CommonErrors.ILLEGAL_ARGUMENT);
+        final ErrorResponseException error = new ErrorResponseException(HttpStatus.SERVICE_UNAVAILABLE);
+        error.getHeaders().set("Retry-After", "60");
+        final AtomicInteger calls = new AtomicInteger();
+        final var result = WebErrorBoundaryTest.handler(
+                        List.of(original -> mapped),
+                        context -> {
+                            assertThat(context.error()).isSameAs(mapped);
+                            assertThat(context.source()).isSameAs(mapped);
+                            assertThat(context.code()).isEqualTo(CommonErrors.ILLEGAL_ARGUMENT);
+                            assertThat(context.defaultStatus()).isEqualTo(HttpStatus.BAD_REQUEST);
+                            calls.incrementAndGet();
+                            return HttpStatus.CONFLICT;
+                        },
+                        List.of())
+                .handleException(error, new MockHttpServletRequest());
+        assertThat(calls.get()).isEqualTo(1);
+        assertThat(result.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        assertThat(result.getHeaders()).doesNotContainKey("Retry-After");
+        assertThat(((ApiResponse<?>) Objects.requireNonNull(result.getBody())).code())
+                .isEqualTo("COMMON.ILLEGAL_ARGUMENT");
+    }
+
+    /** 定制器接收归一化后的状态，返回默认值不会恢复非法协议头或重新分类。 */
+    @ParameterizedTest
+    @CsvSource({"499, BAD_REQUEST", "200, INTERNAL_SERVER_ERROR"})
+    void customizerReceivesNormalizedDefaultStatus(final int value, final HttpStatus expected) {
+        final ErrorResponseException error = new ErrorResponseException(HttpStatusCode.valueOf(value));
+        error.getHeaders().set("Retry-After", "60");
+        final var result = WebErrorBoundaryTest.handler(
+                        List.of(),
+                        context -> {
+                            assertThat(context.defaultStatus()).isEqualTo(expected);
+                            return context.defaultStatus();
+                        },
+                        List.of())
+                .handleException(error, new MockHttpServletRequest());
+        assertThat(result.getStatusCode()).isEqualTo(expected);
+        assertThat(result.getHeaders()).doesNotContainKey("Retry-After");
+    }
+
     /** 数值相同的历史状态别名不构成协议变化，仍保留所选来源的协商头。 */
     @Test
     void statusAliasesDoNotDiscardProtocolHeaders() {
@@ -355,7 +425,7 @@ class WebErrorBoundaryTest {
             }
             final ErrorResponseException error = new ErrorResponseException(HttpStatus.PAYLOAD_TOO_LARGE);
             error.getHeaders().set("Retry-After", "60");
-            final var result = WebErrorBoundaryTest.handler(List.of(), (source, code) -> alias, List.of())
+            final var result = WebErrorBoundaryTest.handler(List.of(), context -> alias, List.of())
                     .handleException(error, new MockHttpServletRequest());
             assertThat(result.getStatusCode().value()).isEqualTo(413);
             assertThat(result.getHeaders().getFirst("Retry-After")).isEqualTo("60");
@@ -367,7 +437,7 @@ class WebErrorBoundaryTest {
     @CsvSource({"200", "302"})
     void normalizesInvalidCustomStatus(final int status) {
         final WebExceptionHandler handler =
-                WebErrorBoundaryTest.handler(List.of(), (source, code) -> HttpStatus.valueOf(status), List.of());
+                WebErrorBoundaryTest.handler(List.of(), context -> HttpStatus.valueOf(status), List.of());
         final var result =
                 handler.handleException(new ErrorCodeException(WebErrors.NOT_FOUND), new MockHttpServletRequest());
         assertThat(result.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
@@ -389,8 +459,7 @@ class WebErrorBoundaryTest {
                 ErrorVisibility.INTERNAL);
         final ErrorCodeException business = new ErrorCodeException(remote).withOrigin(ErrorOrigin.CALLER);
         final CompletionException wrapper = new CompletionException(business);
-        final var result = WebErrorBoundaryTest.handler(
-                        List.of(), new DefaultWebErrorStatusResolver(), List.of(alerts::add))
+        final var result = WebErrorBoundaryTest.handler(List.of(), null, List.of(alerts::add))
                 .handleException(wrapper, new MockHttpServletRequest());
         assertThat(result.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
         assertThat(Objects.requireNonNull(result.getBody()).toString()).doesNotContain("secret remote message");
@@ -459,23 +528,53 @@ class WebErrorBoundaryTest {
         assertThat(ApiResponse.failure(carrier, "request", "secret").data()).isNull();
     }
 
+    /** 错误响应只保留掩码后的响应体，不输出内部错误传播协议头。 */
+    @Test
+    void doesNotExposeErrorPropagationHeaders() {
+        final WebResponseProperties properties = new WebResponseProperties();
+        final WebExceptionHandler handler = WebErrorBoundaryTest.handler(List.of(), properties);
+        final MockHttpServletRequest request = new MockHttpServletRequest();
+        final ErrorCodeException error = new ErrorCodeException(CommonErrors.ILLEGAL_ARGUMENT, "secret")
+                .withVisibility(ErrorVisibility.INTERNAL);
+
+        final var result = handler.handleException(error, request);
+        assertThat(result.getHeaders().keySet()).noneMatch(name -> name.startsWith("X-Wuli3-Error-"));
+        assertThat(((ApiResponse<?>) Objects.requireNonNull(result.getBody())).message())
+                .isEqualTo("请求未被接受");
+    }
+
     /** 创建使用真实 core 投影和 HTTP 分类的处理器。 */
     private static WebExceptionHandler handler(final List<WebErrorMapper> mappers) {
-        return WebErrorBoundaryTest.handler(mappers, new DefaultWebErrorStatusResolver(), List.of());
+        return WebErrorBoundaryTest.handler(mappers, null, List.of());
     }
 
     /** 创建带自定义状态和告警出口的处理器，用于验证 SPI 边界。 */
     private static WebExceptionHandler handler(
             final List<WebErrorMapper> mappers,
-            final WebErrorStatusResolver statusResolver,
+            final @Nullable WebErrorStatusCustomizer statusCustomizer,
+            final List<ErrorAlertNotifier> notifiers) {
+        return WebErrorBoundaryTest.handler(mappers, new WebResponseProperties(), statusCustomizer, notifiers);
+    }
+
+    /** 创建使用指定响应配置的处理器。 */
+    private static WebExceptionHandler handler(
+            final List<WebErrorMapper> mappers, final WebResponseProperties properties) {
+        return WebErrorBoundaryTest.handler(mappers, properties, null, List.of());
+    }
+
+    /** 组装处理器，响应配置、状态 SPI 与告警出口均可指定。 */
+    private static WebExceptionHandler handler(
+            final List<WebErrorMapper> mappers,
+            final WebResponseProperties properties,
+            final @Nullable WebErrorStatusCustomizer statusCustomizer,
             final List<ErrorAlertNotifier> notifiers) {
         final InvocationContextAccessor accessor = mock(InvocationContextAccessor.class);
         return new WebExceptionHandler(
                 new ApiResponseFactory(accessor, new ErrorResolver("")),
                 accessor,
-                new WebResponseProperties(),
+                properties,
                 notifiers,
-                statusResolver,
+                statusCustomizer,
                 mappers);
     }
 

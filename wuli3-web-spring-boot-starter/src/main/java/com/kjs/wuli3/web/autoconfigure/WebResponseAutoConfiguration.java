@@ -5,7 +5,7 @@ import com.kjs.wuli3.core.error.resolver.ErrorResolver;
 import com.kjs.wuli3.propagation.accessor.InvocationContextAccessor;
 import com.kjs.wuli3.web.error.ErrorAlertNotifier;
 import com.kjs.wuli3.web.error.WebErrorMapper;
-import com.kjs.wuli3.web.error.WebErrorStatusResolver;
+import com.kjs.wuli3.web.error.WebErrorStatusCustomizer;
 import com.kjs.wuli3.web.internal.advice.ApiResponseBodyAdvice;
 import com.kjs.wuli3.web.internal.advice.ApiResponseFactory;
 import com.kjs.wuli3.web.internal.error.WebErrorController;
@@ -72,7 +72,7 @@ public class WebResponseAutoConfiguration {
             final WebResponseProperties properties,
             final ObjectProvider<ErrorAlertNotifier> notifierProvider,
             final ObjectProvider<WebErrorMapper> mapperProvider,
-            final WebErrorStatusResolver statusResolver) {
+            final ObjectProvider<WebErrorStatusCustomizer> statusCustomizerProvider) {
         final List<ErrorAlertNotifier> notifiers =
                 notifierProvider.orderedStream().toList();
         return new WebExceptionHandler(
@@ -80,7 +80,7 @@ public class WebResponseAutoConfiguration {
                 accessor,
                 properties,
                 notifiers,
-                statusResolver,
+                statusCustomizerProvider.getIfAvailable(),
                 mapperProvider.orderedStream().toList());
     }
 }

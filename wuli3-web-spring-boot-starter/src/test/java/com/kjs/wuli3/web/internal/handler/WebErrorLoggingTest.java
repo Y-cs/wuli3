@@ -218,7 +218,7 @@ class WebErrorLoggingTest {
                 accessor,
                 new WebResponseProperties(),
                 List.of(),
-                new DefaultWebErrorStatusResolver(),
+                null,
                 List.of());
     }
 

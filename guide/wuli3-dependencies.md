@@ -25,7 +25,7 @@
 当前项目根构建统一设置了 group 和 version，因此发布坐标为：
 
 ```text
-com.kjs.wuli3:wuli3-dependencies:1.0.0
+com.kjs.wuli3:wuli3-dependencies:1.0.1-SNAPSHOT
 ```
 
 如果根项目版本变化，BOM 版本也会一起变化。
@@ -139,7 +139,7 @@ repositories {
 }
 
 dependencies {
-    implementation(platform("com.kjs.wuli3:wuli3-dependencies:1.0.0"))
+    implementation(platform("com.kjs.wuli3:wuli3-dependencies:1.0.1-SNAPSHOT"))
 
     implementation("com.google.guava:guava")
     implementation("it.unimi.dsi:fastutil")
@@ -152,8 +152,8 @@ dependencies {
 
 ```kotlin
 dependencies {
-    implementation(platform("com.kjs.wuli3:wuli3-dependencies:1.0.0"))
-    annotationProcessor(platform("com.kjs.wuli3:wuli3-dependencies:1.0.0"))
+    implementation(platform("com.kjs.wuli3:wuli3-dependencies:1.0.1-SNAPSHOT"))
+    annotationProcessor(platform("com.kjs.wuli3:wuli3-dependencies:1.0.1-SNAPSHOT"))
 
     compileOnly("org.projectlombok:lombok")
     annotationProcessor("org.projectlombok:lombok")
@@ -175,14 +175,14 @@ repositories {
 
 ```kotlin
 plugins {
-    id("com.kjs.wuli3.java-conventions") version "1.0.0"
+    id("com.kjs.wuli3.java-conventions") version "1.0.1-SNAPSHOT"
 }
 ```
 
 则默认会自动导入：
 
 ```text
-com.kjs.wuli3:wuli3-dependencies:1.0.0
+com.kjs.wuli3:wuli3-dependencies:1.0.1-SNAPSHOT
 ```
 
 业务服务只需要声明无版本依赖：
@@ -198,7 +198,7 @@ dependencies {
 业务服务切换 `wuli3-dependencies` 版本时，在业务服务自己的 `gradle.properties` 中覆盖 BOM 坐标：
 
 ```properties
-wuli3.conventions.bom-coordinates=com.kjs.wuli3:wuli3-dependencies:1.0.0
+wuli3.conventions.bom-coordinates=com.kjs.wuli3:wuli3-dependencies:1.0.1-SNAPSHOT
 ```
 
 外部业务服务一般不要设置 `wuli3.conventions.use-project-bom=true`。该开关用于本仓库或 composite build 场景，会让约定插件从 Gradle project path 读取 BOM，而不是从 Maven 仓库读取已发布坐标。
@@ -209,14 +209,14 @@ Gradle 项目直接导入 BOM 时，切换这里的版本：
 
 ```kotlin
 dependencies {
-    implementation(platform("com.kjs.wuli3:wuli3-dependencies:1.0.0"))
+    implementation(platform("com.kjs.wuli3:wuli3-dependencies:1.0.1-SNAPSHOT"))
 }
 ```
 
 Gradle 项目使用 `wuli3-build-logic` 约定插件时，切换这里的版本：
 
 ```properties
-wuli3.conventions.bom-coordinates=com.kjs.wuli3:wuli3-dependencies:1.0.0
+wuli3.conventions.bom-coordinates=com.kjs.wuli3:wuli3-dependencies:1.0.1-SNAPSHOT
 ```
 
 Maven 项目使用 BOM 时，切换 `dependencyManagement` 中的 `<version>`。
@@ -239,7 +239,7 @@ Maven 项目在 `dependencyManagement` 中导入 BOM：
     <dependency>
       <groupId>com.kjs.wuli3</groupId>
       <artifactId>wuli3-dependencies</artifactId>
-      <version>1.0.0</version>
+      <version>1.0.1-SNAPSHOT</version>
       <type>pom</type>
       <scope>import</scope>
     </dependency>

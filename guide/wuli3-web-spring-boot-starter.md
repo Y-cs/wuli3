@@ -51,20 +51,15 @@ List<Order> mine() { /* 业务 */ }
 请求头的调用方同样会通过校验。直连暴露的服务必须替换默认解析器。只标注 `@Permission` 而没有 `@LoginRequired`
 的接口，匿名请求由权限检查拒绝，错误码为 `PERMISSION.UNAUTHORIZED`，默认映射 400；需要 401 跳转登录时两个注解都要标注。
 
-Boot 管理的 `RestClient.Builder` 和 `RestTemplateBuilder` 会自动安装出站拦截器。当前拦截器使用
-`ContextPropagator.standardContextEncoder()`（包含 `InvocationContextCodec` 和 `AuthContextCodec`），
-会传播 `X-Wuli3-Request-Id`、`X-Wuli3-Origin-Ip`、`X-Wuli3-Principal-Type`、`X-Wuli3-Principal-Id`，以及携带权限主体码时的
-`X-Wuli3-Principal-Permission-Token`；
-现有自动配置没有提供缩小该 HTTP 白名单的扩展点，因此出站目标必须是可信内部服务。
-
 应用可以通过 Bean 替换以下默认 SPI：
 
 - `RequestIdResolver`
 - `ClientIpResolver`
 - `AuthContextResolver`
-- `WebErrorStatusResolver`
 - `ErrorAlertNotifier`
 - `ResourcePathResolver`
+
+HTTP 错误状态可通过可选的 `WebErrorStatusCustomizer` Bean 定制；没有该 Bean 时直接使用默认解析结果，不提供默认定制器 Bean。
 
 ## JSON 配置
 
@@ -103,7 +98,9 @@ wuli3.web.response.success-message=
 wuli3.web.response.validation-detail-enabled=true
 ```
 
-应用侧扩展优先使用文档中列出的 SPI，例如 `WebErrorStatusResolver`、`ErrorAlertNotifier`、`RequestIdResolver` 和 `ClientIpResolver`。
+错误响应只输出经过 `ErrorVisibility` 掩码处理的响应体，不输出内部错误传播协议头。
+
+应用侧扩展优先使用文档中列出的 SPI，例如 `WebErrorStatusCustomizer`、`ErrorAlertNotifier`、`RequestIdResolver` 和 `ClientIpResolver`。
 
 ## 错误告警扩展
 
@@ -335,7 +332,7 @@ core 的 `ErrorResolver` 统一执行错误码和消息的可见性策略，CALL
 Web 层复用其生成的 `ErrorCodeCarrier`，仅输出 `code/message`；`originalCode`、来源服务与诊断元数据不进入公开响应。
 `WebErrorResponseMapper` 只承担 HTTP 响应映射，HTTP 状态、请求 ID 和验证明细仍由 Web 层处理。
 
-普通业务错误可以使用默认的 `CALLER`。数据库、缓存、消息投递、JSON 序列化等只能由服务端修复的错误，应在错误码类型或常量的 `@ErrorMetadata` 中声明 `origin = ErrorOrigin.SERVER`。应用可以注册 `WebErrorStatusResolver` 覆盖默认映射。
+普通业务错误可以使用默认的 `CALLER`。数据库、缓存、消息投递、JSON 序列化等只能由服务端修复的错误，应在错误码类型或常量的 `@ErrorMetadata` 中声明 `origin = ErrorOrigin.SERVER`。应用可以注册 `WebErrorStatusCustomizer` 定制已解析的 HTTP 状态。
 
 `WebErrors.SERVICE_UNAVAILABLE` 默认返回 503，`WebErrors.TOO_MANY_REQUESTS` 默认返回 429。若通过 `withOrigin(...)` 把前者改为 CALLER，则回退为 400；把后者改为 SERVER，则回退为 500。状态映射不能违背运行时责任。传播错误的名称不参与猜测：远程 `WEB.SERVICE_UNAVAILABLE` 仍按传播的责任回退，需要具体状态时应在消费端显式映射。
 
@@ -418,7 +415,7 @@ starter 在 Spring Boot 的 `ErrorMvcAutoConfiguration` 之前注册应用级 `W
 
 ### 自定义 Web 异常识别
 
-注册 `WebErrorMapper` Bean 可将异常转换为明确的 `ErrorCodeException`。多个 mapper 按 Spring 顺序调用，第一个非 null 结果生效；返回 null 继续默认分类。优先级为 Web 显式映射 > 单次异常覆盖 > 远端元数据或本地错误声明 > 框架默认。HTTP 状态仍可通过 `WebErrorStatusResolver` 自定义。
+注册 `WebErrorMapper` Bean 可将异常转换为明确的 `ErrorCodeException`。多个 mapper 按 Spring 顺序调用，第一个非 null 结果生效；返回 null 继续默认分类。优先级为 Web 显式映射 > 单次异常覆盖 > 远端元数据或本地错误声明 > 框架默认。HTTP 状态仍可通过 `WebErrorStatusCustomizer` 自定义。
 
 默认出口按以下顺序一次识别错误语义与协议信息：
 
@@ -431,9 +428,20 @@ starter 在 Spring Boot 的 `ErrorMvcAutoConfiguration` 之前注册应用级 `W
 
 裸 `IllegalArgumentException` 不再默认表示请求错误。公共请求参数校验应使用 `Asserts` 产生明确的 `ErrorCodeException`；第三方请求异常可用 `WebErrorMapper` 显式归类。
 
-自定义 `WebErrorStatusResolver` 在默认识别后调用一次，接收原始或显式映射后的异常以及实际已识别错误码。对业务错误仅覆盖 HTTP 状态，不改写业务码或元数据；对框架错误则按最终状态选择协议码。状态变化时丢弃原协议头，返回 2xx、3xx 等非错误状态时归一化为 500。直接调用默认状态 SPI 时仍兼容候选错误码回退，默认内部链路不使用 `INTERNAL_ERROR` 表达“未分类”。
+可选的 `WebErrorStatusCustomizer` 在默认识别完成后调用一次，通过 `customize(WebErrorStatusContext context)` 返回最终 HTTP 状态；没有定制器 Bean 时直接使用默认结果。不可变的上下文提供：
 
-所有错误经同一投影路径输出；只有首次识别为请求校验错误、PUBLIC 且最终为 4xx 时才允许返回结构化详情。状态 SPI 将服务端错误改成 4xx 不会赋予其公开详情的资格。INTERNAL、CODE_ONLY、MESSAGE_ONLY 均不附带字段详情，避免内容绕过策略。原生 ProblemDetail 重新生成，只保留安全码、消息和 requestId；响应头仅保留 Allow、Accept、Retry-After、WWW-Authenticate 等明确协议头。MVC advice 不覆盖所有 Servlet Filter 或已提交响应。
+| 字段 | 说明 |
+| --- | --- |
+| `error` | 显式映射后的异常；没有映射时为原异常。 |
+| `source` | 透明解包后实际识别的异常来源。 |
+| `code` | 已识别的错误码。 |
+| `defaultStatus` | 已解析的默认 HTTP 状态。 |
+
+未命中定制条件时返回 `context.defaultStatus()`，无需再次分析异常。对业务错误仅覆盖 HTTP 状态，不改写业务码或元数据；对框架错误则按最终状态选择协议码。状态变化时丢弃原协议头，返回 2xx、3xx 等非错误状态时归一化为 500。
+
+迁移时将旧 `WebErrorStatusResolver` Bean 改为 `WebErrorStatusCustomizer` Bean，将原来方法参数中的异常和错误码改为读取上下文。删除对 `DefaultWebErrorStatusResolver` 的调用，默认分支直接返回 `context.defaultStatus()`。这两个旧类型已删除，不再提供替换默认解析器的入口。
+
+所有错误经同一投影路径输出；只有首次识别为请求校验错误、PUBLIC 且最终为 4xx 时才允许返回结构化详情。状态定制器将服务端错误改成 4xx 不会赋予其公开详情的资格。INTERNAL、CODE_ONLY、MESSAGE_ONLY 均不附带字段详情，避免内容绕过策略。原生 ProblemDetail 重新生成，只保留安全码、消息和 requestId；响应头仅保留 Allow、Accept、Retry-After、WWW-Authenticate 等明确协议头。MVC advice 不覆盖所有 Servlet Filter 或已提交响应。
 
 本次边界整理的兼容性变化：裸 `IllegalArgumentException` 从 400 改为 500；普通 `RuntimeException(cause)` 不再自动继承内部状态和业务语义，需要保留时应显式映射。自定义状态 SPI 收到实际协议码，而非未分类占位码；显式 mapper 不再隐式携带原异常的头或校验详情。透明包装内的业务错误会完整保留责任及可见性，避免先前只保留状态而丢失元数据。
 

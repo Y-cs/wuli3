@@ -11,7 +11,7 @@ internal data class ConventionProperty<T : Any>(
 
 /** 约定插件共享的配置定义；默认值仅在属性未配置时生效。 */
 internal object ConventionProperties {
-    val BOM_COORDINATES = ConventionProperty("wuli3.conventions.bom-coordinates", "com.kjs.wuli3:wuli3-dependencies:1.0.0")
+    val BOM_COORDINATES = ConventionProperty("wuli3.conventions.bom-coordinates", "com.kjs.wuli3:wuli3-dependencies:1.0.1-SNAPSHOT")
     val FORBIDDEN_APIS_ENABLED = ConventionProperty("wuli3.conventions.forbidden-apis.enabled", true)
     val FORBIDDEN_APIS_TEST_ENABLED = ConventionProperty("wuli3.conventions.forbidden-apis.test-enabled", false)
     val JACOCO_LINE_MINIMUM = ConventionProperty("wuli3.conventions.jacoco.line.minimum", "0.45")

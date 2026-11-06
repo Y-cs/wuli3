@@ -81,7 +81,24 @@ throw new ErrorCodeException(OrderErrors.NOT_FOUND);
 | Spring Security 的认证/拒绝访问异常进入 MVC 错误链 | 401、403 |
 | 未知内部异常 | 500，并做安全输出 |
 
-特别注意：业务 `OrderErrors.NOT_FOUND` 默认是 **400**，不自动推导为 404。Wuli3 的 `PermissionErrors.UNAUTHORIZED/FORBIDDEN` 也是 `CALLER` 错误，默认同样返回 **400**，不能仅凭名称假设为 401/403。若 API 规范要求其他状态，在 bootstrap 提供 `WebErrorStatusResolver` Bean，并完整保留其他异常的状态规则；它是替换默认解析器，不是“仅覆盖一个错误”的链式扩展。不要用始终返回 400 的兜底吞掉 500、405 等语义。
+特别注意：业务 `OrderErrors.NOT_FOUND` 默认是 **400**，不自动推导为 404。Wuli3 的 `PermissionErrors.UNAUTHORIZED/FORBIDDEN` 也是 `CALLER` 错误，默认同样返回 **400**，不能仅凭名称假设为 401/403。若 API 规范要求其他状态，在 bootstrap 提供可选的 `WebErrorStatusCustomizer` Bean。默认错误解析只执行一次，定制器接收已有的错误码和默认状态；未命中条件时返回 `context.defaultStatus()`，无需重写其他异常的状态规则。以下是配置类中的 Bean 方法片段：
+
+```java
+import com.example.order.sharedkernel.OrderErrors;
+import com.kjs.wuli3.web.error.WebErrorStatusCustomizer;
+import org.springframework.context.annotation.Bean;
+import org.springframework.http.HttpStatus;
+
+// 放入 @Configuration 类中，仅定制订单不存在的 HTTP 状态。
+@Bean
+public WebErrorStatusCustomizer orderErrorStatusCustomizer() {
+    return context -> context.code() == OrderErrors.NOT_FOUND
+            ? HttpStatus.NOT_FOUND
+            : context.defaultStatus();
+}
+```
+
+没有定制器 Bean 时直接采用默认状态。定制业务错误状态不会改写其错误码及元数据。旧 `WebErrorStatusResolver` 和 `DefaultWebErrorStatusResolver` 已删除；迁移时改用上述接口，将原来调用默认解析器的兜底分支替换为 `context.defaultStatus()`。
 
 `WebErrorMapper` 更适合把第三方异常转成业务错误。它是按 Spring 排序执行的处理链，首个非空结果生效；返回 `null` 表示交给后续映射。以下是配置类中的 Bean 方法片段：
 

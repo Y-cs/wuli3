@@ -8,7 +8,8 @@ import com.kjs.wuli3.propagation.accessor.InvocationContextAccessor;
 import com.kjs.wuli3.web.error.ErrorAlertContext;
 import com.kjs.wuli3.web.error.ErrorAlertNotifier;
 import com.kjs.wuli3.web.error.WebErrorMapper;
-import com.kjs.wuli3.web.error.WebErrorStatusResolver;
+import com.kjs.wuli3.web.error.WebErrorStatusContext;
+import com.kjs.wuli3.web.error.WebErrorStatusCustomizer;
 import com.kjs.wuli3.web.internal.advice.ApiResponseFactory;
 import com.kjs.wuli3.web.internal.advice.NativeResponseSupport;
 import com.kjs.wuli3.web.internal.advice.ValidationErrorDetailsFactory;
@@ -39,7 +40,7 @@ public class WebExceptionHandler {
 
     private final ApiResponseFactory responseFactory;
     private final InvocationContextAccessor invocationContextAccessor;
-    private final WebErrorStatusResolver webErrorStatusResolver;
+    private final @Nullable WebErrorStatusCustomizer webErrorStatusCustomizer;
     private final ValidationErrorDetailsFactory validationErrorDetailsFactory;
     private final ErrorAlertNotifiers errorAlertNotifiers;
     private final List<WebErrorMapper> errorMappers;
@@ -50,11 +51,11 @@ public class WebExceptionHandler {
             final InvocationContextAccessor invocationContextAccessor,
             final WebResponseProperties responseProperties,
             final List<ErrorAlertNotifier> errorAlertNotifiers,
-            final WebErrorStatusResolver webErrorStatusResolver,
+            final @Nullable WebErrorStatusCustomizer webErrorStatusCustomizer,
             final List<WebErrorMapper> errorMappers) {
         this.responseFactory = responseFactory;
         this.invocationContextAccessor = invocationContextAccessor;
-        this.webErrorStatusResolver = webErrorStatusResolver;
+        this.webErrorStatusCustomizer = webErrorStatusCustomizer;
         this.validationErrorDetailsFactory = new ValidationErrorDetailsFactory(responseProperties);
         this.errorAlertNotifiers = new ErrorAlertNotifiers(errorAlertNotifiers);
         this.errorMappers = List.copyOf(errorMappers);
@@ -77,6 +78,7 @@ public class WebExceptionHandler {
         final String requestId = this.requestId();
         final ApiResponse<?> response = ApiResponse.failure(visible, requestId, detail);
         this.alert(ex, request, resolution.status(), visible, requestId);
+        // 只保留框架协议要求的只读白名单头，不把内部错误传播协议暴露到 HTTP 边界。
         if (NativeResponseSupport.isAll(request)) {
             return ResponseEntity.status(resolution.status())
                     .headers(resolution.headers())
@@ -88,17 +90,14 @@ public class WebExceptionHandler {
                 .body(response);
     }
 
-    /**
-     * 默认实现复用完整识别结果；自定义状态 SPI 在识别后调用一次，只显式覆盖 HTTP 状态。
-     *
-     * <p>保留原 SPI 的异常输入和业务码语义。框架错误传入已经识别的协议码，且非错误状态不能作为最终错误响应。
-     */
+    /** 一次识别完整错误结果，再按需定制状态；定制器无需重新识别异常。 */
     private WebErrorResolution resolve(final Throwable error) {
         final WebErrorResolution resolution = WebErrorResolver.resolve(error);
-        if (this.webErrorStatusResolver instanceof DefaultWebErrorStatusResolver) {
+        if (this.webErrorStatusCustomizer == null) {
             return resolution;
         }
-        final HttpStatus status = this.webErrorStatusResolver.resolve(error, resolution.code());
+        final HttpStatus status = this.webErrorStatusCustomizer.customize(
+                new WebErrorStatusContext(error, resolution.source(), resolution.code(), resolution.status()));
         return resolution.withStatus(WebErrorResponseMapper.normalize(status.value()));
     }
 

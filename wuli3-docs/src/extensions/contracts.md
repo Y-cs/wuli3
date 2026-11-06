@@ -19,7 +19,7 @@ description: 识别 Wuli3 扩展点的装配方式、替换规则和常见误区
 
 **注册接口不等于接通协议。** RemoteEventTransport 需要真实客户端、目标配置和失败策略；返回成功不能自动等同于可靠落库。
 
-**自定义 Bean 不一定会被收集。** 例如自定义 ContextCodec 不会被默认 Web 自动配置自动加入所有传播器；需要按文档显式创建 ContextPropagator。
+**自定义 Bean 不一定会被收集。** 例如自定义 ContextCodec 不会被协议适配器自动加入传播器；需要按具体适配器文档显式创建 ContextPropagator。
 
 **关闭开关不等于补齐实现。** wuli3.permission.enforcement-enabled=false 可以关闭权限检查，但不能代替生产授权系统；缺少审计 store 也不能凭空得到持久审计。
 
