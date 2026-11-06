@@ -17,8 +17,8 @@ dependencies {
 
 ## 查询条件
 
-`PageQuery` 的页码从 1 开始，默认页大小常量为 20，允许的最大页大小为 200。排序条件按
-列表顺序表示优先级：
+`PageQuery` 的页码从 1 开始，缺省值为 `page=1`、`pageSize=10`，`page` 或 `pageSize` 小于 1
+时回落到默认值，允许的最大页大小为 200。排序条件按列表顺序表示优先级：
 
 ```java
 final PageQuery query = new PageQuery(
@@ -29,8 +29,8 @@ final PageQuery query = new PageQuery(
                 new Sort("id", SortDirection.ASC)));
 ```
 
-`PageQuery` 会复制排序列表，调用方后续修改原列表不会影响查询条件。页码或页大小越界、空
-排序字段和空排序方向都会通过统一断言转换为 `ErrorCodeException`。
+`PageQuery` 会复制排序列表，调用方后续修改原列表不会影响查询条件。页大小超过上限、空
+排序字段和空排序方向都会通过统一断言转换为 `ErrorCodeException`，错误码为 `CommonErrors.ILLEGAL_ARGUMENT`。
 
 ## 查询结果
 

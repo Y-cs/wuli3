@@ -78,8 +78,8 @@ final PageResult<OrderEntity> result = PaginationHelper.toPageResult(
 
 `Sort.field` 是应用层字段名，不是数据库列名或 SQL 片段。`fieldMapper` 必须使用固定的
 白名单映射（例如 `Map` 或显式 `switch`）；不要直接传入用户输入、下划线转换器或字符串拼接
-函数。映射不存在时应拒绝请求，避免把排序字段注入 SQL。`PageQuery` 页码从 1 开始，页大小
-范围为 1 至 200；`sorts` 的顺序表示排序优先级。`PageResult` 的 `items` 为空时使用空列表，
+函数。映射不存在时应拒绝请求，避免把排序字段注入 SQL。`PageQuery` 页码从 1 开始，缺省
+`page=1`、`pageSize=10`，最大页大小为 200；`sorts` 的顺序表示排序优先级。`PageResult` 的 `items` 为空时使用空列表，
 `total` 不会为负数。
 
 SQL 观测默认关闭。开启后，普通 SQL 默认以 `DEBUG` 记录，可通过 `logging-level: info` 改为 `INFO`；达到阈值的 SQL 以 `WARN` 记录，执行异常的 SQL 独立以 `ERROR` 记录。所有 SQL 日志固定使用带换行和 ASCII 分隔符的多行格式。慢 SQL 和异常 SQL 都会通过 `SqlAlertNotifier` 派发。观测范围包括普通查询、游标查询、更新和批执行。
