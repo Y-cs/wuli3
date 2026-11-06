@@ -55,9 +55,9 @@ public final class {{domainType}}Store {
                 .sorted(comparator.thenComparing(entry -> entry.id().value()))
                 .toList();
         final var items = snapshot.stream()
-                .skip((long) (query.pageNumber() - 1) * query.pageSize())
+                .skip((long) (query.page() - 1) * query.pageSize())
                 .limit(query.pageSize())
                 .toList();
-        return new PageResult<>(items, snapshot.size(), query.pageNumber(), query.pageSize());
+        return new PageResult<>(items, snapshot.size(), query.page(), query.pageSize());
     }
 }

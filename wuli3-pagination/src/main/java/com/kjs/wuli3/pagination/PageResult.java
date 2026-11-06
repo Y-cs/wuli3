@@ -1,6 +1,7 @@
 package com.kjs.wuli3.pagination;
 
 import com.kjs.wuli3.core.assertion.Asserts;
+import com.kjs.wuli3.core.error.builtin.CommonErrors;
 import java.io.Serializable;
 import java.util.List;
 
@@ -11,13 +12,13 @@ import java.util.List;
  *
  * @author GuoYang create on 2026/10/16 09:00
  */
-public record PageResult<T>(List<T> items, long total, long pageNumber, long pageSize) implements Serializable {
+public record PageResult<T>(List<T> items, long total, long page, long pageSize) implements Serializable {
 
     public PageResult {
-        Asserts.whenNull(items).throwIllegalArgumentException("分页结果内容不能为空");
-        Asserts.whenFalse(total >= 0).throwIllegalArgumentException("总记录数不能小于 0");
-        Asserts.whenFalse(pageNumber > 0).throwIllegalArgumentException("页码必须大于 0");
-        Asserts.whenFalse(pageSize > 0).throwIllegalArgumentException("分页大小必须大于 0");
+        Asserts.whenNull(items).throwException(CommonErrors.ILLEGAL_ARGUMENT, "分页结果内容不能为空");
+        Asserts.whenFalse(total >= 0).throwException(CommonErrors.ILLEGAL_ARGUMENT, "总记录数不能小于 0");
+        Asserts.whenFalse(page > 0).throwException(CommonErrors.ILLEGAL_ARGUMENT, "页码必须大于 0");
+        Asserts.whenFalse(pageSize > 0).throwException(CommonErrors.ILLEGAL_ARGUMENT, "分页大小必须大于 0");
         items = List.copyOf(items);
     }
 }
