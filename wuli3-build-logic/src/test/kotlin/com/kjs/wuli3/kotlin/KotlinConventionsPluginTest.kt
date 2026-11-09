@@ -87,7 +87,7 @@ class KotlinConventionsPluginTest {
     private fun writeFixture() {
         write("settings.gradle.kts", """
             pluginManagement { repositories { gradlePluginPortal(); mavenCentral() } }
-            dependencyResolutionManagement { repositories { maven { url = uri("https://maven.aliyun.com/repository/public") }; mavenCentral() } }
+            dependencyResolutionManagement { repositories { mavenCentral() } }
             rootProject.name = "fixture"
             include(":wuli3-dependencies", ":app")
         """.trimIndent())
