@@ -15,7 +15,8 @@ public interface StsPolicyProvider {
      * 生成内联授权策略 JSON。
      *
      * @param config 当前 STS 配置，包含 bucket 等扩展信息
+     * @param directory 本次授权目录，策略应限制在该目录下
      * @return 策略 JSON；返回空字符串表示不发送内联策略
      */
-    String resolve(StsConfig config);
+    String resolve(StsConfig config, String directory);
 }

@@ -11,6 +11,10 @@ import com.kjs.wuli3.aliyun.error.StsOperateException;
 import com.kjs.wuli3.core.assertion.Asserts;
 import com.kjs.wuli3.core.error.ErrorCodeException;
 import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.util.Locale;
 
 /**
  * 面向单个 STS 角色的 AssumeRole 操作模板，统一转换 SDK 异常。
@@ -23,6 +27,7 @@ public final class StsTemplate {
 
     private static final long MIN_DURATION_SECONDS = 900L;
     private static final long MAX_DURATION_SECONDS = 3600L;
+    private static final DateTimeFormatter DIRECTORY_FORMATTER = DateTimeFormatter.ofPattern("yM/d/H", Locale.ROOT);
 
     private final StsConfig config;
     private final StsPolicyProvider policyProvider;
@@ -55,10 +60,11 @@ public final class StsTemplate {
      * @throws ErrorCodeException 请求失败或响应缺少必要字段时
      */
     public StsCredentials getCredentials() {
+        final String directory = StsTemplate.buildDirectory(this.config);
         try {
             final AssumeRoleResponse response = this.client.assumeRoleWithOptions(
-                    StsTemplate.buildRequest(this.config, this.resolvePolicy()), new RuntimeOptions());
-            return StsTemplate.toCredentials(response);
+                    StsTemplate.buildRequest(this.config, this.resolvePolicy(directory)), new RuntimeOptions());
+            return StsTemplate.toCredentials(response, this.config, directory);
         } catch (final ErrorCodeException exception) {
             throw exception;
         } catch (final Exception exception) {
@@ -67,11 +73,22 @@ public final class StsTemplate {
     }
 
     /** 配置的 policy 优先；否则交给策略扩展点生成。 */
-    String resolvePolicy() {
+    String resolvePolicy(final String directory) {
         if (!this.config.getPolicy().isBlank()) {
             return this.config.getPolicy();
         }
-        return this.policyProvider.resolve(this.config);
+        return this.policyProvider.resolve(this.config, directory);
+    }
+
+    /** 按 folder 和当前时间生成授权目录，格式为 folder/yM/d/H。 */
+    static String buildDirectory(final StsConfig config) {
+        return StsTemplate.buildDirectory(config, LocalDateTime.now(ZoneId.systemDefault()));
+    }
+
+    static String buildDirectory(final StsConfig config, final LocalDateTime now) {
+        final String folder =
+                config.getFolder().startsWith("/") ? config.getFolder().substring(1) : config.getFolder();
+        return folder + "/" + now.format(DIRECTORY_FORMATTER);
     }
 
     /** 按配置构造 AssumeRole 请求；策略为空时不发送 policy 字段。 */
@@ -87,7 +104,8 @@ public final class StsTemplate {
     }
 
     /** 将 SDK 响应转换为凭据对象；缺少必要字段时抛出统一错误码。 */
-    static StsCredentials toCredentials(final AssumeRoleResponse response) {
+    static StsCredentials toCredentials(
+            final AssumeRoleResponse response, final StsConfig config, final String directory) {
         final AssumeRoleResponseBody body = Asserts.requireNonNull(response.getBody(), StsErrorCode.INVALID_RESPONSE);
         final AssumeRoleResponseBody.AssumeRoleResponseBodyCredentials credentials =
                 Asserts.requireNonNull(body.getCredentials(), StsErrorCode.INVALID_RESPONSE);
@@ -96,7 +114,11 @@ public final class StsTemplate {
                 Asserts.requireNonNull(credentials.getAccessKeyId(), StsErrorCode.INVALID_RESPONSE),
                 Asserts.requireNonNull(credentials.getAccessKeySecret(), StsErrorCode.INVALID_RESPONSE),
                 Asserts.requireNonNull(credentials.getSecurityToken(), StsErrorCode.INVALID_RESPONSE),
-                Instant.parse(expiration));
+                Instant.parse(expiration),
+                config.getBucket(),
+                config.getOssEndpoint(),
+                directory,
+                config.getPrefixUrl());
     }
 
     private static void validate(final StsConfig config) {

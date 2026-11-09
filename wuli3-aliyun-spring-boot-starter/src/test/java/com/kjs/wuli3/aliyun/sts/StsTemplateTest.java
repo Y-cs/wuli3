@@ -9,11 +9,12 @@ import com.aliyun.sts20150401.models.AssumeRoleResponseBody;
 import com.kjs.wuli3.aliyun.error.StsErrorCode;
 import com.kjs.wuli3.core.error.ErrorCodeException;
 import java.time.Instant;
+import java.time.LocalDateTime;
 import org.junit.jupiter.api.Test;
 
 class StsTemplateTest {
 
-    private static final StsPolicyProvider POLICY_PROVIDER = new DefaultStsPolicyProvider();
+    private static final StsPolicyProvider POLICY_PROVIDER = (config, directory) -> "";
 
     @Test
     void rejectsBlankRoleArn() {
@@ -47,9 +48,9 @@ class StsTemplateTest {
         final StsConfig config = validConfig();
         config.setPolicy("config-policy");
 
-        final StsTemplate template = StsTemplate.create(config, ignored -> "provider-policy");
+        final StsTemplate template = StsTemplate.create(config, (ignored, directory) -> "provider-policy");
 
-        assertThat(template.resolvePolicy()).isEqualTo("config-policy");
+        assertThat(template.resolvePolicy("uploads/2026/11/9/12")).isEqualTo("config-policy");
     }
 
     @Test
@@ -57,35 +58,35 @@ class StsTemplateTest {
         final StsConfig config = validConfig();
         config.setPolicy("");
 
-        final StsTemplate template = StsTemplate.create(config, ignored -> "provider-policy");
+        final StsTemplate template = StsTemplate.create(config, (ignored, directory) -> "provider-policy");
 
-        assertThat(template.resolvePolicy()).isEqualTo("provider-policy");
+        assertThat(template.resolvePolicy("uploads/2026/11/9/12")).isEqualTo("provider-policy");
     }
 
     @Test
-    void defaultProviderScopesPolicyToBucketFolder() {
+    void buildsDirectoryFromFolderAndCurrentHour() {
         final StsConfig config = new StsConfig();
-        config.setBucket("my-bucket");
+        config.setFolder("/uploads");
 
-        final String policy = new DefaultStsPolicyProvider().resolve(config);
+        final String directory = StsTemplate.buildDirectory(config, LocalDateTime.of(2026, 11, 9, 12, 30));
 
-        assertThat(policy).contains("acs:oss:*:*:my-bucket/uploads/*");
+        assertThat(directory).isEqualTo("uploads/202611/9/12");
     }
 
     @Test
-    void defaultProviderNormalizesFolderSlashes() {
+    void defaultProviderScopesPolicyToDirectory() {
         final StsConfig config = new StsConfig();
         config.setBucket("my-bucket");
-        config.setFolder("/manual/2026/");
 
-        final String policy = new DefaultStsPolicyProvider().resolve(config);
+        final String policy = new DefaultStsPolicyProvider().resolve(config, "uploads/2026/11/9/12");
 
-        assertThat(policy).contains("acs:oss:*:*:my-bucket/manual/2026/*");
+        assertThat(policy).contains("acs:oss:*:*:my-bucket/uploads/2026/11/9/12*");
     }
 
     @Test
     void defaultProviderReturnsBlankWithoutBucket() {
-        assertThat(new DefaultStsPolicyProvider().resolve(new StsConfig())).isEmpty();
+        assertThat(new DefaultStsPolicyProvider().resolve(new StsConfig(), "uploads/2026/11/9/12"))
+                .isEmpty();
     }
 
     @Test
@@ -101,7 +102,7 @@ class StsTemplateTest {
     }
 
     @Test
-    void mapsCredentialsFromResponse() {
+    void mapsCredentialsAndUploadTargetFromResponse() {
         final AssumeRoleResponseBody.AssumeRoleResponseBodyCredentials credentials =
                 new AssumeRoleResponseBody.AssumeRoleResponseBodyCredentials()
                         .setAccessKeyId("ak")
@@ -110,18 +111,25 @@ class StsTemplateTest {
                         .setExpiration("2026-11-09T13:00:00Z");
         final AssumeRoleResponse response =
                 new AssumeRoleResponse().setBody(new AssumeRoleResponseBody().setCredentials(credentials));
+        final StsConfig config = new StsConfig();
+        config.setBucket("my-bucket");
+        config.setPrefixUrl("https://cdn.example.com");
 
-        final StsCredentials result = StsTemplate.toCredentials(response);
+        final StsCredentials result = StsTemplate.toCredentials(response, config, "uploads/2026/11/9/12");
 
         assertThat(result.accessKeyId()).isEqualTo("ak");
         assertThat(result.accessKeySecret()).isEqualTo("sk");
         assertThat(result.securityToken()).isEqualTo("token");
         assertThat(result.expiration()).isEqualTo(Instant.parse("2026-11-09T13:00:00Z"));
+        assertThat(result.bucket()).isEqualTo("my-bucket");
+        assertThat(result.endpoint()).isEqualTo("oss-cn-hangzhou.aliyuncs.com");
+        assertThat(result.directory()).isEqualTo("uploads/2026/11/9/12");
+        assertThat(result.prefixUrl()).isEqualTo("https://cdn.example.com");
     }
 
     @Test
     void rejectsResponseWithoutCredentials() {
-        assertThatThrownBy(() -> StsTemplate.toCredentials(new AssumeRoleResponse()))
+        assertThatThrownBy(() -> StsTemplate.toCredentials(new AssumeRoleResponse(), new StsConfig(), "uploads"))
                 .isInstanceOf(ErrorCodeException.class)
                 .hasMessage(StsErrorCode.INVALID_RESPONSE.getMessage());
     }

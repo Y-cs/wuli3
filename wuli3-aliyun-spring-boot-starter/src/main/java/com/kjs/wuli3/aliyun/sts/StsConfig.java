@@ -36,6 +36,12 @@ public class StsConfig {
     /** 默认策略授权目录，拼接在 bucket 之后；默认 uploads。 */
     private String folder = "uploads";
 
+    /** 返回给调用方的 OSS endpoint，与 STS endpoint 无关。 */
+    private String ossEndpoint = "oss-cn-hangzhou.aliyuncs.com";
+
+    /** 返回给调用方的对象访问前缀 URL，例如自定义域名或 CDN 地址。 */
+    private String prefixUrl = "";
+
     /** STS 服务 endpoint，例如 sts.cn-hangzhou.aliyuncs.com。 */
     private String endpoint = "sts.cn-hangzhou.aliyuncs.com";
 }

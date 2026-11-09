@@ -63,7 +63,7 @@ class AliYunAutoConfigurationTest {
 
     @Test
     void backsOffForApplicationProvidedPolicyProvider() {
-        final StsPolicyProvider provider = ignored -> "custom-policy";
+        final StsPolicyProvider provider = (config, directory) -> "custom-policy";
         this.contextRunner
                 .withBean(StsPolicyProvider.class, () -> provider)
                 .run(context ->
