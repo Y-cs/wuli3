@@ -22,12 +22,14 @@ class RocketV4PublishOptionsTest {
         assertThat(builder.build()).isEqualTo(new RocketV4PublishOptions());
         assertThat(builder.async(true)).isSameAs(builder);
         assertThat(builder.afterCommit(true)).isSameAs(builder);
+        assertThat(builder.transactional(true)).isSameAs(builder);
         assertThat(builder.orderKey("order-42")).isSameAs(builder);
         final RocketV4PublishOptions first = builder.build();
         final RocketV4PublishOptions second =
                 builder.orderKey("order-43").async(false).build();
         assertThat(first.async()).isTrue();
         assertThat(first.afterCommit()).isTrue();
+        assertThat(first.transactional()).isTrue();
         assertThat(first.orderKey()).isEqualTo("order-42");
         assertThat(second.async()).isFalse();
         assertThat(second.orderKey()).isEqualTo("order-43");

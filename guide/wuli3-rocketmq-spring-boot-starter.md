@@ -27,6 +27,7 @@ rocketmq:
 
 - `com.kjs.wuli3.rocket.v4`：`RocketV4PublishOptions`、`RocketRemoteEventTransport`，自动配置位于 `v4.autoconfigure`。
 - `com.kjs.wuli3.rocket.v5`：`RocketV5PublishOptions`、`RocketV5RemoteEventTransport`，自动配置位于 `v5.autoconfigure`。
+- `com.kjs.wuli3.rocket.transaction`：`RocketLocalTransaction` 事务扩展点、`RocketTransactionEvent` 和按事件类型索引的注册表。
 - `autoconfigure.RocketCommonAutoConfiguration` 与 `internal`：共享编码、线协议和上下文传播。
 
 两种 Transport 可同时注册，Publisher 按选项的具体类型路由。
@@ -56,7 +57,8 @@ Producer rocketV5Producer(final ClientServiceProvider clientServiceProvider) thr
 }
 ```
 
-应用负责 v5 Producer 的 endpoint、凭据和预声明 topic；调用 `setTopics(...)` 时应列出该 Producer 会发送的全部 topic。v5 选中后不会注入 v4 transport，即使应用同时配置了 `RocketMQTemplate`。
+应用负责 v5 Producer 的 endpoint、凭据和预声明 topic；调用 `setTopics(...)` 时应列出该 Producer 会发送的全部 topic。
+v4 与 v5 transport 可同时注册，Publisher 按选项类型路由；同时配置 `RocketMQTemplate` 和 v5 `Producer` 时两个版本都可用。
 
 ## 发布远程事件
 
@@ -80,6 +82,9 @@ eventPublisher.publish(options, envelope);
 - topic 长度不超过 127 字节。
 - topic 只能包含字母、数字、`%`、`-` 和 `_`。
 - 非正数 delay 和空白 order key 会在构造选项时被拒绝。
+
+消息 TAGS 取自事件信封的 `eventType`。v4 通过 destination 的 `topic:tag` 形式传递给 rocketmq-spring，
+不要通过 `RocketMQHeaders.TAGS` 消息头设置 tag，该消息头会被框架丢弃。
 
 ## 上下文传播
 
@@ -113,6 +118,7 @@ rocketMqContextSupport.runInScope(messageExt.getProperties(), () -> {
 ## 投递边界
 
 - `afterCommit` 是提交后尽力发送，不是 Outbox 或可靠消息。
+- 事务消息的本地事务执行与回查由业务实现，幂等和状态判断由业务负责。
 - 异步发送失败由 transport 记录日志，不会回滚已经提交的业务事务。
 - 传播 header 属于 RocketMQ 消息属性，不进入 `EventEnvelope` 的 JSON body。
 - 消费端的自动 Listener、幂等、重试和死信不在当前模块范围内；上下文恢复通过 `RocketContextSupport` 显式完成。
@@ -138,6 +144,51 @@ v5 支持异步延迟，但不支持异步 FIFO 或顺序延迟。
 参数校验或异步启动失败直接抛异常，不额外触发回调；事务回滚未发送时不触发回调。
 v4 的 SendResult 状态由业务判断，回调成功不等于消费成功。此功能不提供持久重试或可靠投递保证。
 
+## 事务消息
+
+`transactional(true)` 使用 RocketMQ 半消息事务，本地事务按事件信封的 `eventType` 查找
+`RocketLocalTransaction` Bean：
+
+```java
+eventPublisher.publish(
+        RocketV4PublishOptions.builder().transactional(true).build(),
+        envelope);
+```
+
+```java
+@Component
+public class OrderPaidTransaction implements RocketLocalTransaction {
+
+    @Override
+    public String eventType() {
+        return "order.paid.v1";
+    }
+
+    @Override
+    public RocketLocalTransactionState execute(final RocketTransactionEvent event) {
+        // 执行本地事务，例如落库；event.payloadJson() 为载荷 JSON
+        return RocketLocalTransactionState.COMMIT;
+    }
+
+    @Override
+    public RocketLocalTransactionState check(final RocketTransactionEvent event) {
+        // broker 回查：依据本地持久化状态判断
+        return RocketLocalTransactionState.COMMIT;
+    }
+}
+```
+
+- 同一 `eventType` 只允许一个实现，重复注册启动失败。
+- 未注册对应 `eventType` 时，发送在投递半消息前抛出 `SendFailedException`。
+- v4 自动注册 `RocketV4TransactionListener`，执行 `execute`、回查 `check`；业务自定义
+  `RocketMQLocalTransactionListener` 时自动让位。
+- v5 自动把 `RocketV5TransactionChecker` 装到 starter 创建的默认 `Producer` 上，流程为
+  `beginTransaction → send → execute → commit/rollback`。业务自定义 `Producer` 时必须通过
+  `ProducerBuilder#setTransactionChecker` 传入该 Bean，否则 broker 回查无法解析事件。
+- 本地事务返回 `ROLLBACK` 时抛出 `SendFailedException`；返回 `UNKNOWN` 或执行抛异常时消息保持挂起，
+  等待 broker 回查决定提交或回滚。
+- 事务消息不能与 `async`、`delay`、`orderKey` 组合，组合使用时抛出 `UNSUPPORTED_OPERATION`。
+
 ## v5 配置
 
 基础 v5 Producer 参数可以放在配置文件中，Starter 会在没有业务自定义 `Producer` Bean 时自动创建：
@@ -159,7 +210,8 @@ wuli3:
       max-attempts: 3
 ```
 
-业务代码只需使用 `RocketV5PublishOptions`，不再负责连接地址、凭据和主题列表。凭据建议通过环境变量占位符注入。若需要自定义认证、事务检查器、多个 Producer 或特殊生命周期，业务可以声明自己的 `Producer` Bean；Starter 会自动让位。
+业务代码只需使用 `RocketV5PublishOptions`，不再负责连接地址、凭据和主题列表。凭据建议通过环境变量占位符注入。若需要自定义认证、事务检查器、多个 Producer 或特殊生命周期，业务可以声明自己的 `Producer` Bean；Starter 会自动让位。自定义 Producer 若要发送事务消息，必须显式装配
+`RocketV5TransactionChecker`。
 
 ### 可信权限主体码
 

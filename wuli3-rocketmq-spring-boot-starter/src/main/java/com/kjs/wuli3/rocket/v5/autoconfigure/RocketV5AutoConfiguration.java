@@ -4,8 +4,10 @@ import com.kjs.wuli3.event.autoconfigure.ConditionalOnMissingRoutingEventTranspo
 import com.kjs.wuli3.event.autoconfigure.EventAutoConfiguration;
 import com.kjs.wuli3.rocket.autoconfigure.RocketCommonAutoConfiguration;
 import com.kjs.wuli3.rocket.message.RocketMessageWrapperEncoder;
+import com.kjs.wuli3.rocket.transaction.RocketLocalTransactionRegistry;
 import com.kjs.wuli3.rocket.v5.RocketV5PublishOptions;
 import com.kjs.wuli3.rocket.v5.RocketV5RemoteEventTransport;
+import com.kjs.wuli3.rocket.v5.RocketV5TransactionChecker;
 import java.time.Clock;
 import org.apache.rocketmq.client.apis.ClientConfiguration;
 import org.apache.rocketmq.client.apis.ClientServiceProvider;
@@ -40,12 +42,22 @@ public class RocketV5AutoConfiguration {
         return ClientServiceProvider.loadService();
     }
 
+    /** 创建事务回查分发器；业务自定义 Producer 时需显式装配。 */
+    @Bean
+    @ConditionalOnMissingBean
+    RocketV5TransactionChecker rocketV5TransactionChecker(final RocketLocalTransactionRegistry transactionRegistry) {
+        return new RocketV5TransactionChecker(transactionRegistry);
+    }
+
     /** 使用配置创建默认 Producer；业务提供同类型 Bean 时自动让位。 */
     @Bean(destroyMethod = "close")
     @ConditionalOnMissingBean(Producer.class)
     @ConditionalOnBean(ClientServiceProvider.class)
     @ConditionalOnProperty(prefix = "wuli3.rocketmq.v5", name = "endpoints")
-    Producer rocketV5Producer(final ClientServiceProvider provider, final RocketV5Properties properties)
+    Producer rocketV5Producer(
+            final ClientServiceProvider provider,
+            final RocketV5Properties properties,
+            final RocketV5TransactionChecker transactionChecker)
             throws Exception {
         if (properties.getTopics().isEmpty()) {
             throw new IllegalStateException("wuli3.rocketmq.v5.topics must contain at least one topic");
@@ -71,6 +83,7 @@ public class RocketV5AutoConfiguration {
                 .setClientConfiguration(configuration)
                 .setTopics(properties.getTopics().toArray(String[]::new))
                 .setMaxAttempts(properties.getMaxAttempts())
+                .setTransactionChecker(transactionChecker)
                 .build();
     }
 
@@ -79,7 +92,10 @@ public class RocketV5AutoConfiguration {
     @ConditionalOnBean(Producer.class)
     @ConditionalOnMissingRoutingEventTransport(optionsType = RocketV5PublishOptions.class)
     RocketV5RemoteEventTransport rocketV5RemoteEventTransport(
-            final Producer producer, final ClientServiceProvider provider, final RocketMessageWrapperEncoder encoder) {
-        return new RocketV5RemoteEventTransport(producer, provider, encoder, Clock.systemUTC());
+            final Producer producer,
+            final ClientServiceProvider provider,
+            final RocketMessageWrapperEncoder encoder,
+            final RocketLocalTransactionRegistry transactionRegistry) {
+        return new RocketV5RemoteEventTransport(producer, provider, encoder, Clock.systemUTC(), transactionRegistry);
     }
 }

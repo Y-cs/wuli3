@@ -6,6 +6,8 @@ import com.kjs.wuli3.propagation.codec.ContextPropagator;
 import com.kjs.wuli3.propagation.store.ContextReader;
 import com.kjs.wuli3.rocket.RocketContextSupport;
 import com.kjs.wuli3.rocket.message.RocketMessageWrapperEncoder;
+import com.kjs.wuli3.rocket.transaction.RocketLocalTransaction;
+import com.kjs.wuli3.rocket.transaction.RocketLocalTransactionRegistry;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigureBefore;
@@ -58,5 +60,18 @@ public class RocketCommonAutoConfiguration {
     RocketMessageWrapperEncoder rocketMqEventMessageEncoder(
             final ObjectProvider<ContextReader> contextReaders, final ContextPropagator contextPropagator) {
         return new RocketMessageWrapperEncoder(contextReaders.getIfUnique(), contextPropagator);
+    }
+
+    /**
+     * 创建按事件类型索引的本地事务注册表；业务实现 {@link RocketLocalTransaction} 后自动参与事务消息处理。
+     *
+     * @param transactions 容器中全部本地事务实现
+     * @return 本地事务注册表
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    RocketLocalTransactionRegistry rocketLocalTransactionRegistry(
+            final ObjectProvider<RocketLocalTransaction> transactions) {
+        return new RocketLocalTransactionRegistry(transactions.orderedStream().toList());
     }
 }

@@ -20,4 +20,13 @@ public class SendFailedException extends ErrorCodeException {
     public SendFailedException(final String message, final Throwable cause) {
         super(EventError.SEND_FAILED, message, cause);
     }
+
+    /**
+     * 创建没有底层原因的发送失败异常。
+     *
+     * @param message 失败说明
+     */
+    public SendFailedException(final String message) {
+        super(EventError.SEND_FAILED, message);
+    }
 }
