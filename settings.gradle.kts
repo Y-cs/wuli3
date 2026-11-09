@@ -11,6 +11,8 @@ pluginManagement {
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
+        // Maven Central redirects to GitHub and returns 5xx in some networks; prefer a mirror.
+        maven { url = uri("https://maven.aliyun.com/repository/public") }
         mavenCentral()
     }
 }

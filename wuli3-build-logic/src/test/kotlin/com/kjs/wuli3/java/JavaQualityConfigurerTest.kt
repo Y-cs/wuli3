@@ -110,7 +110,7 @@ class JavaQualityConfigurerTest {
 
     private fun qualityFixture(lombok: Boolean = false) {
         write("settings.gradle.kts", """
-            dependencyResolutionManagement { repositories { mavenCentral() } }
+            dependencyResolutionManagement { repositories { maven { url = uri("https://maven.aliyun.com/repository/public") }; mavenCentral() } }
             rootProject.name = "quality-fixture"
             include(":bom")
         """.trimIndent())
@@ -147,7 +147,7 @@ class JavaQualityConfigurerTest {
     fun `dubbo reference fields are excluded from NullAway initialization checks`() {
         write("settings.gradle.kts", """
             pluginManagement { repositories { gradlePluginPortal(); mavenCentral() } }
-            dependencyResolutionManagement { repositories { mavenCentral() } }
+            dependencyResolutionManagement { repositories { maven { url = uri("https://maven.aliyun.com/repository/public") }; mavenCentral() } }
             rootProject.name = "nullaway-dubbo-reference"
             include(":bom")
         """.trimIndent())
