@@ -37,6 +37,8 @@ dependencies {
 
 tasks.test {
     useJUnitPlatform()
+    // TestKit 使用独立依赖缓存；放在 build 目录外，避免 clean 清除 CI 已恢复的内容。
+    systemProperty("org.gradle.testkit.dir", gradle.gradleUserHomeDir.resolve("testkit").absolutePath)
 }
 
 repositories {
