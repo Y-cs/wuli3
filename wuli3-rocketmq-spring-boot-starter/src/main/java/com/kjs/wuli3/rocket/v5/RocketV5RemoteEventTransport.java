@@ -8,8 +8,14 @@ import com.kjs.wuli3.event.error.SendFailedException;
 import com.kjs.wuli3.event.remote.RemoteEventTransport;
 import com.kjs.wuli3.rocket.message.RocketMessageWrapper;
 import com.kjs.wuli3.rocket.message.RocketMessageWrapperEncoder;
+import com.kjs.wuli3.rocket.transaction.RocketLocalTransaction;
+import com.kjs.wuli3.rocket.transaction.RocketLocalTransactionRegistry;
+import com.kjs.wuli3.rocket.transaction.RocketLocalTransactionState;
+import com.kjs.wuli3.rocket.transaction.RocketTransactionEvent;
+import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Duration;
+import java.util.Objects;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.apache.rocketmq.client.apis.ClientException;
@@ -18,6 +24,7 @@ import org.apache.rocketmq.client.apis.message.Message;
 import org.apache.rocketmq.client.apis.message.MessageBuilder;
 import org.apache.rocketmq.client.apis.producer.Producer;
 import org.apache.rocketmq.client.apis.producer.SendReceipt;
+import org.apache.rocketmq.client.apis.producer.Transaction;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,6 +53,9 @@ public final class RocketV5RemoteEventTransport implements RemoteEventTransport<
     @NonNull
     private final Clock clock;
 
+    @NonNull
+    private final RocketLocalTransactionRegistry transactionRegistry;
+
     @Override
     public Class<RocketV5PublishOptions> supportedOptionsType() {
         return RocketV5PublishOptions.class;
@@ -55,9 +65,21 @@ public final class RocketV5RemoteEventTransport implements RemoteEventTransport<
     public void send(final RocketV5PublishOptions options, final EventEnvelope<?>... envelopes) {
         Asserts.whenNull(options).throwIllegalArgumentException("publish options must not be null");
         Asserts.whenNull(envelopes).throwIllegalArgumentException("event envelopes must not be null");
+        Asserts.whenTrue(options.transactional()
+                        && (options.async() || options.delay() != null || options.orderKey() != null))
+                .throwException(
+                        CommonErrors.UNSUPPORTED_OPERATION,
+                        "RocketMQ transactional message does not support async, delay or ordered publication");
         for (final EventEnvelope<?> envelope : envelopes) {
+            if (options.transactional() && this.transactionRegistry.find(envelope.eventType()) == null) {
+                throw new SendFailedException("No local transaction registered for event type " + envelope.eventType());
+            }
             final RocketMessageWrapper wireMessage = this.encoder.encode(envelope, options.delay(), options.orderKey());
             final Message message = this.createMessage(wireMessage, options);
+            if (options.transactional()) {
+                this.sendInTransaction(message, wireMessage, options);
+                continue;
+            }
             if (options.async()) {
                 this.sendAsync(message, envelope, options);
                 continue;
@@ -100,6 +122,71 @@ public final class RocketV5RemoteEventTransport implements RemoteEventTransport<
             builder.setDeliveryTimestamp(Math.addExact(this.clock.millis(), delay.toMillis()));
         }
         return builder.build();
+    }
+
+    private void sendInTransaction(
+            final Message message, final RocketMessageWrapper wireMessage, final RocketV5PublishOptions options) {
+        final RocketTransactionEvent event;
+        final RocketLocalTransaction localTransaction;
+        try {
+            event = RocketTransactionEvent.fromJson(new String(wireMessage.body(), StandardCharsets.UTF_8));
+            localTransaction = Objects.requireNonNull(this.transactionRegistry.find(event.eventType()));
+        } catch (final RuntimeException exception) {
+            throw new SendFailedException("RocketMQ transactional event could not be resolved", exception);
+        }
+        final Transaction transaction;
+        try {
+            transaction = this.producer.beginTransaction();
+        } catch (final ClientException | RuntimeException exception) {
+            throw new SendFailedException("RocketMQ transactional event send failed to start", exception);
+        }
+        final SendReceipt receipt;
+        try {
+            receipt = this.producer.send(message, transaction);
+        } catch (final ClientException | RuntimeException exception) {
+            RocketV5RemoteEventTransport.rollbackQuietly(transaction);
+            this.notifyCallback(options, null, exception);
+            throw new SendFailedException("RocketMQ transactional event send failed", exception);
+        }
+        final RocketLocalTransactionState state;
+        try {
+            state = localTransaction.execute(event);
+        } catch (final RuntimeException exception) {
+            RocketV5RemoteEventTransport.LOGGER.error(
+                    "RocketMQ transactional local execution failed, awaiting broker check: eventId={}",
+                    event.eventId(),
+                    exception);
+            this.notifyCallback(options, null, exception);
+            return;
+        }
+        try {
+            switch (state) {
+                case COMMIT -> transaction.commit();
+                case ROLLBACK -> transaction.rollback();
+                case UNKNOWN ->
+                    RocketV5RemoteEventTransport.LOGGER.warn(
+                            "RocketMQ transactional event local state unknown, awaiting broker check: eventId={}",
+                            event.eventId());
+            }
+        } catch (final ClientException | RuntimeException exception) {
+            this.notifyCallback(options, null, exception);
+            throw new SendFailedException("RocketMQ transactional event settlement failed", exception);
+        }
+        if (state == RocketLocalTransactionState.ROLLBACK) {
+            final SendFailedException failure =
+                    new SendFailedException("RocketMQ transactional event rolled back: eventId=" + event.eventId());
+            this.notifyCallback(options, null, failure);
+            throw failure;
+        }
+        this.notifyCallback(options, receipt, null);
+    }
+
+    private static void rollbackQuietly(final Transaction transaction) {
+        try {
+            transaction.rollback();
+        } catch (final ClientException | RuntimeException exception) {
+            RocketV5RemoteEventTransport.LOGGER.warn("RocketMQ transactional rollback failed", exception);
+        }
     }
 
     @SuppressWarnings("FutureReturnValueIgnored")

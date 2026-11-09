@@ -3,6 +3,7 @@ package com.kjs.wuli3.rocket.v4;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -12,10 +13,14 @@ import com.kjs.wuli3.event.envelope.EventEnvelope;
 import com.kjs.wuli3.event.error.SendFailedException;
 import com.kjs.wuli3.propagation.codec.ContextPropagator;
 import com.kjs.wuli3.rocket.message.RocketMessageWrapperEncoder;
+import com.kjs.wuli3.rocket.transaction.RocketLocalTransaction;
+import com.kjs.wuli3.rocket.transaction.RocketLocalTransactionRegistry;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import org.apache.rocketmq.client.producer.LocalTransactionState;
 import org.apache.rocketmq.client.producer.SendCallback;
+import org.apache.rocketmq.client.producer.TransactionSendResult;
 import org.apache.rocketmq.spring.core.RocketMQTemplate;
 import org.junit.jupiter.api.Test;
 import org.springframework.messaging.Message;
@@ -30,7 +35,7 @@ class RocketRemoteEventTransportTest {
         final SendCallback callback = mock(SendCallback.class);
         final org.apache.rocketmq.client.producer.SendResult result =
                 mock(org.apache.rocketmq.client.producer.SendResult.class);
-        org.mockito.Mockito.when(template.syncSend(eq("orders"), any(Message.class)))
+        org.mockito.Mockito.when(template.syncSend(eq("orders:order.paid.v1"), any(Message.class)))
                 .thenReturn(result);
         org.mockito.Mockito.doThrow(new IllegalStateException("callback failed"))
                 .when(callback)
@@ -47,7 +52,7 @@ class RocketRemoteEventTransportTest {
         final RocketMQTemplate template = mock(RocketMQTemplate.class);
         final RuntimeException failure = new IllegalStateException("send failed");
         final SendCallback callback = mock(SendCallback.class);
-        org.mockito.Mockito.doThrow(failure).when(template).syncSend(eq("orders"), any(Message.class));
+        org.mockito.Mockito.doThrow(failure).when(template).syncSend(eq("orders:order.paid.v1"), any(Message.class));
         org.mockito.Mockito.doThrow(new IllegalStateException("callback failed"))
                 .when(callback)
                 .onException(failure);
@@ -72,14 +77,15 @@ class RocketRemoteEventTransportTest {
                     return null;
                 })
                 .when(template)
-                .asyncSend(eq("orders"), any(Message.class), any(SendCallback.class));
+                .asyncSend(eq("orders:order.paid.v1"), any(Message.class), any(SendCallback.class));
         final RuntimeException failure = new IllegalStateException("broker unavailable");
         org.mockito.Mockito.doAnswer(invocation -> {
                     invocation.<SendCallback>getArgument(3).onException(failure);
                     return null;
                 })
                 .when(template)
-                .asyncSendOrderly(eq("orders"), any(Message.class), eq("order-42"), any(SendCallback.class));
+                .asyncSendOrderly(
+                        eq("orders:order.paid.v1"), any(Message.class), eq("order-42"), any(SendCallback.class));
 
         transport.send(
                 RocketV4PublishOptions.builder()
@@ -107,7 +113,7 @@ class RocketRemoteEventTransportTest {
         final SendCallback callback = mock(SendCallback.class);
         org.mockito.Mockito.doThrow(new IllegalStateException("startup failed"))
                 .when(template)
-                .asyncSend(eq("orders"), any(Message.class), any(SendCallback.class));
+                .asyncSend(eq("orders:order.paid.v1"), any(Message.class), any(SendCallback.class));
         final RocketRemoteEventTransport transport = RocketRemoteEventTransportTest.transport(template);
         assertThatThrownBy(() -> transport.send(
                         RocketV4PublishOptions.builder()
@@ -137,11 +143,13 @@ class RocketRemoteEventTransportTest {
         transport.send(
                 RocketV4PublishOptions.builder().delay(Duration.ofSeconds(5)).build(), envelope);
 
-        verify(template).syncSend(eq("orders"), any(Message.class));
-        verify(template).asyncSend(eq("orders"), any(Message.class), any(SendCallback.class));
-        verify(template).syncSendOrderly(eq("orders"), any(Message.class), eq("order-42"));
-        verify(template).asyncSendOrderly(eq("orders"), any(Message.class), eq("order-42"), any(SendCallback.class));
-        verify(template).syncSendDelayTimeMills(eq("orders"), any(Message.class), eq(5000L));
+        verify(template).syncSend(eq("orders:order.paid.v1"), any(Message.class));
+        verify(template).asyncSend(eq("orders:order.paid.v1"), any(Message.class), any(SendCallback.class));
+        verify(template).syncSendOrderly(eq("orders:order.paid.v1"), any(Message.class), eq("order-42"));
+        verify(template)
+                .asyncSendOrderly(
+                        eq("orders:order.paid.v1"), any(Message.class), eq("order-42"), any(SendCallback.class));
+        verify(template).syncSendDelayTimeMills(eq("orders:order.paid.v1"), any(Message.class), eq(5000L));
     }
 
     @Test
@@ -154,7 +162,7 @@ class RocketRemoteEventTransportTest {
                 RocketRemoteEventTransportTest.envelope(),
                 RocketRemoteEventTransportTest.envelope());
 
-        verify(template, org.mockito.Mockito.times(2)).syncSend(eq("orders"), any(Message.class));
+        verify(template, org.mockito.Mockito.times(2)).syncSend(eq("orders:order.paid.v1"), any(Message.class));
     }
 
     @Test
@@ -162,7 +170,7 @@ class RocketRemoteEventTransportTest {
         final RocketMQTemplate failingTemplate = mock(RocketMQTemplate.class);
         org.mockito.Mockito.doThrow(new IllegalStateException("unavailable"))
                 .when(failingTemplate)
-                .syncSend(eq("orders"), any(Message.class));
+                .syncSend(eq("orders:order.paid.v1"), any(Message.class));
         final RocketRemoteEventTransport failingTransport = RocketRemoteEventTransportTest.transport(failingTemplate);
 
         assertThatThrownBy(() -> failingTransport.send(
@@ -180,9 +188,69 @@ class RocketRemoteEventTransportTest {
         verifyNoInteractions(untouchedTemplate);
     }
 
+    /** 验证事务消息经模板发送，并在本地事务回滚时向调用方暴露失败。 */
+    @Test
+    void sendsTransactionalMessageAndSurfacesLocalRollback() {
+        final RocketMQTemplate template = mock(RocketMQTemplate.class);
+        final RocketLocalTransaction localTransaction = mock(RocketLocalTransaction.class);
+        org.mockito.Mockito.when(localTransaction.eventType()).thenReturn("order.paid.v1");
+        final RocketRemoteEventTransport transport = new RocketRemoteEventTransport(
+                template,
+                new RocketMessageWrapperEncoder(null, new ContextPropagator(List.of())),
+                new RocketLocalTransactionRegistry(List.of(localTransaction)));
+        final TransactionSendResult committed = mock(TransactionSendResult.class);
+        org.mockito.Mockito.when(committed.getLocalTransactionState()).thenReturn(LocalTransactionState.COMMIT_MESSAGE);
+        org.mockito.Mockito.when(
+                        template.sendMessageInTransaction(eq("orders:order.paid.v1"), any(Message.class), isNull()))
+                .thenReturn(committed);
+
+        transport.send(
+                RocketV4PublishOptions.builder().transactional(true).build(),
+                RocketRemoteEventTransportTest.envelope());
+
+        verify(template).sendMessageInTransaction(eq("orders:order.paid.v1"), any(Message.class), isNull());
+
+        final TransactionSendResult rolledBack = mock(TransactionSendResult.class);
+        org.mockito.Mockito.when(rolledBack.getLocalTransactionState())
+                .thenReturn(LocalTransactionState.ROLLBACK_MESSAGE);
+        org.mockito.Mockito.when(
+                        template.sendMessageInTransaction(eq("orders:order.paid.v1"), any(Message.class), isNull()))
+                .thenReturn(rolledBack);
+
+        assertThatThrownBy(() -> transport.send(
+                        RocketV4PublishOptions.builder().transactional(true).build(),
+                        RocketRemoteEventTransportTest.envelope()))
+                .isInstanceOf(SendFailedException.class)
+                .hasMessageContaining("rolled back");
+    }
+
+    /** 验证事务消息拒绝不兼容组合，并在缺少本地事务时先于发送失败。 */
+    @Test
+    void rejectsTransactionalCombinationsAndMissingLocalTransaction() {
+        final RocketMQTemplate template = mock(RocketMQTemplate.class);
+        final RocketRemoteEventTransport transport = RocketRemoteEventTransportTest.transport(template);
+
+        assertThatThrownBy(() -> transport.send(
+                        RocketV4PublishOptions.builder()
+                                .transactional(true)
+                                .async(true)
+                                .build(),
+                        RocketRemoteEventTransportTest.envelope()))
+                .isInstanceOf(ErrorCodeException.class)
+                .hasMessageContaining("does not support async");
+        assertThatThrownBy(() -> transport.send(
+                        RocketV4PublishOptions.builder().transactional(true).build(),
+                        RocketRemoteEventTransportTest.envelope()))
+                .isInstanceOf(SendFailedException.class)
+                .hasMessageContaining("No local transaction");
+        verifyNoInteractions(template);
+    }
+
     private static RocketRemoteEventTransport transport(final RocketMQTemplate template) {
         return new RocketRemoteEventTransport(
-                template, new RocketMessageWrapperEncoder(null, new ContextPropagator(List.of())));
+                template,
+                new RocketMessageWrapperEncoder(null, new ContextPropagator(List.of())),
+                new RocketLocalTransactionRegistry(List.of()));
     }
 
     private static EventEnvelope<String> envelope() {

@@ -15,6 +15,9 @@ import com.kjs.wuli3.event.envelope.EventEnvelope;
 import com.kjs.wuli3.event.error.SendFailedException;
 import com.kjs.wuli3.propagation.codec.ContextPropagator;
 import com.kjs.wuli3.rocket.message.RocketMessageWrapperEncoder;
+import com.kjs.wuli3.rocket.transaction.RocketLocalTransaction;
+import com.kjs.wuli3.rocket.transaction.RocketLocalTransactionRegistry;
+import com.kjs.wuli3.rocket.transaction.RocketLocalTransactionState;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -27,6 +30,7 @@ import org.apache.rocketmq.client.apis.message.Message;
 import org.apache.rocketmq.client.apis.message.MessageBuilder;
 import org.apache.rocketmq.client.apis.producer.Producer;
 import org.apache.rocketmq.client.apis.producer.SendReceipt;
+import org.apache.rocketmq.client.apis.producer.Transaction;
 import org.junit.jupiter.api.Test;
 
 class RocketV5RemoteEventTransportTest {
@@ -71,7 +75,8 @@ class RocketV5RemoteEventTransportTest {
                 producer,
                 clientServiceProvider,
                 new RocketMessageWrapperEncoder(null, new ContextPropagator(List.of())),
-                clock);
+                clock,
+                new RocketLocalTransactionRegistry(List.of()));
 
         transport.send(
                 RocketV5PublishOptions.builder().orderKey("order-42").build(),
@@ -224,13 +229,80 @@ class RocketV5RemoteEventTransportTest {
         assertThat(changed.afterCommit()).isTrue();
     }
 
+    /** 验证事务消息按本地事务结果提交或回滚。 */
+    @Test
+    void settlesTransactionalMessageAccordingToLocalTransaction() throws Exception {
+        final Producer producer = mock(Producer.class);
+        final ClientServiceProvider provider = mock(ClientServiceProvider.class);
+        final MessageBuilder builder = RocketV5RemoteEventTransportTest.builder(provider);
+        final Message message = mock(Message.class);
+        final Transaction transaction = mock(Transaction.class);
+        final RocketLocalTransaction localTransaction = mock(RocketLocalTransaction.class);
+        when(builder.build()).thenReturn(message);
+        when(producer.beginTransaction()).thenReturn(transaction);
+        when(producer.send(message, transaction)).thenReturn(mock(SendReceipt.class));
+        when(localTransaction.eventType()).thenReturn("order.paid.v1");
+        when(localTransaction.execute(any())).thenReturn(RocketLocalTransactionState.COMMIT);
+        final RocketV5RemoteEventTransport transport =
+                RocketV5RemoteEventTransportTest.transactionalTransport(producer, provider, localTransaction);
+
+        transport.send(
+                RocketV5PublishOptions.builder().transactional(true).build(),
+                RocketV5RemoteEventTransportTest.envelope());
+        verify(transaction).commit();
+
+        when(localTransaction.execute(any())).thenReturn(RocketLocalTransactionState.ROLLBACK);
+        assertThatThrownBy(() -> transport.send(
+                        RocketV5PublishOptions.builder().transactional(true).build(),
+                        RocketV5RemoteEventTransportTest.envelope()))
+                .isInstanceOf(SendFailedException.class)
+                .hasMessageContaining("rolled back");
+        verify(transaction).rollback();
+    }
+
+    /** 验证事务消息拒绝不兼容组合，并在缺少本地事务时先于发送失败。 */
+    @Test
+    void rejectsTransactionalCombinationsAndMissingLocalTransaction() {
+        final Producer producer = mock(Producer.class);
+        final ClientServiceProvider provider = mock(ClientServiceProvider.class);
+        final RocketV5RemoteEventTransport transport = RocketV5RemoteEventTransportTest.transport(producer, provider);
+
+        assertThatThrownBy(() -> transport.send(
+                        RocketV5PublishOptions.builder()
+                                .transactional(true)
+                                .delay(Duration.ofSeconds(1))
+                                .build(),
+                        RocketV5RemoteEventTransportTest.envelope()))
+                .isInstanceOf(com.kjs.wuli3.core.error.ErrorCodeException.class)
+                .hasMessageContaining("does not support async, delay or ordered");
+        assertThatThrownBy(() -> transport.send(
+                        RocketV5PublishOptions.builder().transactional(true).build(),
+                        RocketV5RemoteEventTransportTest.envelope()))
+                .isInstanceOf(SendFailedException.class)
+                .hasMessageContaining("No local transaction");
+        verifyNoInteractions(producer, provider);
+    }
+
+    private static RocketV5RemoteEventTransport transactionalTransport(
+            final Producer producer,
+            final ClientServiceProvider clientServiceProvider,
+            final RocketLocalTransaction localTransaction) {
+        return new RocketV5RemoteEventTransport(
+                producer,
+                clientServiceProvider,
+                new RocketMessageWrapperEncoder(null, new ContextPropagator(List.of())),
+                Clock.systemUTC(),
+                new RocketLocalTransactionRegistry(List.of(localTransaction)));
+    }
+
     private static RocketV5RemoteEventTransport transport(
             final Producer producer, final ClientServiceProvider clientServiceProvider) {
         return new RocketV5RemoteEventTransport(
                 producer,
                 clientServiceProvider,
                 new RocketMessageWrapperEncoder(null, new ContextPropagator(List.of())),
-                Clock.systemUTC());
+                Clock.systemUTC(),
+                new RocketLocalTransactionRegistry(List.of()));
     }
 
     private static MessageBuilder builder(final ClientServiceProvider clientServiceProvider) {

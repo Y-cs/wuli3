@@ -10,10 +10,13 @@ import com.kjs.wuli3.propagation.codec.ContextPropagator;
 import com.kjs.wuli3.propagation.store.ThreadLocalContextBackend;
 import com.kjs.wuli3.rocket.RocketContextSupport;
 import com.kjs.wuli3.rocket.message.RocketMessageWrapperEncoder;
+import com.kjs.wuli3.rocket.transaction.RocketLocalTransactionRegistry;
 import com.kjs.wuli3.rocket.v4.RocketRemoteEventTransport;
 import com.kjs.wuli3.rocket.v4.RocketV4PublishOptions;
+import com.kjs.wuli3.rocket.v4.RocketV4TransactionListener;
 import com.kjs.wuli3.rocket.v4.autoconfigure.RocketV4AutoConfiguration;
 import com.kjs.wuli3.rocket.v5.RocketV5RemoteEventTransport;
+import com.kjs.wuli3.rocket.v5.RocketV5TransactionChecker;
 import com.kjs.wuli3.rocket.v5.autoconfigure.RocketV5AutoConfiguration;
 import org.apache.rocketmq.client.apis.ClientServiceProvider;
 import org.apache.rocketmq.client.apis.producer.Producer;
@@ -52,7 +55,7 @@ class RocketAutoConfigurationTest {
                     publisher.publish(new com.kjs.wuli3.rocket.v5.RocketV5PublishOptions(), event);
                     org.mockito.Mockito.verify(template)
                             .syncSend(
-                                    org.mockito.ArgumentMatchers.eq("orders"),
+                                    org.mockito.ArgumentMatchers.eq("orders:created"),
                                     org.mockito.ArgumentMatchers.any(org.springframework.messaging.Message.class));
                     try {
                         org.mockito.Mockito.verify(producer)
@@ -85,6 +88,8 @@ class RocketAutoConfigurationTest {
                     assertThat(context).hasSingleBean(RocketMessageWrapperEncoder.class);
                     assertThat(context).hasSingleBean(RemoteEventTransport.class);
                     assertThat(context).hasSingleBean(RocketRemoteEventTransport.class);
+                    assertThat(context).hasSingleBean(RocketLocalTransactionRegistry.class);
+                    assertThat(context).hasSingleBean(RocketV4TransactionListener.class);
                     assertThat(context).doesNotHaveBean(RocketContextSupport.class);
                 });
     }
@@ -102,6 +107,8 @@ class RocketAutoConfigurationTest {
                 .thenReturn(builder);
         org.mockito.Mockito.when(builder.setMaxAttempts(org.mockito.ArgumentMatchers.anyInt()))
                 .thenReturn(builder);
+        org.mockito.Mockito.when(builder.setTransactionChecker(org.mockito.ArgumentMatchers.any()))
+                .thenReturn(builder);
         org.mockito.Mockito.when(builder.build()).thenReturn(producer);
         this.contextRunner
                 .withPropertyValues(
@@ -112,6 +119,8 @@ class RocketAutoConfigurationTest {
                 .run(context -> {
                     assertThat(context).hasSingleBean(Producer.class);
                     org.mockito.Mockito.verify(builder).setTopics("orders");
+                    org.mockito.Mockito.verify(builder)
+                            .setTransactionChecker(org.mockito.ArgumentMatchers.any(RocketV5TransactionChecker.class));
                 });
     }
 
@@ -165,6 +174,7 @@ class RocketAutoConfigurationTest {
                     assertThat(context).getBeans(RemoteEventTransport.class).hasSize(2);
                     assertThat(context).hasSingleBean(RocketV5RemoteEventTransport.class);
                     assertThat(context).hasSingleBean(RocketRemoteEventTransport.class);
+                    assertThat(context).hasSingleBean(RocketV5TransactionChecker.class);
                 });
     }
 
