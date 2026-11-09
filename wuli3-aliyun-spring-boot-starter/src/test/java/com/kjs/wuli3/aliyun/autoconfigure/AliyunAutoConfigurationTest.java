@@ -3,6 +3,8 @@ package com.kjs.wuli3.aliyun.autoconfigure;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.kjs.wuli3.aliyun.oss.OssClientManager;
+import com.kjs.wuli3.aliyun.sts.StsPolicyProvider;
+import com.kjs.wuli3.aliyun.sts.StsTemplate;
 import com.kjs.wuli3.core.error.ErrorCodeException;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
@@ -20,6 +22,8 @@ class AliYunAutoConfigurationTest {
             assertThat(context).hasSingleBean(OssClientManager.class);
             assertThat(context.getBean(AliYunProperties.class).getProfiles()).isEmpty();
             assertThat(context.getBean(OssClientManager.class).profileNames()).isEmpty();
+            assertThat(context).doesNotHaveBean(StsTemplate.class);
+            assertThat(context).hasSingleBean(StsPolicyProvider.class);
         });
     }
 
@@ -41,6 +45,29 @@ class AliYunAutoConfigurationTest {
                     assertThat(manager.get("archive")).isNotNull();
                     assertThat(manager.getDefault()).isSameAs(manager.get("default"));
                 });
+    }
+
+    @Test
+    void createsStsTemplateWhenRoleArnConfigured() {
+        this.contextRunner
+                .withPropertyValues("wuli3.aliyun.sts.role-arn=acs:ram::1:role/uploader")
+                .run(context -> assertThat(context).hasSingleBean(StsTemplate.class));
+    }
+
+    @Test
+    void skipsStsTemplateWithoutRoleArn() {
+        this.contextRunner
+                .withPropertyValues("wuli3.aliyun.sts.role-session-name=app")
+                .run(context -> assertThat(context).doesNotHaveBean(StsTemplate.class));
+    }
+
+    @Test
+    void backsOffForApplicationProvidedPolicyProvider() {
+        final StsPolicyProvider provider = (config, directory) -> "custom-policy";
+        this.contextRunner
+                .withBean(StsPolicyProvider.class, () -> provider)
+                .run(context ->
+                        assertThat(context.getBean(StsPolicyProvider.class)).isSameAs(provider));
     }
 
     @Test

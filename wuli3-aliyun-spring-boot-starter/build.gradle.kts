@@ -6,4 +6,5 @@ dependencies {
     api(project(":wuli3-core-spring-boot-starter"))
     implementation(project(":wuli3-core"))
     api("com.aliyun:alibabacloud-oss-v2")
+    implementation("com.aliyun:sts20150401")
 }

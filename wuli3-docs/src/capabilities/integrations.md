@@ -41,9 +41,9 @@ Dubbo 是可信内部通道，会保留完整错误信息。HTTP 或其他公开
 
 注册中心地址、命名空间、认证和连接生命周期都由 Dubbo 应用配置。RPC 传播字段只适用于可信服务网络；网关与公网入口必须在 HTTP 边界重新验证身份，不能把 Dubbo 附件当作外部认证凭据。
 
-## Aliyun OSS：多 profile 客户端
+## Aliyun OSS 与 STS：多 profile 客户端
 
-Aliyun starter 管理 OSS SDK V2 的命名客户端和生命周期，不封装上传、下载、删除等业务流程。每个 profile 隔离访问凭据与 OSS 连接参数。
+Aliyun starter 管理 OSS SDK V2 的命名客户端和生命周期，不封装上传、下载、删除等业务流程。每个 profile 隔离访问凭据与 OSS 连接参数；配置 `sts.role-arn` 后，同一 profile 还可换取 STS 临时凭据。
 
 ```yaml
 wuli3:
@@ -57,6 +57,28 @@ wuli3:
         oss:
           region: cn-hangzhou
           bucket: example-default
+    sts:
+      access-key:
+        id: ${STS_ACCESS_KEY_ID}
+        secret: ${STS_ACCESS_KEY_SECRET}
+      role-arn: ${STS_ROLE_ARN}
+      role-session-name: app
+      duration-seconds: 3600
+      bucket: example-default
+      folder: uploads
+      oss-endpoint: oss-cn-hangzhou.aliyuncs.com
+      prefix-url: https://cdn.example.com
+      policy: |
+        {
+          "Version": "1",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Action": ["oss:Put*", "oss:PutObject"],
+              "Resource": ["acs:oss:*:*:example-default/uploads/*"]
+            }
+          ]
+        }
       archive:
         access-key:
           id: ${OSS_ARCHIVE_ACCESS_KEY_ID}
@@ -67,11 +89,15 @@ wuli3:
           endpoint: https://oss-cn-shanghai-internal.aliyuncs.com
 ```
 
-当前配置转换为 SDK 静态凭据 Provider。仓库不应保存 AccessKey；生产环境使用最小权限凭据，并通过环境变量、容器 Secret 或外部密钥系统注入。若需要 STS、实例角色或自动轮换，应由应用替换凭据实现或在接入层封装。
+当前配置转换为 SDK 静态凭据 Provider。仓库不应保存 AccessKey；生产环境使用最小权限凭据，并通过环境变量、容器 Secret 或外部密钥系统注入。需要实例角色或自动轮换时，应由应用替换凭据实现或在接入层封装。
 
 每个 profile 必须提供 region 和 bucket；指定的 default-profile 必须存在。未配置默认 profile 时，调用方必须显式选择名称；请求不存在的 profile 会得到统一错误。
 
 `OssClientManager` 负责创建、查找和关闭全部客户端。`OssTemplate` 对 SDK 操作统一转换异常，应用仍负责对象 key、Content-Type、签名 URL、下载权限和生命周期策略。
+
+`StsTemplate` 是独立的单例模板，不随 OSS profile 创建。配置 `wuli3.aliyun.sts.role-arn` 后自动装配；`getCredentials()` 返回临时 AccessKey、过期时间，以及直传所需的 `bucket`、`endpoint`、`directory`、`prefixUrl`。`directory` 由 `folder` 加当前时间组成，格式为 `folder/yM/d/H`（例如 `uploads/202611/9/12`），对象 key 应拼在该目录下。`duration-seconds` 取值范围为 900 至 3600，`endpoint` 默认为 `sts.cn-hangzhou.aliyuncs.com`。
+
+`policy` 是 AssumeRole 的内联会话策略。配置非空时直接使用，优先级高于扩展点；为空时调用 `StsPolicyProvider`。默认实现按 `bucket` 和本次 `directory` 生成对象上传权限，bucket 为空时不发送策略，临时凭据继承角色自身权限。应用可注册自己的 `StsPolicyProvider` Bean 覆盖默认实现，按目录或调用方动态生成策略。
 
 公网 Region 可以使用 SDK 默认 endpoint；内网、加速或自定义域名场景显式配置 endpoint。endpoint 不改变业务访问授权，签名和 Bucket 权限仍需由应用校验。
 

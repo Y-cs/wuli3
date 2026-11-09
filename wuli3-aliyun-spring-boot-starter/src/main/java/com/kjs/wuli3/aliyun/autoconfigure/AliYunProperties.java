@@ -2,6 +2,7 @@ package com.kjs.wuli3.aliyun.autoconfigure;
 
 import com.kjs.wuli3.aliyun.profile.AccessKeyConfig;
 import com.kjs.wuli3.aliyun.profile.OssConfig;
+import com.kjs.wuli3.aliyun.sts.StsConfig;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import lombok.Getter;
@@ -23,6 +24,9 @@ public class AliYunProperties {
 
     /** 按名称区分的 OSS 配置集合，例如 default、archive。 */
     private Map<String, OssProfile> profiles = new LinkedHashMap<>();
+
+    /** STS 临时凭据配置；未配置 roleArn 时不创建 STS 模板。 */
+    private StsConfig sts = new StsConfig();
 
     /** 一套 OSS Bucket 及其客户端连接配置。 */
     @Getter

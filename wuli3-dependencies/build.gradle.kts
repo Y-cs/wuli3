@@ -41,6 +41,7 @@ dependencies {
         api("com.uber.nullaway:nullaway:0.13.7")
         api("com.puppycrawl.tools:checkstyle:13.6.0")
         api("com.aliyun:alibabacloud-oss-v2:0.5.1")
+        api("com.aliyun:sts20150401:1.1.4")
         api("com.github.ulisesbocchio:jasypt-spring-boot-starter:3.0.5")
         api("org.redisson:redisson-spring-boot-starter:3.52.0")
         api("com.google.guava:guava:33.6.0-jre")
