@@ -19,12 +19,13 @@ public record RocketV4PublishOptions(
         boolean afterCommit,
         @Nullable Duration delay,
         @Nullable String orderKey,
-        @Nullable SendCallback sendCallback)
+        @Nullable SendCallback sendCallback,
+        boolean transactional)
         implements AsyncPublishOptions, TransactionalPublishOptions, PublishOptions {
 
     /** 创建同步、立即投递的默认选项。 */
     public RocketV4PublishOptions() {
-        this(false, false, null, null, null);
+        this(false, false, null, null, null, false);
     }
 
     /** 校验发布选项中的通用约束。 */
@@ -53,6 +54,7 @@ public record RocketV4PublishOptions(
         private @Nullable Duration delay;
         private @Nullable String orderKey;
         private @Nullable SendCallback sendCallback;
+        private boolean transactional;
 
         private Builder() {}
 
@@ -91,10 +93,20 @@ public record RocketV4PublishOptions(
             return this;
         }
 
+        /** 设置是否以 RocketMQ 事务消息发送。
+         *
+         * <p>注意：事务消息不支持异步、精确延迟和顺序发送，组合使用时发送阶段抛出
+         * {@code UNSUPPORTED_OPERATION}。本地事务按事件类型从
+         * {@link com.kjs.wuli3.rocket.transaction.RocketLocalTransaction} Bean 中查找。 */
+        public Builder transactional(final boolean transactional) {
+            this.transactional = transactional;
+            return this;
+        }
+
         /** 校验配置并创建独立的不可变选项。 */
         public RocketV4PublishOptions build() {
             return new RocketV4PublishOptions(
-                    this.async, this.afterCommit, this.delay, this.orderKey, this.sendCallback);
+                    this.async, this.afterCommit, this.delay, this.orderKey, this.sendCallback, this.transactional);
         }
     }
 }
