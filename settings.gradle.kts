@@ -11,6 +11,18 @@ pluginManagement {
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
+        // ktfmt 的编译器依赖单独走镜像，首次构建也无需等待 GitHub Release 下载。
+        exclusiveContent {
+            forRepository {
+                maven {
+                    name = "centralGoogleMirror"
+                    url = uri("https://maven-central.storage-download.googleapis.com/maven2")
+                }
+            }
+            filter {
+                includeVersion("org.jetbrains.kotlin", "kotlin-compiler-embeddable", "2.0.0")
+            }
+        }
         mavenCentral()
     }
 }

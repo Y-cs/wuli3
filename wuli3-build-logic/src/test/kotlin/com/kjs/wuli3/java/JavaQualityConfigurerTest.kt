@@ -110,7 +110,23 @@ class JavaQualityConfigurerTest {
 
     private fun qualityFixture(lombok: Boolean = false) {
         write("settings.gradle.kts", """
-            dependencyResolutionManagement { repositories { mavenCentral() } }
+            dependencyResolutionManagement {
+                repositories {
+                    // TestKit 不继承主工程仓库，必须在独立测试工程中声明相同的下载边界。
+                    exclusiveContent {
+                        forRepository {
+                            maven {
+                                name = "centralGoogleMirror"
+                                url = uri("https://maven-central.storage-download.googleapis.com/maven2")
+                            }
+                        }
+                        filter {
+                            includeVersion("org.jetbrains.kotlin", "kotlin-compiler-embeddable", "2.0.0")
+                        }
+                    }
+                    mavenCentral()
+                }
+            }
             rootProject.name = "quality-fixture"
             include(":bom")
         """.trimIndent())

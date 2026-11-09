@@ -13,7 +13,7 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 
 /**
- * 验证分页契约的完整对象图能够序列化往返并保留不可变语义。
+ * 验证分页契约的完整对象图能够序列化往返并保留构造时复制的集合。
  *
  * @author GuoYang create on 2026/10/16 09:00
  */
@@ -27,9 +27,9 @@ final class PaginationSerializationTest {
         final PageQuery restored = (PageQuery) PaginationSerializationTest.roundTrip(original);
 
         assertThat(restored).isEqualTo(original).isNotSameAs(original);
-        assertThat(restored.sorts())
+        assertThat(restored.getSorts())
                 .containsExactly(new Sort("createdAt", SortDirection.DESC), new Sort("id", SortDirection.ASC));
-        assertThatThrownBy(() -> restored.sorts().clear()).isInstanceOf(UnsupportedOperationException.class);
+        assertThatThrownBy(() -> restored.getSorts().clear()).isInstanceOf(UnsupportedOperationException.class);
     }
 
     /** 结果往返时保留实际记录与分页元数据，而不退化为空容器。 */
@@ -40,8 +40,8 @@ final class PaginationSerializationTest {
         final PageResult<?> restored = (PageResult<?>) PaginationSerializationTest.roundTrip(original);
 
         assertThat(restored).isEqualTo(original).isNotSameAs(original);
-        assertThat(restored.items()).isEqualTo(List.of("order-21", "order-22"));
-        assertThatThrownBy(() -> restored.items().clear()).isInstanceOf(UnsupportedOperationException.class);
+        assertThat(restored.getItems()).isEqualTo(List.of("order-21", "order-22"));
+        assertThatThrownBy(() -> restored.getItems().clear()).isInstanceOf(UnsupportedOperationException.class);
     }
 
     /** 仅反序列化测试即时生成的可信字节，验证整个对象图而非仅检查标记接口。 */

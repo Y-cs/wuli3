@@ -1,8 +1,10 @@
 name: CI
 
 on:
-  # 只在 PR 上运行：合并提交已包含 PR 已验证的同一份代码，main 上再跑一遍是重复。
   pull_request:
+  # 默认分支生成共享依赖缓存，后续 PR 可直接恢复。
+  push:
+    branches: [main]
 
 permissions:
   contents: read
@@ -27,6 +29,12 @@ jobs:
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: false
+          gradle-home-cache-includes: |
+            caches
+            notifications
+            testkit/caches
 
       - name: Set up Node.js for documentation
         uses: actions/setup-node@v7

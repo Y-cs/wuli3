@@ -119,6 +119,13 @@ public final class Asserts {
             }
         }
 
+        /** 条件成立时抛出带自定义消息的错误码异常。 */
+        default void throwException(final ErrorCodeException errorCode) {
+            if (condition()) {
+                throw errorCode;
+            }
+        }
+
         /** 条件成立时以非法参数错误码抛出异常。 */
         default void throwIllegalArgumentException(final String message) {
             if (condition()) {

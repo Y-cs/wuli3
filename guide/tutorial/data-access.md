@@ -391,10 +391,10 @@ public final class MysqlOrderQueryRepository implements OrderQueryRepository {
     public PageResult<OrderSummaryDTO> findPaid(final PageQuery query) {
         Asserts.whenNull(query).throwIllegalArgumentException("分页条件不能为空");
         final Page<OrderRow> page = PaginationHelper.toPage(query, MysqlOrderQueryRepository::column);
-        if (query.sorts().isEmpty()) {
+        if (query.getSorts().isEmpty()) {
             page.addOrder(OrderItem.desc("created_at"));
         }
-        if (query.sorts().stream().noneMatch(sort -> "id".equals(sort.field()))) {
+        if (query.getSorts().stream().noneMatch(sort -> "id".equals(sort.getField()))) {
             page.addOrder(OrderItem.desc("id"));
         }
         final QueryWrapper<OrderRow> filter = new QueryWrapper<OrderRow>().eq("status", "PAID");
@@ -600,16 +600,16 @@ public final class OrderSearch {
     /** 精确过滤状态并返回完整命中总数；仅支持默认 10000 条结果窗口。 */
     public PageResult<OrderDocument> findPaid(final PageQuery request) {
         Asserts.whenNull(request).throwIllegalArgumentException("分页条件不能为空");
-        Asserts.whenFalse(request.sorts().isEmpty()).throwIllegalArgumentException("当前搜索仅支持固定排序");
-        Asserts.whenTrue((long) request.page() * request.pageSize() > 10_000L)
+        Asserts.whenFalse(request.getSorts().isEmpty()).throwIllegalArgumentException("当前搜索仅支持固定排序");
+        Asserts.whenTrue((long) request.getPage() * request.getPageSize() > 10_000L)
                 .throwIllegalArgumentException("搜索页超出结果窗口，请使用游标查询");
-        final PageRequest pageable = PageRequest.of(request.page() - 1, request.pageSize(),
+        final PageRequest pageable = PageRequest.of(request.getPage() - 1, request.getPageSize(),
                 Sort.by(Sort.Order.desc("createdAt"), Sort.Order.desc("orderId")));
         final CriteriaQuery query = new CriteriaQuery(new Criteria("status").is("PAID"), pageable);
         query.setTrackTotalHits(true);
         final SearchHits<OrderDocument> hits = this.operations.search(query, OrderDocument.class);
         final List<OrderDocument> items = hits.getSearchHits().stream().map(SearchHit::getContent).toList();
-        return new PageResult<>(items, hits.getTotalHits(), request.page(), request.pageSize());
+        return new PageResult<>(items, hits.getTotalHits(), request.getPage(), request.getPageSize());
     }
 }
 ```
@@ -704,14 +704,14 @@ public final class MongoOrderQueries {
     /** 分页读取已支付订单；count 与当前页为两次独立读取。 */
     public PageResult<OrderMongo> findPaid(final PageQuery request) {
         Asserts.whenNull(request).throwIllegalArgumentException("分页条件不能为空");
-        Asserts.whenFalse(request.sorts().isEmpty()).throwIllegalArgumentException("当前查询仅支持固定排序");
+        Asserts.whenFalse(request.getSorts().isEmpty()).throwIllegalArgumentException("当前查询仅支持固定排序");
         final Query countQuery = Query.query(Criteria.where("status").is("PAID"));
         final long total = this.mongoTemplate.count(countQuery, OrderMongo.class);
-        final PageRequest pageable = PageRequest.of(request.page() - 1, request.pageSize(),
+        final PageRequest pageable = PageRequest.of(request.getPage() - 1, request.getPageSize(),
                 Sort.by(Sort.Order.desc("createdAt"), Sort.Order.desc("id")));
         final Query pageQuery = Query.query(Criteria.where("status").is("PAID")).with(pageable);
         final List<OrderMongo> items = this.mongoTemplate.find(pageQuery, OrderMongo.class);
-        return new PageResult<>(items, total, request.page(), request.pageSize());
+        return new PageResult<>(items, total, request.getPage(), request.getPageSize());
     }
 }
 ```

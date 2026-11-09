@@ -32,14 +32,14 @@ final class {{domainType}}StoreTest {
         service.save(new {{domainType}}StatusDto(first, Status.INACTIVE));
         assertThat(service.findById(first).status()).isEqualTo(Status.INACTIVE);
         final var page = service.page(new PageQuery(2, 1, List.of(new Sort("id", SortDirection.DESC))));
-        assertThat(page.total()).isEqualTo(2);
-        assertThat(page.items()).containsExactly(new {{domainType}}StatusDto(first, Status.INACTIVE));
-        assertThat(service.page(new PageQuery(3, 1)).items()).isEmpty();
+        assertThat(page.getTotal()).isEqualTo(2);
+        assertThat(page.getItems()).containsExactly(new {{domainType}}StatusDto(first, Status.INACTIVE));
+        assertThat(service.page(new PageQuery(3, 1)).getItems()).isEmpty();
         assertThatThrownBy(() -> service.page(new PageQuery(1, 10, List.of(new Sort("id desc;", SortDirection.ASC)))))
                 .isInstanceOf(ErrorCodeException.class);
         service.deleteById(first);
         service.deleteById(first);
         assertThatThrownBy(() -> service.findById(first)).isInstanceOf(ErrorCodeException.class);
-        assertThat(service.page(new PageQuery(1, 20)).total()).isEqualTo(1);
+        assertThat(service.page(new PageQuery(1, 20)).getTotal()).isEqualTo(1);
     }
 }

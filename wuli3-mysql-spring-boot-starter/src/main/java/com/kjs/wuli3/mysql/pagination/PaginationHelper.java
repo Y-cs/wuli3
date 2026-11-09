@@ -25,8 +25,8 @@ public final class PaginationHelper {
     public static <T> Page<T> toPage(final PageQuery query, final Function<String, String> fieldMapper) {
         Objects.requireNonNull(query, "query");
         Objects.requireNonNull(fieldMapper, "fieldMapper");
-        final Page<T> page = new Page<>(query.page(), query.pageSize());
-        final List<Sort> sorts = query.sorts();
+        final Page<T> page = new Page<>(query.getPage(), query.getPageSize());
+        final List<Sort> sorts = query.getSorts();
         if (!sorts.isEmpty()) {
             page.addOrder(
                     sorts.stream().map(sort -> toOrderItem(sort, fieldMapper)).collect(Collectors.toList()));
@@ -53,8 +53,8 @@ public final class PaginationHelper {
 
     private static com.baomidou.mybatisplus.core.metadata.OrderItem toOrderItem(
             final Sort sort, final Function<String, String> fieldMapper) {
-        final String mappedField = Objects.requireNonNull(fieldMapper.apply(sort.field()), "mapped sort field");
-        return sort.direction() == SortDirection.ASC
+        final String mappedField = Objects.requireNonNull(fieldMapper.apply(sort.getField()), "mapped sort field");
+        return sort.getDirection() == SortDirection.ASC
                 ? com.baomidou.mybatisplus.core.metadata.OrderItem.asc(mappedField)
                 : com.baomidou.mybatisplus.core.metadata.OrderItem.desc(mappedField);
     }
