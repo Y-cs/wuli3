@@ -34,9 +34,9 @@ class PaginationHelperTest {
 
         final PageResult<String> result = PaginationHelper.toPageResult(page);
 
-        assertThat(result.items()).containsExactly("a", "b");
-        assertThat(result.total()).isEqualTo(12);
-        assertThat(result.page()).isEqualTo(3);
-        assertThat(result.pageSize()).isEqualTo(5);
+        assertThat(result.getItems()).containsExactly("a", "b");
+        assertThat(result.getTotal()).isEqualTo(12);
+        assertThat(result.getPage()).isEqualTo(3);
+        assertThat(result.getPageSize()).isEqualTo(5);
     }
 }

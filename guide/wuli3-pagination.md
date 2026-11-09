@@ -38,8 +38,8 @@ final PageQuery query = new PageQuery(
 
 ```java
 PageResult<Order> result = orderRepository.findPage(query);
-long total = result.total();
-List<Order> orders = result.items();
+long total = result.getTotal();
+List<Order> orders = result.getItems();
 ```
 
 结果列表不可变；`total` 表示满足条件的总记录数，`page` 和 `pageSize` 是本次查询
@@ -66,7 +66,9 @@ final PageResult<OrderEntity> result =
 
 适配器只负责分页参数和结果的转换，不负责构造查询条件、校验业务过滤条件或开启事务。实际 SQL 分页需按 [MySQL guide](wuli3-mysql-spring-boot-starter.md) 注册分页拦截器。
 
-分页 records 实现 `Serializable`，用于内部 RPC 契约。`PageResult<T>` 的元素也必须满足所选 RPC 序列化器要求。
+分页类实现 `Serializable`，用于内部 RPC 契约。`PageResult<T>` 的元素也必须满足所选 RPC 序列化器要求。
+
+分页对象使用普通 class，Lombok 提供标准 `getXxx()` / `setXxx(...)` 访问器，并保留按属性比较的 `equals` / `hashCode`。构造器执行原有校验和集合复制；setter 直接赋值，调用方须保证更新后的值有效，集合通过 setter 设置时不会自动复制。
 
 ### 排序安全边界
 

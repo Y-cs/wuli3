@@ -42,22 +42,22 @@ public final class {{domainType}}Store {
     /** 排序后分页，默认以主键稳定排序。 */
     public PageResult<{{domainType}}StatusDto> page(final PageQuery query) {
         Comparator<{{domainType}}StatusDto> comparator = (left, right) -> 0;
-        for (final var sort : query.sorts()) {
-            Asserts.whenFalse(sort.field().equals("id") || sort.field().equals("status"))
+        for (final var sort : query.getSorts()) {
+            Asserts.whenFalse(sort.getField().equals("id") || sort.getField().equals("status"))
                     .throwIllegalArgumentException("不支持的排序字段");
-            final Comparator<{{domainType}}StatusDto> fieldComparator = sort.field().equals("id")
+            final Comparator<{{domainType}}StatusDto> fieldComparator = sort.getField().equals("id")
                     ? Comparator.comparing(entry -> entry.id().value())
                     : Comparator.comparing(entry -> entry.status().name());
             comparator = comparator.thenComparing(
-                    sort.direction() == SortDirection.ASC ? fieldComparator : fieldComparator.reversed());
+                    sort.getDirection() == SortDirection.ASC ? fieldComparator : fieldComparator.reversed());
         }
         final var snapshot = this.entries.values().stream()
                 .sorted(comparator.thenComparing(entry -> entry.id().value()))
                 .toList();
         final var items = snapshot.stream()
-                .skip((long) (query.page() - 1) * query.pageSize())
-                .limit(query.pageSize())
+                .skip((long) (query.getPage() - 1) * query.getPageSize())
+                .limit(query.getPageSize())
                 .toList();
-        return new PageResult<>(items, snapshot.size(), query.page(), query.pageSize());
+        return new PageResult<>(items, snapshot.size(), query.getPage(), query.getPageSize());
     }
 }
