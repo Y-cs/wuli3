@@ -22,7 +22,7 @@ import lombok.ToString;
 @Data
 @EqualsAndHashCode(callSuper = false)
 @ToString(callSuper = false)
-public final class PageResult<T> implements Serializable {
+public class PageResult<T> implements Serializable {
 
     @Serial
     private static final long serialVersionUID = 1L;

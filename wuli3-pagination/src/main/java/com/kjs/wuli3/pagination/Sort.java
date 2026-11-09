@@ -21,7 +21,7 @@ import lombok.ToString;
 @Data
 @EqualsAndHashCode(callSuper = false)
 @ToString(callSuper = false)
-public final class Sort implements Serializable {
+public class Sort implements Serializable {
 
     @Serial
     private static final long serialVersionUID = 1L;
