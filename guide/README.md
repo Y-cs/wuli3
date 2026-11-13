@@ -34,6 +34,7 @@
 | --- | --- |
 | [wuli3-core](wuli3-core.md) | 错误模型、断言、ID、时间和 Stream 工具。 |
 | [wuli3-json](wuli3-json.md) | Jackson facade、Mapper 装配、资源路径和脱敏。 |
+| [wuli3-http](wuli3-http.md) | 显式装配 WebClient、生命周期回调与 HTTP 日志。 |
 | [wuli3-context-propagation](wuli3-context-propagation.md) | 固定上下文、线程存储、异步快照和出站编码。 |
 | [wuli3-permission](wuli3-permission.md) | 资源动作位图、注解与判断契约。 |
 | [wuli3-pagination](wuli3-pagination.md) | 与持久化技术无关的分页查询、排序和结果契约。 |

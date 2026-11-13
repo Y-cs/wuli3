@@ -15,6 +15,7 @@ wuli3 分布式项目脚手架底座。项目使用 JDK 21、Gradle 9.6.0、多�
 | [`wuli3-dependencies`](guide/wuli3-dependencies.md) | 统一依赖版本平台。 |
 | [`wuli3-core`](guide/wuli3-core.md) | 无 Spring 依赖的错误模型、断言、ID、时间和 Stream 工具。 |
 | [`wuli3-json`](guide/wuli3-json.md) | Jackson facade、Mapper 装配、资源路径和脱敏。 |
+| [`wuli3-http`](guide/wuli3-http.md) | 无需 Spring 容器的 WebClient 生命周期、传输适配与脱敏日志。 |
 | [`wuli3-permission`](guide/wuli3-permission.md) | 无框架资源动作权限、注解与判断契约。 |
 | [`wuli3-permission-spring-boot-starter`](guide/wuli3-permission.md) | 权限目录提取、主体适配与方法授权。 |
 | [`wuli3-event-core`](guide/wuli3-event-core.md) | 纯 Java 事件信封、发布选项和消息传输契约。 |
