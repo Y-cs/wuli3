@@ -16,6 +16,20 @@ import org.junit.jupiter.api.Test;
 class HttpLogOptionsTest {
 
     @Test
+    void defaultsKeepDetailsOffAndCopySelectedItems() {
+        assertThat(HttpLogOptions.defaults().items()).isEmpty();
+        assertThat(HttpLogOptions.defaults().maxBodyBytes()).isEqualTo(8192);
+        final Set<HttpLogItem> items = new HashSet<>(Set.of(HttpLogItem.REQUEST_BODY));
+        final HttpLogOptions options = new HttpLogOptions(true, true, Set.of(), items, 128);
+        items.add(HttpLogItem.RESPONSE_BODY);
+        assertThat(options.items()).containsExactly(HttpLogItem.REQUEST_BODY);
+        assertThatThrownBy(() -> options.items().add(HttpLogItem.RESPONSE_BODY))
+                .isInstanceOf(UnsupportedOperationException.class);
+        assertThatThrownBy(() -> new HttpLogOptions(true, true, Set.of(), Set.of(), 0))
+                .isInstanceOf(ErrorCodeException.class);
+    }
+
+    @Test
     void nullOrEmptySensitiveNamesKeepTheBuiltInNames() {
         final Set<String> defaults = HttpLogOptions.defaults().sensitiveNames();
         assertThat(new HttpLogOptions(true, true, null).sensitiveNames()).isEqualTo(defaults);

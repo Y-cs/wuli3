@@ -1,18 +1,28 @@
 package com.kjs.wuli3.http.internal.logging;
 
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.kjs.wuli3.http.logging.HttpLogEvent;
 import com.kjs.wuli3.http.logging.HttpLogOptions;
 import com.kjs.wuli3.http.logging.HttpLogRecorder;
+import java.io.IOException;
 import java.net.URI;
 import java.net.URLDecoder;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 
 /**
- * 隔离共享日志接收器故障并生成脱敏地址。
+ * 隔离共享日志接收器故障，并对地址、头部和有界正文脱敏。
  *
  * 注意：仅供模块内部跨包调用，不属于对外扩展契约。
  *
@@ -23,6 +33,7 @@ public final class HttpLogs {
     // 保留原有日志分类，避免改变应用已配置的日志级别。
     private static final Logger LOGGER = LoggerFactory.getLogger("com.kjs.wuli3.http.WebClientFactory");
     private static final HttpLogRecorder NOOP = (event, fields) -> {};
+    private static final ObjectMapper JSON = new ObjectMapper().enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS);
 
     private HttpLogs() {}
 
@@ -94,6 +105,51 @@ public final class HttpLogs {
 
     private static String normalize(final String name) {
         return name.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]", "");
+    }
+
+    /** 复制请求或响应头；敏感头整体替换，不修改发送或交付的数据。 */
+    public static Map<String, List<String>> headers(final HttpHeaders headers, final HttpLogOptions options) {
+        final Map<String, List<String>> fields = new LinkedHashMap<>();
+        headers.forEach((name, values) -> fields.put(
+                name, options.redact() && HttpLogs.sensitive(name, options) ? List.of("***") : List.copyOf(values)));
+        return Map.copyOf(fields);
+    }
+
+    /** 解码完整正文；脱敏失败向采集器报告，由其省略正文，禁止回退输出原始数据。 */
+    static String body(final byte[] bytes, final MediaType type, final HttpLogOptions options) throws IOException {
+        final var configured = type.getCharset();
+        final String text = (configured == null ? StandardCharsets.UTF_8 : configured)
+                .newDecoder()
+                .decode(ByteBuffer.wrap(bytes))
+                .toString();
+        if (!options.redact() || text.isEmpty()) {
+            return text;
+        }
+        if (MediaType.APPLICATION_FORM_URLENCODED.isCompatibleWith(type)) {
+            return HttpLogs.query(text, options);
+        }
+        final JsonNode json = HttpLogs.JSON.readTree(text);
+        if (json.isMissingNode()) {
+            throw new IOException("JSON 正文缺少有效内容");
+        }
+        HttpLogs.redactJson(json, options);
+        return HttpLogs.JSON.writeValueAsString(json);
+    }
+
+    private static void redactJson(final JsonNode node, final HttpLogOptions options) {
+        if (node instanceof ObjectNode object) {
+            for (final var field : object.properties()) {
+                if (HttpLogs.sensitive(field.getKey(), options)) {
+                    object.put(field.getKey(), "***");
+                } else {
+                    HttpLogs.redactJson(field.getValue(), options);
+                }
+            }
+        } else if (node.isArray()) {
+            for (final JsonNode item : node) {
+                HttpLogs.redactJson(item, options);
+            }
+        }
     }
 
     /** 将观察器异常附加到原始异常，避免对同一实例执行自抑制。 */

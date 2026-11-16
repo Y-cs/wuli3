@@ -4,7 +4,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.kjs.wuli3.core.error.ErrorCodeException;
+import com.kjs.wuli3.http.exchange.HttpExchangeContext;
 import com.kjs.wuli3.http.logging.HttpLogEvent;
+import com.kjs.wuli3.http.logging.HttpLogItem;
 import com.kjs.wuli3.http.logging.HttpLogOptions;
 import com.kjs.wuli3.http.logging.HttpLogRecorder;
 import io.netty.buffer.PooledByteBufAllocator;
@@ -23,6 +25,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+
+import org.jspecify.annotations.NonNull;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -127,7 +131,7 @@ class WebClientFactoryTest {
                     assertThat(request.headers().getFirst("X-App")).isEqualTo("orders");
                     context.set(exchange);
                     exchange.attributes().put("value", "shared");
-                    exchange.logRecorder().record(HttpLogEvent.DIAGNOSTIC, Map.of("exchangeId", exchange.id()));
+                    exchange.addLog(Map.of("step", "before", "exchangeId", exchange.id()));
                     return Mono.just(ClientRequest.from(request)
                             .header("X-Signed", "yes")
                             .build());
@@ -160,10 +164,9 @@ class WebClientFactoryTest {
         assertThat(result.block(Duration.ofSeconds(5))).isEqualTo("{\"message\":\"hello\"}");
         logs.await(1);
         assertThat(order).containsExactly("initialize-1", "initialize-2", "before-1", "before-2", "after-1", "after-2");
-        assertThat(logs.events(HttpLogEvent.DIAGNOSTIC))
-                .singleElement()
-                .satisfies(event -> assertThat(event.fields().get("exchangeId"))
-                        .isEqualTo(context.get().id()));
+        assertThat(logs.events(HttpLogEvent.COMPLETE).getFirst().fields().get("diagnostics"))
+                .isEqualTo(List.of(
+                        Map.of("step", "before", "exchangeId", context.get().id())));
         assertThat(logs.events(HttpLogEvent.COMPLETE))
                 .singleElement()
                 .satisfies(event -> assertThat(event.fields().get("outcome")).isEqualTo("complete"));
@@ -173,13 +176,15 @@ class WebClientFactoryTest {
     void isolatesContextsAndSharesOneRecorderAcrossResubscriptionAndConcurrentCalls() throws Exception {
         final Logs logs = new Logs();
         final List<HttpExchangeContext> contexts = new CopyOnWriteArrayList<>();
-        final AtomicReference<HttpLogRecorder> initializedRecorder = new AtomicReference<>();
-        final WebClient client = WebClientFactory.builder(this.config(HttpLogOptions.defaults()))
-                .initialize(initialization -> initializedRecorder.set(initialization.logRecorder()))
+        final WebClient client = WebClientFactory.builder(this.config(new HttpLogOptions(
+                        true, true, Set.of(), Set.of(HttpLogItem.REQUEST_BODY, HttpLogItem.RESPONSE_BODY), 8192)))
                 .beforeRequest((context, request) -> {
                     context.attributes().put("requestId", context.id());
+                    context.addLog(Map.of("requestId", context.id()));
                     contexts.add(context);
-                    return Mono.just(request);
+                    return Mono.just(ClientRequest.from(request)
+                            .body(BodyInserters.fromValue(Map.of("requestId", context.id(), "token", "private")))
+                            .build());
                 })
                 .afterResponse((context, response) -> {
                     assertThat(context.attributes()).containsEntry("requestId", context.id());
@@ -187,7 +192,7 @@ class WebClientFactoryTest {
                 })
                 .logRecorder(logs)
                 .build();
-        final Mono<String> result = client.get().uri("/json").retrieve().bodyToMono(String.class);
+        final Mono<String> result = client.post().uri("/echo").retrieve().bodyToMono(String.class);
         result.block(Duration.ofSeconds(5));
         result.block(Duration.ofSeconds(5));
         assertThat(Flux.range(0, 8).flatMap(index -> result).collectList().block(Duration.ofSeconds(5)))
@@ -195,13 +200,23 @@ class WebClientFactoryTest {
         logs.await(10);
         assertThat(contexts).hasSize(10);
         assertThat(contexts.stream().map(HttpExchangeContext::id).distinct()).hasSize(10);
-        assertThat(contexts).allSatisfy(context -> {
-            assertThat(context.logRecorder()).isSameAs(initializedRecorder.get());
-            assertThat(logs.entries.stream()
-                            .filter(event -> context.id().equals(event.fields().get("exchangeId"))))
-                    .extracting(Event::name)
-                    .containsExactly(HttpLogEvent.REQUEST, HttpLogEvent.RESPONSE, HttpLogEvent.COMPLETE);
-        });
+        assertThat(contexts)
+                .allSatisfy(context -> assertThat(logs.events(HttpLogEvent.COMPLETE).stream()
+                                .filter(event ->
+                                        context.id().equals(event.fields().get("exchangeId"))))
+                        .singleElement()
+                        .satisfies(event -> {
+                            assertThat(event.fields().get("diagnostics"))
+                                    .isEqualTo(List.of(Map.of("requestId", context.id())));
+                            assertThat(event.fields().get("requestBody"))
+                                    .asString()
+                                    .contains(context.id(), "***")
+                                    .doesNotContain("private");
+                            assertThat(event.fields().get("responseBody"))
+                                    .isEqualTo(event.fields().get("requestBody"));
+                            assertThat(event.fields().get("requestBodyState")).isEqualTo("complete");
+                            assertThat(event.fields().get("responseBodyState")).isEqualTo("complete");
+                        }));
         assertThat(logs.events(HttpLogEvent.INITIALIZED)).hasSize(1);
     }
 
@@ -416,7 +431,7 @@ class WebClientFactoryTest {
         final var result =
                 client.get().uri("/json").retrieve().bodyToMono(String.class).toFuture();
         assertThat(subscribed.await(3, TimeUnit.SECONDS)).isTrue();
-        assertThat(logs.events(HttpLogEvent.RESPONSE)).hasSize(1);
+        assertThat(logs.entries).extracting(Event::name).containsExactly(HttpLogEvent.INITIALIZED);
         assertThat(logs.events(HttpLogEvent.COMPLETE)).isEmpty();
         assertThat(body.tryEmitValue("done")).isEqualTo(Sinks.EmitResult.OK);
         assertThat(result.get(3, TimeUnit.SECONDS)).isEqualTo("done");
@@ -532,7 +547,8 @@ class WebClientFactoryTest {
         for (final boolean beforeHeaders : List.of(true, false)) {
             final Logs logs = new Logs();
             final CountDownLatch subscribed = new CountDownLatch(1);
-            final WebClient client = WebClientFactory.builder(this.config(HttpLogOptions.defaults()))
+            final WebClient client = WebClientFactory.builder(this.config(
+                            new HttpLogOptions(true, true, Set.of(), Set.of(HttpLogItem.RESPONSE_BODY), 8192)))
                     .initialize(initialization -> initialization
                             .builder()
                             .exchangeFunction(request -> beforeHeaders
@@ -555,6 +571,8 @@ class WebClientFactoryTest {
                     .singleElement()
                     .satisfies(
                             event -> assertThat(event.fields().get("outcome")).isEqualTo("cancelled"));
+            assertThat(logs.events(HttpLogEvent.COMPLETE).getFirst().fields().get("responseBodyState"))
+                    .isEqualTo(beforeHeaders ? "unavailable" : "incomplete");
         }
     }
 
@@ -624,7 +642,7 @@ class WebClientFactoryTest {
                 return 1;
             }
         };
-        final HttpLogOptions disabled = new HttpLogOptions(false, true, Set.of());
+        final HttpLogOptions disabled = new HttpLogOptions(false, true, Set.of(), Set.of(HttpLogItem.values()), 8192);
         final WebClient client = WebClientFactory.builder(this.config(disabled))
                 .initialize(initialization -> initialization
                         .builder()
@@ -633,6 +651,7 @@ class WebClientFactoryTest {
                                 .build())))
                 .beforeRequest((exchange, request) -> {
                     context.set(exchange);
+                    exchange.addLog(Map.of("private", "not-recorded"));
                     final ClientRequest prepared = ClientRequest.from(request)
                             .headers(headers -> headers.put("X-Probe", values))
                             .build();
@@ -719,9 +738,9 @@ class WebClientFactoryTest {
                         .block(Duration.ofSeconds(5)))
                 .isEqualTo(body);
         logs.await(1);
-        assertThat(logs.events(HttpLogEvent.REQUEST).getFirst().fields().get("method"))
+        assertThat(logs.events(HttpLogEvent.COMPLETE).getFirst().fields().get("method"))
                 .isEqualTo("POST");
-        assertThat(logs.events(HttpLogEvent.RESPONSE).getFirst().fields().get("status"))
+        assertThat(logs.events(HttpLogEvent.COMPLETE).getFirst().fields().get("status"))
                 .isEqualTo(200);
         assertThat(logs.entries)
                 .allSatisfy(event -> assertThat(event.fields())
@@ -743,7 +762,8 @@ class WebClientFactoryTest {
     @Test
     void preservesFormMultipartAndStreamingBodies() throws Exception {
         final Logs logs = new Logs();
-        final WebClient client = WebClientFactory.builder(this.config(HttpLogOptions.defaults()))
+        final WebClient client = WebClientFactory.builder(
+                        this.config(new HttpLogOptions(true, true, Set.of(), Set.of(HttpLogItem.values()), 8192)))
                 .logRecorder(logs)
                 .build();
         assertThat(client.post()
@@ -779,7 +799,8 @@ class WebClientFactoryTest {
         final String content = "{\"private\":\"file-secret\"}";
         Files.writeString(file, content);
         final Logs logs = new Logs();
-        final WebClient client = WebClientFactory.builder(this.config(HttpLogOptions.defaults()))
+        final WebClient client = WebClientFactory.builder(
+                        this.config(new HttpLogOptions(true, true, Set.of(), Set.of(HttpLogItem.REQUEST_BODY), 8192)))
                 .logRecorder(logs)
                 .build();
         assertThat(client.post()
@@ -791,6 +812,8 @@ class WebClientFactoryTest {
                 .isEqualTo(content);
         logs.await(1);
         assertThat(logs.toString()).doesNotContain("file-secret");
+        assertThat(logs.events(HttpLogEvent.COMPLETE).getFirst().fields().get("requestBodyState"))
+                .isEqualTo("unsupported");
     }
 
     @Test
@@ -848,6 +871,244 @@ class WebClientFactoryTest {
                 .isInstanceOf(ErrorCodeException.class);
     }
 
+    @Test
+    void combinesRedactedDetailsAndProcessedResponseInOneLog() throws Exception {
+        final Logs logs = new Logs();
+        final HttpLogOptions options =
+                new HttpLogOptions(true, true, Set.of("account-number"), Set.of(HttpLogItem.values()), 8192);
+        final WebClient client = WebClientFactory.builder(this.config(options))
+                .beforeRequest((context, request) -> {
+                    context.addLog(Map.of("step", "signed"));
+                    return Mono.just(ClientRequest.from(request)
+                            .header("X-Signed", "yes")
+                            .build());
+                })
+                .afterResponse((context, response) -> response.bodyToMono(String.class)
+                        .map(body -> {
+                            context.addLog(Map.of("step", "decrypted"));
+                            final byte[] transformed =
+                                    body.replace("encrypted", "plain").getBytes(StandardCharsets.UTF_8);
+                            return response.mutate()
+                                    .headers(headers -> {
+                                        headers.remove(HttpHeaders.CONTENT_LENGTH);
+                                        headers.add("X-Processed", "yes");
+                                        headers.add("Set-Cookie", "session=response-secret");
+                                    })
+                                    .body(ignored ->
+                                            Flux.just(DefaultDataBufferFactory.sharedInstance.wrap(transformed)))
+                                    .build();
+                        }))
+                .logRecorder(logs)
+                .build();
+        final String requestBody = "{\"message\":\"encrypted\",\"password\":\"pw-secret\","
+                + "\"nested\":[{\"access_token\":\"token-secret\"}],\"account_number\":\"account-secret\"}";
+        assertThat(client.post()
+                        .uri("/echo?token=query-secret")
+                        .header("Authorization", "Bearer header-secret")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .bodyValue(requestBody)
+                        .retrieve()
+                        .bodyToMono(String.class)
+                        .block(Duration.ofSeconds(5)))
+                .contains("plain", "pw-secret");
+        logs.await(1);
+        assertThat(logs.entries)
+                .extracting(Event::name)
+                .containsExactly(HttpLogEvent.INITIALIZED, HttpLogEvent.COMPLETE);
+        final Map<String, ?> fields =
+                logs.events(HttpLogEvent.COMPLETE).getFirst().fields();
+        assertThat(fields.get("requestBody")).asString().contains("encrypted", "***");
+        assertThat(fields.get("responseBody"))
+                .asString()
+                .contains("plain", "***")
+                .doesNotContain("encrypted");
+        assertThat(fields.get("requestBodyState")).isEqualTo("complete");
+        assertThat(fields.get("responseBodyState")).isEqualTo("complete");
+        assertThat(fields.get("requestHeaders")).asString().contains("X-Signed", "***");
+        assertThat(fields.get("responseHeaders")).asString().contains("X-Processed", "***");
+        assertThat(fields.get("diagnostics")).isEqualTo(List.of(Map.of("step", "signed"), Map.of("step", "decrypted")));
+        assertThat(logs.toString())
+                .doesNotContain(
+                        "pw-secret",
+                        "token-secret",
+                        "account-secret",
+                        "query-secret",
+                        "header-secret",
+                        "response-secret");
+    }
+
+    @Test
+    void onlyCollectsSelectedDetailsAndIncludesErrorDiagnostics() throws Exception {
+        final Logs logs = new Logs();
+        final AtomicReference<HttpExchangeContext> saved = new AtomicReference<>();
+        final IllegalStateException failure = new IllegalStateException("failed");
+        final WebClient client = WebClientFactory.builder(this.config(
+                        new HttpLogOptions(true, true, Set.of(), Set.of(HttpLogItem.REQUEST_HEADERS), 8192)))
+                .beforeRequest((context, request) -> {
+                    saved.set(context);
+                    context.addLog(Map.of("step", "before"));
+                    return Mono.error(failure);
+                })
+                .onError((context, error) -> context.addLog(Map.of("step", "error")))
+                .logRecorder(logs)
+                .build();
+        assertThatThrownBy(() -> client.get()
+                        .uri("/json")
+                        .retrieve()
+                        .bodyToMono(String.class)
+                        .block())
+                .isSameAs(failure);
+        logs.await(1);
+        final Map<String, ?> fields =
+                logs.events(HttpLogEvent.COMPLETE).getFirst().fields();
+        assertThat(fields.get("diagnostics")).isEqualTo(List.of(Map.of("step", "before"), Map.of("step", "error")));
+        assertThat(fields).doesNotContainKeys("responseHeaders", "requestBody", "responseBody");
+        saved.get().addLog(Map.of("step", "late"));
+        assertThat(fields.get("diagnostics")).isEqualTo(List.of(Map.of("step", "before"), Map.of("step", "error")));
+        assertThat(fields.get("method")).isEqualTo("GET");
+        assertThat(fields.get("outcome")).isEqualTo("error");
+    }
+
+    @Test
+    void snapshotsCallbacksWhenTheClientIsBuilt() throws Exception {
+        final Logs logs = new Logs();
+        final AtomicInteger addedHook = new AtomicInteger();
+        final WebClientFactory.Builder builder =
+                WebClientFactory.builder(this.config(HttpLogOptions.defaults())).logRecorder(logs);
+        final WebClient first = builder.build();
+        builder.beforeRequest((context, request) -> {
+            addedHook.incrementAndGet();
+            return Mono.just(request);
+        });
+        final WebClient second = builder.build();
+        first.get().uri("/json").retrieve().bodyToMono(String.class).block(Duration.ofSeconds(5));
+        second.get().uri("/json").retrieve().bodyToMono(String.class).block(Duration.ofSeconds(5));
+        logs.await(2);
+        assertThat(addedHook).hasValue(1);
+    }
+
+    @Test
+    void detailLoggingPreservesFramingFormUploadsAndCustomConnector() throws Exception {
+        final Logs logs = new Logs();
+        final WebClient client = WebClientFactory.builder(this.config(new HttpLogOptions(
+                        true, true, Set.of(), Set.of(HttpLogItem.REQUEST_BODY, HttpLogItem.RESPONSE_BODY), 8192)))
+                .connector(new JdkClientHttpConnector())
+                .logRecorder(logs)
+                .build();
+        assertThat(client.post()
+                        .uri("/echo")
+                        .body(BodyInserters.fromFormData("password", "private").with("name", "alice"))
+                        .retrieve()
+                        .bodyToMono(String.class)
+                        .block(Duration.ofSeconds(5)))
+                .contains("private", "alice");
+        logs.await(1);
+        assertThat(logs.toString()).contains("password=***", "name=alice").doesNotContain("private");
+        final WebClient netty = WebClientFactory.builder(
+                        this.config(new HttpLogOptions(true, true, Set.of(), Set.of(HttpLogItem.REQUEST_BODY), 8192)))
+                .build();
+        final String plainFraming = WebClient.builder()
+                .baseUrl(this.baseUrl)
+                .build()
+                .post()
+                .uri("/echo")
+                .bodyValue(Map.of("message", "hello"))
+                .retrieve()
+                .toEntity(String.class)
+                .blockOptional(Duration.ofSeconds(5))
+                .orElseThrow()
+                .getHeaders()
+                .getFirst("X-Body-Framing");
+        assertThat(netty.post()
+                        .uri("/echo")
+                        .bodyValue(Map.of("message", "hello"))
+                        .retrieve()
+                        .toEntity(String.class)
+                        .blockOptional(Duration.ofSeconds(5))
+                        .orElseThrow()
+                        .getHeaders()
+                        .getFirst("X-Body-Framing"))
+                .isEqualTo(plainFraming);
+    }
+
+    @Test
+    void capturesCodecGeneratedHeadersAndCookieWithoutInspectingTheBody() throws Exception {
+        final Logs logs = new Logs();
+        final WebClient client = WebClientFactory.builder(this.config(
+                        new HttpLogOptions(true, true, Set.of(), Set.of(HttpLogItem.REQUEST_HEADERS), 8192)))
+                .logRecorder(logs)
+                .build();
+        assertThat(client.post()
+                        .uri("/echo")
+                        .cookie("session", "cookie-private")
+                        .bodyValue(Map.of("name", "alice"))
+                        .retrieve()
+                        .bodyToMono(String.class)
+                        .block(Duration.ofSeconds(5)))
+                .contains("alice");
+        logs.await(1);
+        final Map<String, ?> fields =
+                logs.events(HttpLogEvent.COMPLETE).getFirst().fields();
+        assertThat(fields.get("requestHeaders")).asString().contains("application/json", "***");
+        assertThat(fields).doesNotContainKeys("requestBody", "requestBodyState", "responseBody", "responseHeaders");
+        assertThat(logs.toString()).doesNotContain("cookie-private");
+    }
+
+    @Test
+    void preservesGroupedRequestFlushesWithBodyLoggingEnabled() throws Exception {
+        final Logs logs = new Logs();
+        final WebClient client = WebClientFactory.builder(
+                        this.config(new HttpLogOptions(true, false, Set.of(), Set.of(HttpLogItem.REQUEST_BODY), 8192)))
+                .logRecorder(logs)
+                .build();
+        assertThat(client.post()
+                        .uri("/echo")
+                        .contentType(MediaType.TEXT_PLAIN)
+                        .body((output, context) -> output.writeAndFlushWith(Flux.just(
+                                Mono.fromSupplier(
+                                        () -> output.bufferFactory().wrap("first".getBytes(StandardCharsets.UTF_8))),
+                                Mono.fromSupplier(
+                                        () -> output.bufferFactory().wrap("second".getBytes(StandardCharsets.UTF_8))))))
+                        .retrieve()
+                        .bodyToMono(String.class)
+                        .block(Duration.ofSeconds(5)))
+                .isEqualTo("firstsecond");
+        logs.await(1);
+        assertThat(logs.events(HttpLogEvent.COMPLETE).getFirst().fields().get("requestBody"))
+                .isEqualTo("firstsecond");
+    }
+
+    @Test
+    void omitsPartialBodyOnErrorAndReleasesPooledBuffers() throws Exception {
+        final NettyDataBuffer buffer = WebClientFactoryTest.pooled("{\"token\":\"private\"}");
+        final IllegalStateException failure = new IllegalStateException("body failed");
+        final Logs logs = new Logs();
+        final WebClient client = WebClientFactory.builder(
+                        this.config(new HttpLogOptions(true, true, Set.of(), Set.of(HttpLogItem.RESPONSE_BODY), 8192)))
+                .initialize(context -> context.builder()
+                        .exchangeFunction(request -> Mono.just(ClientResponse.create(HttpStatus.OK)
+                                .header(HttpHeaders.CONTENT_TYPE, "application/json")
+                                .body(Flux.concat(Flux.just(buffer), Flux.error(failure)))
+                                .build())))
+                .logRecorder(logs)
+                .build();
+        assertThatThrownBy(() -> client.get()
+                        .uri("/json")
+                        .retrieve()
+                        .bodyToMono(String.class)
+                        .block(Duration.ofSeconds(5)))
+                .isInstanceOf(WebClientResponseException.class)
+                .hasCause(failure);
+        logs.await(1);
+        assertThat(logs.events(HttpLogEvent.COMPLETE)).singleElement().satisfies(event -> {
+            assertThat(event.fields().get("outcome")).isEqualTo("error");
+            assertThat(event.fields().get("responseBodyState")).isEqualTo("incomplete");
+            assertThat(event.fields()).doesNotContainKey("responseBody");
+        });
+        assertThat(buffer.getNativeBuffer().refCnt()).isZero();
+        assertThat(logs.toString()).doesNotContain("private");
+    }
+
     private WebClientConfig config(final HttpLogOptions logging) {
         return new WebClientConfig(
                 "test",
@@ -871,7 +1132,7 @@ class WebClientFactoryTest {
         private final List<Event> entries = new CopyOnWriteArrayList<>();
 
         @Override
-        public void record(final HttpLogEvent event, final Map<String, ?> fields) {
+        public void record(final @NonNull HttpLogEvent event, final @NonNull Map<String, ?> fields) {
             this.entries.add(new Event(event, fields));
         }
 

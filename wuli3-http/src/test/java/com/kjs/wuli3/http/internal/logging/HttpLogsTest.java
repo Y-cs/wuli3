@@ -44,7 +44,7 @@ class HttpLogsTest {
                 HttpLogs.safeRecorder(new HttpLogOptions(false, true, Set.of()), (event, fields) -> {
                     throw new AssertionError("关闭日志时不应调用接收器");
                 });
-        recorder.record(HttpLogEvent.DIAGNOSTIC, Map.of());
+        recorder.record(HttpLogEvent.COMPLETE, Map.of());
     }
 
     @Test
@@ -52,6 +52,6 @@ class HttpLogsTest {
         final HttpLogRecorder recorder = HttpLogs.safeRecorder(HttpLogOptions.defaults(), (event, fields) -> {
             throw new IllegalStateException("record failed");
         });
-        assertThatCode(() -> recorder.record(HttpLogEvent.DIAGNOSTIC, Map.of())).doesNotThrowAnyException();
+        assertThatCode(() -> recorder.record(HttpLogEvent.COMPLETE, Map.of())).doesNotThrowAnyException();
     }
 }

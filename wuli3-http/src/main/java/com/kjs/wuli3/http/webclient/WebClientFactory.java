@@ -1,23 +1,23 @@
 package com.kjs.wuli3.http.webclient;
 
 import com.kjs.wuli3.core.assertion.Asserts;
+import com.kjs.wuli3.http.exchange.HttpExchange;
 import com.kjs.wuli3.http.internal.logging.HttpLogs;
 import com.kjs.wuli3.http.logging.HttpLogEvent;
 import com.kjs.wuli3.http.logging.HttpLogRecorder;
+import com.kjs.wuli3.http.callback.HttpErrorHandler;
+import com.kjs.wuli3.http.callback.HttpRequestProcessor;
+import com.kjs.wuli3.http.callback.HttpResponseProcessor;
 import io.netty.channel.ChannelOption;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.function.BiConsumer;
-import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import org.jspecify.annotations.Nullable;
 import org.springframework.http.client.reactive.ClientHttpConnector;
 import org.springframework.http.client.reactive.ReactorClientHttpConnector;
-import org.springframework.web.reactive.function.client.ClientRequest;
-import org.springframework.web.reactive.function.client.ClientResponse;
 import org.springframework.web.reactive.function.client.WebClient;
-import reactor.core.publisher.Mono;
 import reactor.netty.http.client.HttpClient;
 
 /**
@@ -42,11 +42,9 @@ public final class WebClientFactory {
 
         private final WebClientConfig config;
         private final List<Consumer<InitializationContext>> initializers = new ArrayList<>();
-        private final List<BiFunction<HttpExchangeContext, ClientRequest, Mono<ClientRequest>>> before =
-                new ArrayList<>();
-        private final List<BiFunction<HttpExchangeContext, ClientResponse, Mono<ClientResponse>>> after =
-                new ArrayList<>();
-        private final List<BiConsumer<HttpExchangeContext, Throwable>> errors = new ArrayList<>();
+        private final List<HttpRequestProcessor> before = new ArrayList<>();
+        private final List<HttpResponseProcessor> after = new ArrayList<>();
+        private final List<HttpErrorHandler> errors = new ArrayList<>();
         private final List<BiConsumer<InitializationContext, Throwable>> initializationErrors = new ArrayList<>();
         private HttpLogRecorder recorder = HttpLogs.defaultRecorder();
         private @Nullable ClientHttpConnector connector;
@@ -67,8 +65,7 @@ public final class WebClientFactory {
         }
 
         /** 注册异步请求转换；返回空 Mono 或 null 视为失败。 */
-        public Builder beforeRequest(
-                final BiFunction<HttpExchangeContext, ClientRequest, Mono<ClientRequest>> processor) {
+        public Builder beforeRequest(final HttpRequestProcessor processor) {
             Asserts.whenNull(processor).throwIllegalArgumentException("请求回调不能为空");
             this.before.add(processor);
             return this;
@@ -79,15 +76,14 @@ public final class WebClientFactory {
          *
          * 注意：消费或替换正文时，由回调负责有界聚合并释放旧正文；不得遗弃旧响应资源。
          */
-        public Builder afterResponse(
-                final BiFunction<HttpExchangeContext, ClientResponse, Mono<ClientResponse>> processor) {
+        public Builder afterResponse(final HttpResponseProcessor processor) {
             Asserts.whenNull(processor).throwIllegalArgumentException("响应回调不能为空");
             this.after.add(processor);
             return this;
         }
 
         /** 注册 HTTP 阶段错误观察器；观察器异常附加到原始异常，不替换原始失败。 */
-        public Builder onError(final BiConsumer<HttpExchangeContext, Throwable> handler) {
+        public Builder onError(final HttpErrorHandler handler) {
             Asserts.whenNull(handler).throwIllegalArgumentException("错误回调不能为空");
             this.errors.add(handler);
             return this;
@@ -130,14 +126,8 @@ public final class WebClientFactory {
                 builder.defaultHeaders(headers -> headers.addAll(this.config.defaultHeaders()));
                 builder.codecs(codecs -> codecs.defaultCodecs().maxInMemorySize(this.config.maxInMemorySize()));
                 this.initializers.forEach(initializer -> initializer.accept(context));
-                final List<BiFunction<HttpExchangeContext, ClientRequest, Mono<ClientRequest>>> beforeCallbacks =
-                        List.copyOf(this.before);
-                final List<BiFunction<HttpExchangeContext, ClientResponse, Mono<ClientResponse>>> afterCallbacks =
-                        List.copyOf(this.after);
-                final List<BiConsumer<HttpExchangeContext, Throwable>> errorCallbacks = List.copyOf(this.errors);
-                builder.filters(filters -> filters.addFirst((request, next) -> Mono.defer(
-                        () -> new HttpExchange(config, recorder, beforeCallbacks, afterCallbacks, errorCallbacks)
-                                .exchange(request, next))));
+                final HttpExchange exchange = new HttpExchange(config, recorder, this.before, this.after, this.errors);
+                builder.filters(filters -> filters.addFirst(exchange::exchange));
                 final WebClient client = builder.build();
                 recorder.record(HttpLogEvent.INITIALIZED, Map.of("client", this.config.name()));
                 return client;
