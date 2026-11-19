@@ -1,22 +1,22 @@
 ---
-description: GitHub Pages 发布、项目站 base 路径和生产部署边界。
+description: Vercel 文档站发布、main 分支触发条件和生产部署边界。
 ---
 
 # 部署与发布
 
-文档站构建成静态 HTML，GitHub Actions 把构建产物发布到 GitHub Pages。应用本身的数据库、消息、认证和网络部署仍由业务环境负责。
+文档站构建成静态 HTML，由 Vercel 发布到 https://wuli3.wulicode.com。应用本身的数据库、消息、认证和网络部署仍由业务环境负责。
 
-## Pages 工作流的关键条件
+## Vercel 发布的关键条件
 
-工作流需要：
+项目配置：
 
-- build job 使用 Node 24、npm ci 和 npm run docs:build。
-- deploy job 依赖 build，环境为 github-pages。
-- 权限包含 pages: write 和 id-token: write。
-- 使用 configure-pages 的 base_path 生成项目站路径。
-- Pages 设置中的 Source 选择 GitHub Actions。
+- 连接 `weiran-tech/wuli3` 仓库，项目根目录为 `wuli3-docs`。
+- 使用 Node.js 24、`npm ci` 和 `npm run docs:build`。
+- 静态产物目录为 `build/docs/`，站点根路径为 `/`。
+- 仅 `main` 更新后自动部署；PR 和其他分支不生成预览部署。
+- `vercel.json` 开启 `cleanUrls`，章节链接不带 `.html`。
 
-项目站的 base 来自实际仓库名，例如当前远端仓库 wuli3 对应 `/wuli3/`；用户站、自定义域名或本地预览则可能是 `/`。配置从 Action 输出读取，仓库目录重命名不会影响部署路径。
+GitHub Pages 工作流已移除，文档发布不再依赖 Pages 权限、环境或项目子路径。
 
 ## 静态产物检查
 
@@ -25,7 +25,7 @@ description: GitHub Pages 发布、项目站 base 路径和生产部署边界。
 1. build/docs/index.html 存在。
 2. 页面中的脚本、样式和 logo 以当前 base 路径开头。
 3. 刷新一个深层路径不会出现 404 资源请求。
-4. 本地 preview 和 Pages 子路径都能打开全文搜索。
+4. 本地预览和生产站点都能打开全文搜索。
 
 ## 应用服务的部署边界
 
