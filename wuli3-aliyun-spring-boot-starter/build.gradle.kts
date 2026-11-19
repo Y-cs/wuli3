@@ -7,4 +7,5 @@ dependencies {
     implementation(project(":wuli3-core"))
     api("com.aliyun:alibabacloud-oss-v2")
     implementation("com.aliyun:sts20150401")
+    implementation("org.apache.commons:commons-lang3")
 }
