@@ -34,6 +34,7 @@ include(
     "wuli3-core",
     "wuli3-pagination",
     "wuli3-json",
+    "wuli3-http",
     "wuli3-event-core",
     "wuli3-permission",
     "wuli3-permission-spring-boot-starter",
