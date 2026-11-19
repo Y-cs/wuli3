@@ -39,7 +39,7 @@ jobs:
       # build 串联编译、单元测试、Checkstyle、Spotless、SpotBugs、Forbidden APIs、
       # Error Prone/NullAway、JaCoCo 覆盖率校验、javadoc(-Werror) 和打包；
       # :wuli3-build-logic:test 运行约定插件自身的测试。
-      # 文档站由 Documentation 工作流单独构建，这里排除，避免重复 npm 安装和 VitePress 构建。
+      # 文档站由 Vercel 在 main 更新后构建，这里排除，避免 PR 触发文档构建。
       - name: Run build and quality gates
         run: ./gradlew --no-daemon clean build -x :wuli3-docs:buildDocs :wuli3-build-logic:test --continue
 

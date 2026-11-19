@@ -4,5 +4,11 @@
   "installCommand": "npm ci",
   "buildCommand": "npm run docs:build",
   "outputDirectory": "build/docs",
-  "cleanUrls": true
+  "cleanUrls": true,
+  "git": {
+    "deploymentEnabled": {
+      "**": false,
+      "main": true
+    }
+  }
 }
