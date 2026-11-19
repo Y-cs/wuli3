@@ -95,7 +95,7 @@ wuli3:
 
 `OssClientManager` 负责创建、查找和关闭全部客户端。`OssTemplate` 对 SDK 操作统一转换异常，应用仍负责对象 key、Content-Type、签名 URL、下载权限和生命周期策略。
 
-`StsTemplate` 是独立的单例模板，不随 OSS profile 创建。配置 `wuli3.aliyun.sts.role-arn` 后自动装配；`getCredentials()` 返回临时 AccessKey、过期时间，以及直传所需的 `bucket`、`endpoint`、`directory`、`prefixUrl`。`directory` 由 `folder` 加当前时间组成，格式为 `folder/yM/d/H`（例如 `uploads/202611/9/12`），对象 key 应拼在该目录下。`duration-seconds` 取值范围为 900 至 3600，`endpoint` 默认为 `sts.cn-hangzhou.aliyuncs.com`。
+`StsTemplate` 是独立的单例模板，不随 OSS profile 创建。配置 `wuli3.aliyun.sts.role-arn` 后自动装配；`getCredentials()` 返回临时 AccessKey、过期时间，以及直传所需的 `bucket`、`endpoint`、`directory`、`prefixUrl`。默认 `directory` 由 `folder` 加当前时间组成，格式为 `folder/yM/d/H`（例如 `uploads/202611/9/12`），对象 key 应拼在该目录下。调用方可通过 `getCredentials(folder)` 指定目录前缀（不允许传 null），非空时替换配置的 `folder` 并同样追加 `yM/d/H`（首尾斜杠会被去掉），空白时使用配置的 `folder`。`duration-seconds` 取值范围为 900 至 3600，`endpoint` 默认为 `sts.cn-hangzhou.aliyuncs.com`。
 
 `policy` 是 AssumeRole 的内联会话策略。配置非空时直接使用，优先级高于扩展点；为空时调用 `StsPolicyProvider`。默认实现按 `bucket` 和本次 `directory` 生成对象上传权限，bucket 为空时不发送策略，临时凭据继承角色自身权限。应用可注册自己的 `StsPolicyProvider` Bean 覆盖默认实现，按目录或调用方动态生成策略。
 

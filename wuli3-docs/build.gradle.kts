@@ -30,9 +30,3 @@ val buildDocs = tasks.register<Exec>("buildDocs") {
 }
 
 tasks.named("assemble") { dependsOn(buildDocs) }
-tasks.register("checkDocs") {
-    group = "verification"
-    description = "Builds the VitePress documentation site."
-    dependsOn(buildDocs)
-}
-tasks.named("check") { dependsOn("checkDocs") }

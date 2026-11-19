@@ -33,7 +33,7 @@ public class StsConfig {
     /** 默认策略授权范围使用的 OSS Bucket；供 SPI 生成策略时使用。 */
     private String bucket = "";
 
-    /** 默认策略授权目录，拼接在 bucket 之后；默认 uploads。 */
+    /** 默认策略授权目录，拼接在 bucket 之后；默认 uploads。调用方传入 folder 时以调用方为准。 */
     private String folder = "uploads";
 
     /** 返回给调用方的 OSS endpoint，与 STS endpoint 无关。 */

@@ -90,6 +90,37 @@ class StsTemplateTest {
     }
 
     @Test
+    void appendsTimeSuffixToCallerFolder() {
+        final StsConfig config = new StsConfig();
+        config.setFolder("uploads");
+
+        final String directory =
+                StsTemplate.resolveDirectory(config, " /videos/42/ ", LocalDateTime.of(2026, 11, 9, 12, 30));
+
+        assertThat(directory).isEqualTo("videos/42/202611/9/12");
+    }
+
+    @Test
+    void fallsBackToDefaultDirectoryWhenCallerFolderBlank() {
+        final StsConfig config = new StsConfig();
+        config.setFolder("uploads");
+
+        final String directory = StsTemplate.resolveDirectory(config, " ", LocalDateTime.of(2026, 11, 9, 12, 30));
+
+        assertThat(directory).isEqualTo("uploads/202611/9/12");
+    }
+
+    @Test
+    void defaultProviderScopesPolicyToCallerPath() {
+        final StsConfig config = new StsConfig();
+        config.setBucket("my-bucket");
+
+        final String policy = new DefaultStsPolicyProvider().resolve(config, "videos/42");
+
+        assertThat(policy).contains("acs:oss:*:*:my-bucket/videos/42*");
+    }
+
+    @Test
     void buildsRequestWithPolicyOnlyWhenPresent() {
         final StsConfig config = validConfig();
 

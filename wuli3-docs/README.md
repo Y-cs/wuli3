@@ -19,7 +19,7 @@ npm run docs:build
 npm run docs:preview
 ```
 
-静态 HTML 输出到 `build/docs/`。从仓库根目录也可以运行 `./gradlew :wuli3-docs:check` 或 `./gradlew :wuli3-docs:build`；根构建的 `check` / `build` 包含文档构建，因此需要 Node 和 npm。Gradle 的 `npmCi` 会按锁文件安装依赖。
+静态 HTML 输出到 `build/docs/`。从仓库根目录也可以运行 `./gradlew :wuli3-docs:build` 触发构建；`check` 只做校验，不构建文档站。Gradle 的 `npmCi` 会按锁文件安装依赖。
 
 稳定版 VitePress 1.6.4 的 Vite/esbuild 开发工具链仍有 npm audit 报告，当前没有稳定版范围内的完整修复；本站的 dev/preview 默认只监听 `127.0.0.1`，不要作为对外服务运行。Pages 仅部署静态产物，不运行该开发服务器。后续跟进 VitePress 稳定版升级，不跨主版本强制覆盖内部 Vite。
 

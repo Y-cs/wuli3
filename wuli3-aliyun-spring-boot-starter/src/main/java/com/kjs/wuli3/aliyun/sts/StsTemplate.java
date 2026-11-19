@@ -15,6 +15,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
+import org.apache.commons.lang3.StringUtils;
 
 /**
  * 面向单个 STS 角色的 AssumeRole 操作模板，统一转换 SDK 异常。
@@ -54,13 +55,26 @@ public final class StsTemplate {
     }
 
     /**
-     * 调用 AssumeRole 获取临时访问凭据。
+     * 使用配置的默认目录调用 AssumeRole 获取临时访问凭据。
      *
      * @return 临时凭据及其过期时间
      * @throws ErrorCodeException 请求失败或响应缺少必要字段时
      */
     public StsCredentials getCredentials() {
-        final String directory = StsTemplate.buildDirectory(this.config);
+        return this.getCredentials("");
+    }
+
+    /**
+     * 使用调用方指定 folder 调用 AssumeRole 获取临时访问凭据。
+     *
+     * 注意：folder 不允许为 null；为空白时使用配置的 folder，非空时替换配置 folder，之后同样追加时间后缀。
+     *
+     * @param folder 本次授权目录前缀，例如业务模块名或用户标识
+     * @return 临时凭据及其过期时间
+     * @throws ErrorCodeException 请求失败或响应缺少必要字段时
+     */
+    public StsCredentials getCredentials(final String folder) {
+        final String directory = StsTemplate.resolveDirectory(this.config, folder);
         try {
             final AssumeRoleResponse response = this.client.assumeRoleWithOptions(
                     StsTemplate.buildRequest(this.config, this.resolvePolicy(directory)), new RuntimeOptions());
@@ -80,15 +94,30 @@ public final class StsTemplate {
         return this.policyProvider.resolve(this.config, directory);
     }
 
-    /** 按 folder 和当前时间生成授权目录，格式为 folder/yM/d/H。 */
-    static String buildDirectory(final StsConfig config) {
-        return StsTemplate.buildDirectory(config, LocalDateTime.now(ZoneId.systemDefault()));
+    /** 调用方 folder 优先；为空时使用配置 folder，两者都追加时间后缀。 */
+    static String resolveDirectory(final StsConfig config, final String folder) {
+        return StsTemplate.resolveDirectory(config, folder, LocalDateTime.now(ZoneId.systemDefault()));
     }
 
+    static String resolveDirectory(final StsConfig config, final String folder, final LocalDateTime now) {
+        return StsTemplate.buildDirectory(StringUtils.defaultIfBlank(folder, config.getFolder()), now);
+    }
+
+    /** 按 folder 和当前时间生成授权目录，格式为 folder/yM/d/H。 */
     static String buildDirectory(final StsConfig config, final LocalDateTime now) {
-        final String folder =
-                config.getFolder().startsWith("/") ? config.getFolder().substring(1) : config.getFolder();
-        return folder + "/" + now.format(DIRECTORY_FORMATTER);
+        return StsTemplate.buildDirectory(config.getFolder(), now);
+    }
+
+    static String buildDirectory(final String folder, final LocalDateTime now) {
+        final String normalized = StsTemplate.normalizePath(folder);
+        return normalized.isEmpty()
+                ? now.format(DIRECTORY_FORMATTER)
+                : normalized + "/" + now.format(DIRECTORY_FORMATTER);
+    }
+
+    /** 去掉目录首尾斜杠，保证拼接对象 key 时不会出现重复分隔符。 */
+    static String normalizePath(final String folder) {
+        return StringUtils.defaultString(folder).strip().replaceAll("^/+|/+$", "");
     }
 
     /** 按配置构造 AssumeRole 请求；策略为空时不发送 policy 字段。 */
