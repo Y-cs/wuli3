@@ -8,7 +8,7 @@
 
 ```kotlin
 dependencies {
-    implementation("com.kjs.wuli3:wuli3-pagination")
+    implementation("com.wulicode.wuli3:wuli3-pagination")
 }
 ```
 

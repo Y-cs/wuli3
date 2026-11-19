@@ -7,7 +7,7 @@
 导入 Wuli3 BOM 后添加依赖：
 
 ```kotlin
-implementation("com.kjs.wuli3:wuli3-http")
+implementation("com.wulicode.wuli3:wuli3-http")
 ```
 
 ```java
@@ -34,16 +34,16 @@ final Mono<String> result = client.get()
         .bodyToMono(String.class);
 ```
 
-模块公共类型来自 `com.kjs.wuli3.http.webclient`、`com.kjs.wuli3.http.webclient.callback` 和 `com.kjs.wuli3.http.logging`，其余类型来自 `org.springframework.http`、`org.springframework.web.reactive.function.client`、`java.time` 与 `reactor.core.publisher`。只使用绝对 URL 时可用 `WebClientConfig.defaults("partner")`，无需填写 baseUrl。
+模块公共类型来自 `com.wulicode.wuli3.http.webclient`、`com.wulicode.wuli3.http.webclient.callback` 和 `com.wulicode.wuli3.http.logging`，其余类型来自 `org.springframework.http`、`org.springframework.web.reactive.function.client`、`java.time` 与 `reactor.core.publisher`。只使用绝对 URL 时可用 `WebClientConfig.defaults("partner")`，无需填写 baseUrl。
 
 包职责：
 
 | 包 | 职责 |
 | --- | --- |
-| `com.kjs.wuli3.http.webclient` | 客户端工厂、配置、初始化与请求上下文；交换实现仅包内可见 |
-| `com.kjs.wuli3.http.webclient.callback` | 请求转换、响应转换和错误观察的函数式回调接口 |
-| `com.kjs.wuli3.http.logging` | 日志选项与接收器扩展契约 |
-| `com.kjs.wuli3.http.internal.logging` | 有界正文采集、脱敏及接收器故障隔离；供模块内部使用 |
+| `com.wulicode.wuli3.http.webclient` | 客户端工厂、配置、初始化与请求上下文；交换实现仅包内可见 |
+| `com.wulicode.wuli3.http.webclient.callback` | 请求转换、响应转换和错误观察的函数式回调接口 |
+| `com.wulicode.wuli3.http.logging` | 日志选项与接收器扩展契约 |
+| `com.wulicode.wuli3.http.internal.logging` | 有界正文采集、脱敏及接收器故障隔离；供模块内部使用 |
 
 客户端构建完成后可并发复用。模块不会内部调用 `block()` 或 `subscribe()`；何时订阅、如何组合与取消由调用方决定。
 
@@ -57,7 +57,7 @@ final Mono<String> result = client.get()
 | `onError` | `HttpErrorHandler` | 请求转换、交换、响应转换或正文传输失败 |
 | `onInitializationError` | `BiConsumer<InitializationContext, Throwable>` | 初始化或构建失败 |
 
-请求和响应处理器通过 `process(context, request/response)` 返回转换结果，错误处理器通过 `handle(context, error)` 观察错误。三个接口均为 `@FunctionalInterface`，支持 Lambda 和方法引用，位于 `com.kjs.wuli3.http.webclient.callback` 包中。
+请求和响应处理器通过 `process(context, request/response)` 返回转换结果，错误处理器通过 `handle(context, error)` 观察错误。三个接口均为 `@FunctionalInterface`，支持 Lambda 和方法引用，位于 `com.wulicode.wuli3.http.webclient.callback` 包中。
 
 同类回调可以注册多个，按注册顺序执行；回调实例可被并发请求复用，实现须保证线程安全。签名、验签、解密是这些函数的使用场景，不是内置处理器类型。异步转换应返回一个元素；同步抛错、返回 null、空 Mono、异步错误都会终止正常链路。
 

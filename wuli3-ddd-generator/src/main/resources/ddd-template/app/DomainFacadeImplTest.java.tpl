@@ -9,8 +9,8 @@ import {{basePackage}}.api.dto.{{domainPackage}}.{{domainType}}StatusDto;
 import {{basePackage}}.app.service.{{domainPackage}}.{{domainType}}Service;
 import {{basePackage}}.sharedkernel.EntityId;
 import {{basePackage}}.sharedkernel.Status;
-import com.kjs.wuli3.pagination.PageQuery;
-import com.kjs.wuli3.pagination.PageResult;
+import com.wulicode.wuli3.pagination.PageQuery;
+import com.wulicode.wuli3.pagination.PageResult;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 

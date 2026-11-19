@@ -4,11 +4,11 @@
 
 `wuli3-core` 是不依赖 Spring 的基础能力模块，面向业务工程、starter 和基础设施模块复用。当前能力包括：
 
-- 按职责拆分的错误码模型与错误策略：`com.kjs.wuli3.core.error.*`
-- 断言工具：`com.kjs.wuli3.core.assertion`
-- ID 生成抽象：`com.kjs.wuli3.core.id`
-- 时间工具与半开区间：`com.kjs.wuli3.core.time`
-- Stream 与 `BigDecimal` 聚合工具：`com.kjs.wuli3.core.stream`
+- 按职责拆分的错误码模型与错误策略：`com.wulicode.wuli3.core.error.*`
+- 断言工具：`com.wulicode.wuli3.core.assertion`
+- ID 生成抽象：`com.wulicode.wuli3.core.id`
+- 时间工具与半开区间：`com.wulicode.wuli3.core.time`
+- Stream 与 `BigDecimal` 聚合工具：`com.wulicode.wuli3.core.stream`
 
 使用原则：
 
@@ -37,9 +37,9 @@ Maven 依赖示例：
 
 ```xml
 <dependency>
-  <groupId>com.kjs.wuli3</groupId>
+  <groupId>com.wulicode.wuli3</groupId>
   <artifactId>wuli3-core</artifactId>
-  <version>1.0.1-SNAPSHOT</version>
+  <version>1.1.0-SNAPSHOT</version>
 </dependency>
 ```
 
@@ -74,12 +74,12 @@ Maven 依赖示例：
 业务错误码应定义为枚举，并实现 `ErrorCode`。错误码枚举必须标注 `@ErrorModule`，否则解析错误元数据时会抛出框架错误。
 
 ```java
-import com.kjs.wuli3.core.error.ErrorCode;
-import com.kjs.wuli3.core.error.ErrorModule;
-import com.kjs.wuli3.core.error.ErrorMetadata;
-import com.kjs.wuli3.core.error.ErrorOrigin;
-import com.kjs.wuli3.core.error.ErrorSeverity;
-import com.kjs.wuli3.core.error.ErrorVisibility;
+import com.wulicode.wuli3.core.error.ErrorCode;
+import com.wulicode.wuli3.core.error.ErrorModule;
+import com.wulicode.wuli3.core.error.ErrorMetadata;
+import com.wulicode.wuli3.core.error.ErrorOrigin;
+import com.wulicode.wuli3.core.error.ErrorSeverity;
+import com.wulicode.wuli3.core.error.ErrorVisibility;
 
 @Getter
 @RequiredArgsConstructor
@@ -108,7 +108,7 @@ public enum OrderErrors implements ErrorCode {
 使用 `ErrorCodeException` 携带错误码和消息。
 
 ```java
-import com.kjs.wuli3.core.error.ErrorCodeException;
+import com.wulicode.wuli3.core.error.ErrorCodeException;
 
 throw new ErrorCodeException(OrderErrors.ORDER_NOT_FOUND);
 ```
@@ -165,7 +165,7 @@ throw remoteException.withOrigin(ErrorOrigin.SERVER)
 `ErrorMetadataResolver` 会缓存错误模块和固有元数据：
 
 ```java
-import com.kjs.wuli3.core.error.resolver.ErrorMetadataResolver;
+import com.wulicode.wuli3.core.error.resolver.ErrorMetadataResolver;
 final ErrorOrigin origin = ErrorMetadataResolver.instance().getOrigin(OrderErrors.ORDER_STATUS_INVALID);
 final ErrorSeverity severity = ErrorMetadataResolver.instance().getSeverity(OrderErrors.ORDER_STATUS_INVALID);
 ```

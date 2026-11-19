@@ -9,12 +9,12 @@
 ```java
 package com.example.order.sharedkernel;
 
-import com.kjs.wuli3.core.error.model.ErrorCode;
-import com.kjs.wuli3.core.error.model.ErrorMetadata;
-import com.kjs.wuli3.core.error.model.ErrorModule;
-import com.kjs.wuli3.core.error.model.ErrorOrigin;
-import com.kjs.wuli3.core.error.model.ErrorSeverity;
-import com.kjs.wuli3.core.error.model.ErrorVisibility;
+import com.wulicode.wuli3.core.error.model.ErrorCode;
+import com.wulicode.wuli3.core.error.model.ErrorMetadata;
+import com.wulicode.wuli3.core.error.model.ErrorModule;
+import com.wulicode.wuli3.core.error.model.ErrorOrigin;
+import com.wulicode.wuli3.core.error.model.ErrorSeverity;
+import com.wulicode.wuli3.core.error.model.ErrorVisibility;
 
 /**
  * 表示订单用例的稳定失败语义。
@@ -56,7 +56,7 @@ public enum OrderErrors implements ErrorCode {
 
 ### 业务中怎么抛
 
-以下为应用/领域方法体片段，导入 `com.kjs.wuli3.core.assertion.Asserts`、`com.kjs.wuli3.core.error.ErrorCodeException` 以及上述 `OrderErrors`：
+以下为应用/领域方法体片段，导入 `com.wulicode.wuli3.core.assertion.Asserts`、`com.wulicode.wuli3.core.error.ErrorCodeException` 以及上述 `OrderErrors`：
 
 ```java
 Asserts.whenBlank(orderId).throwIllegalArgumentException("订单 ID 不能为空");
@@ -85,7 +85,7 @@ throw new ErrorCodeException(OrderErrors.NOT_FOUND);
 
 ```java
 import com.example.order.sharedkernel.OrderErrors;
-import com.kjs.wuli3.web.error.WebErrorStatusCustomizer;
+import com.wulicode.wuli3.web.error.WebErrorStatusCustomizer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.http.HttpStatus;
 
@@ -104,8 +104,8 @@ public WebErrorStatusCustomizer orderErrorStatusCustomizer() {
 
 ```java
 import com.example.order.sharedkernel.OrderErrors;
-import com.kjs.wuli3.core.error.ErrorCodeException;
-import com.kjs.wuli3.web.error.WebErrorMapper;
+import com.wulicode.wuli3.core.error.ErrorCodeException;
+import com.wulicode.wuli3.web.error.WebErrorMapper;
 import java.util.concurrent.TimeoutException;
 import org.springframework.context.annotation.Bean;
 
@@ -142,7 +142,7 @@ flowchart LR
 
 ```kotlin
 dependencies {
-    implementation("com.kjs.wuli3:wuli3-permission-spring-boot-starter")
+    implementation("com.wulicode.wuli3:wuli3-permission-spring-boot-starter")
 }
 ```
 
@@ -152,14 +152,14 @@ dependencies {
 
 ## 4. 声明资源和动作
 
-完整文件放在 `app/src/main/java/com/example/order/app/permission/OrderPermissions.java`，在 `app` 声明 `implementation("com.kjs.wuli3:wuli3-permission")`；`adapter` 沿用生成工程对 `app` 的依赖：
+完整文件放在 `app/src/main/java/com/example/order/app/permission/OrderPermissions.java`，在 `app` 声明 `implementation("com.wulicode.wuli3:wuli3-permission")`；`adapter` 沿用生成工程对 `app` 的依赖：
 
 ```java
 package com.example.order.app.permission;
 
-import com.kjs.wuli3.permission.annotation.PermissionResource;
-import com.kjs.wuli3.permission.model.ActionCode;
-import com.kjs.wuli3.permission.model.PermissionCode;
+import com.wulicode.wuli3.permission.annotation.PermissionResource;
+import com.wulicode.wuli3.permission.model.ActionCode;
+import com.wulicode.wuli3.permission.model.PermissionCode;
 
 /**
  * 定义订单入口使用的功能权限。
@@ -218,9 +218,9 @@ wuli3:
 ```java
 package com.example.order.bootstrap;
 
-import com.kjs.wuli3.permission.model.PermissionToken;
-import com.kjs.wuli3.permission.model.PrincipalPermissions;
-import com.kjs.wuli3.permission.spi.PrincipalPermissionLoader;
+import com.wulicode.wuli3.permission.model.PermissionToken;
+import com.wulicode.wuli3.permission.model.PrincipalPermissions;
+import com.wulicode.wuli3.permission.spi.PrincipalPermissionLoader;
 import java.util.Map;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -265,7 +265,7 @@ public class PermissionConfiguration {
 package com.example.order.adapter.api;
 
 import com.example.order.app.permission.OrderPermissions;
-import com.kjs.wuli3.permission.annotation.Permission;
+import com.wulicode.wuli3.permission.annotation.Permission;
 import java.util.Map;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -295,7 +295,7 @@ public class PermissionDemoApi {
 
 ### 程序式：处理动态组合和展示策略
 
-注入 `com.kjs.wuli3.permission.PermissionChecker` 后，下面可放入应用方法体；导入 `PermissionKey`、`ActionCode`、`java.util.List`：
+注入 `com.wulicode.wuli3.permission.PermissionChecker` 后，下面可放入应用方法体；导入 `PermissionKey`、`ActionCode`、`java.util.List`：
 
 ```java
 final PermissionKey read = new PermissionKey("demo-order:ORDER", ActionCode.READ);
@@ -317,8 +317,8 @@ final boolean showContact = this.permissionChecker.has(
 Checker 本身不缓存。希望本地缓存时，可以继承 `AbstractPrincipalPermissionCacheLoader`，实现：
 
 ```java
-import com.kjs.wuli3.permission.model.PermissionToken;
-import com.kjs.wuli3.permission.model.TtlPrincipalPermissions;
+import com.wulicode.wuli3.permission.model.PermissionToken;
+import com.wulicode.wuli3.permission.model.TtlPrincipalPermissions;
 import java.time.Duration;
 import java.util.Map;
 
@@ -349,15 +349,15 @@ protected TtlPrincipalPermissions loadPrincipalPermission(
 package com.example.order.bootstrap;
 
 import com.example.order.app.permission.OrderPermissions;
-import com.kjs.wuli3.permission.PermissionChecker;
-import com.kjs.wuli3.permission.model.ActionCode;
-import com.kjs.wuli3.permission.model.PermissionKey;
-import com.kjs.wuli3.permission.model.PrincipalPermissions;
-import com.kjs.wuli3.permission.store.LocalPermissionStore;
-import com.kjs.wuli3.propagation.ContextManager;
-import com.kjs.wuli3.propagation.internal.AuthContext;
-import com.kjs.wuli3.propagation.internal.PrincipalType;
-import com.kjs.wuli3.propagation.store.ThreadLocalContextBackend;
+import com.wulicode.wuli3.permission.PermissionChecker;
+import com.wulicode.wuli3.permission.model.ActionCode;
+import com.wulicode.wuli3.permission.model.PermissionKey;
+import com.wulicode.wuli3.permission.model.PrincipalPermissions;
+import com.wulicode.wuli3.permission.store.LocalPermissionStore;
+import com.wulicode.wuli3.propagation.ContextManager;
+import com.wulicode.wuli3.propagation.internal.AuthContext;
+import com.wulicode.wuli3.propagation.internal.PrincipalType;
+import com.wulicode.wuli3.propagation.store.ThreadLocalContextBackend;
 import java.util.List;
 import java.util.Map;
 

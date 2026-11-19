@@ -6,7 +6,7 @@
 
 ```kotlin
 dependencies {
-    implementation("com.kjs.wuli3:wuli3-rocketmq-spring-boot-starter")
+    implementation("com.wulicode.wuli3:wuli3-rocketmq-spring-boot-starter")
 }
 ```
 
@@ -25,9 +25,9 @@ rocketmq:
 
 ## 客户端与包边界
 
-- `com.kjs.wuli3.rocket.v4`：`RocketV4PublishOptions`、`RocketRemoteEventTransport`，自动配置位于 `v4.autoconfigure`。
-- `com.kjs.wuli3.rocket.v5`：`RocketV5PublishOptions`、`RocketV5RemoteEventTransport`，自动配置位于 `v5.autoconfigure`。
-- `com.kjs.wuli3.rocket.transaction`：`RocketLocalTransaction` 事务扩展点、`RocketTransactionEvent` 和按事件类型索引的注册表。
+- `com.wulicode.wuli3.rocket.v4`：`RocketV4PublishOptions`、`RocketRemoteEventTransport`，自动配置位于 `v4.autoconfigure`。
+- `com.wulicode.wuli3.rocket.v5`：`RocketV5PublishOptions`、`RocketV5RemoteEventTransport`，自动配置位于 `v5.autoconfigure`。
+- `com.wulicode.wuli3.rocket.transaction`：`RocketLocalTransaction` 事务扩展点、`RocketTransactionEvent` 和按事件类型索引的注册表。
 - `autoconfigure.RocketCommonAutoConfiguration` 与 `internal`：共享编码、线协议和上下文传播。
 
 两种 Transport 可同时注册，Publisher 按选项的具体类型路由。

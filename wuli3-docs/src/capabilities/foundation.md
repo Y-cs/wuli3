@@ -110,4 +110,4 @@ wuli3:
 ## 源码与详细指南
 
 - [core 错误与断言指南](https://github.com/weiran-tech/wuli3/blob/main/guide/wuli3-core.md)
-- [断言实现](https://github.com/weiran-tech/wuli3/blob/main/wuli3-core/src/main/java/com/kjs/wuli3/core/assertion/Asserts.java)
+- [断言实现](https://github.com/weiran-tech/wuli3/blob/main/wuli3-core/src/main/java/com/wulicode/wuli3/core/assertion/Asserts.java)

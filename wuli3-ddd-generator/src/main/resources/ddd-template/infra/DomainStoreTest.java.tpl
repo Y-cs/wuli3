@@ -7,10 +7,10 @@ import {{basePackage}}.api.dto.{{domainPackage}}.{{domainType}}StatusDto;
 import {{basePackage}}.app.service.{{domainPackage}}.{{domainType}}Service;
 import {{basePackage}}.sharedkernel.EntityId;
 import {{basePackage}}.sharedkernel.Status;
-import com.kjs.wuli3.core.error.ErrorCodeException;
-import com.kjs.wuli3.pagination.PageQuery;
-import com.kjs.wuli3.pagination.Sort;
-import com.kjs.wuli3.pagination.SortDirection;
+import com.wulicode.wuli3.core.error.ErrorCodeException;
+import com.wulicode.wuli3.pagination.PageQuery;
+import com.wulicode.wuli3.pagination.Sort;
+import com.wulicode.wuli3.pagination.SortDirection;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 

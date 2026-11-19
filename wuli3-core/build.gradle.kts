@@ -1,5 +1,5 @@
 plugins {
-    id("com.kjs.wuli3.kotlin-conventions")
+    id("com.wulicode.wuli3.kotlin-conventions")
 }
 
 

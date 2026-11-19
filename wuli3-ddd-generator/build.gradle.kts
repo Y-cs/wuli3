@@ -1,11 +1,11 @@
 plugins {
     application
     `java-gradle-plugin`
-    id("com.kjs.wuli3.java-conventions")
+    id("com.wulicode.wuli3.java-conventions")
 }
 
 application {
-    mainClass.set("com.kjs.wuli3.generator.DddGenerator")
+    mainClass.set("com.wulicode.wuli3.generator.DddGenerator")
 }
 
 // application 插件不会把入口写进 jar manifest，缺了 Main-Class 时 java -jar 和 JBang 都无法启动 CLI。
@@ -18,8 +18,8 @@ tasks.jar {
 gradlePlugin {
     plugins {
         register("dddGenerator") {
-            id = "com.kjs.wuli3.ddd-generator"
-            implementationClass = "com.kjs.wuli3.generator.DddGeneratorPlugin"
+            id = "com.wulicode.wuli3.ddd-generator"
+            implementationClass = "com.wulicode.wuli3.generator.DddGeneratorPlugin"
             displayName = "Wuli3 DDD Generator"
             description = "生成带架构门禁的单体多模块 DDD 业务服务。"
         }

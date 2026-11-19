@@ -85,4 +85,4 @@ java -javaagent:/opt/opentelemetry-javaagent.jar -jar orders.jar
 ## 源码与详细指南
 
 - [core Spring starter 指南](https://github.com/weiran-tech/wuli3/blob/main/guide/wuli3-core-spring-boot-starter.md)
-- [审计记录器实现](https://github.com/weiran-tech/wuli3/blob/main/wuli3-audit-log-spring-boot-starter/src/main/java/com/kjs/wuli3/audit/internal/DefaultAuditLogRecorder.java)
+- [审计记录器实现](https://github.com/weiran-tech/wuli3/blob/main/wuli3-audit-log-spring-boot-starter/src/main/java/com/wulicode/wuli3/audit/internal/DefaultAuditLogRecorder.java)

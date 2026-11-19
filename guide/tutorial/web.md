@@ -48,7 +48,7 @@ sequenceDiagram
 
 ```kotlin
 dependencies {
-    implementation("com.kjs.wuli3:wuli3-web-spring-boot-starter")
+    implementation("com.wulicode.wuli3:wuli3-web-spring-boot-starter")
 }
 ```
 
@@ -86,8 +86,8 @@ wuli3:
 ```java
 package com.example.order.adapter.api;
 
-import com.kjs.wuli3.core.assertion.Asserts;
-import com.kjs.wuli3.web.response.NativeResponse;
+import com.wulicode.wuli3.core.assertion.Asserts;
+import com.wulicode.wuli3.web.response.NativeResponse;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Positive;
@@ -161,9 +161,9 @@ curl -i http://localhost:8080/tutorial/boundary/ping
 ```java
 package com.example.order.bootstrap;
 
-import com.kjs.wuli3.core.assertion.Asserts;
-import com.kjs.wuli3.propagation.internal.AuthContext;
-import com.kjs.wuli3.web.auth.AuthContextResolver;
+import com.wulicode.wuli3.core.assertion.Asserts;
+import com.wulicode.wuli3.propagation.internal.AuthContext;
+import com.wulicode.wuli3.web.auth.AuthContextResolver;
 import java.util.Optional;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -201,7 +201,7 @@ public class HttpIdentityConfiguration {
 验证器需完成凭证真实性、有效期、吊销状态以及所选协议要求的校验，再返回例如
 `new AuthContext(PrincipalType.CUSTOMER, userId, permissionToken)`；没有权限主体码时使用
 `new AuthContext(PrincipalType.CUSTOMER, userId)`。认证上下文不含显示名称，需要在页面展示时从用户服务读取。`PrincipalType` 的包为
-`com.kjs.wuli3.propagation.internal`；当前提供 `CUSTOMER`、`ADMIN`、`SYSTEM`。
+`com.wulicode.wuli3.propagation.internal`；当前提供 `CUSTOMER`、`ADMIN`、`SYSTEM`。
 
 无凭证返回空身份不等于禁止请求：公开接口仍可执行，受保护用例通过[权限机制](errors-permissions.md)拒绝缺少权限 Token 的请求。两参数的 `AuthContext` 可以表示已认证用户，但不提供权限鉴权凭据。
 

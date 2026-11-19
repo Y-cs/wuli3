@@ -1,7 +1,7 @@
 package {{basePackage}}.sharedkernel;
 
-import com.kjs.wuli3.core.error.model.ErrorCode;
-import com.kjs.wuli3.core.error.model.ErrorModule;
+import com.wulicode.wuli3.core.error.model.ErrorCode;
+import com.wulicode.wuli3.core.error.model.ErrorModule;
 
 /**
  * 示例用例的记录查询错误。

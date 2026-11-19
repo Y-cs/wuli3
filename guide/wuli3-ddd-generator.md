@@ -18,7 +18,7 @@ OMX 配置。
 外部项目无需检出本仓库，直接用 [JBang](https://www.jbang.dev/) 从 Maven 仓库拉取生成器执行：
 
 ```bash
-jbang com.kjs.wuli3:wuli3-ddd-generator:1.0.1-SNAPSHOT generate \
+jbang com.wulicode.wuli3:wuli3-ddd-generator:1.1.0-SNAPSHOT generate \
   --service demo-web --package com.demo.web --domain order \
   --persistence none --messaging none --output .
 ```
@@ -27,7 +27,7 @@ JBang 默认从 Maven Central 解析。构件发布在内部仓库时，用 `--r
 
 ```bash
 jbang --repos <内部仓库URL>,mavenlocal \
-  com.kjs.wuli3:wuli3-ddd-generator:1.0.1-SNAPSHOT generate \
+  com.wulicode.wuli3:wuli3-ddd-generator:1.1.0-SNAPSHOT generate \
   --service demo-web --package com.demo.web --domain order \
   --persistence none --messaging none --output .
 ```
@@ -45,8 +45,8 @@ jbang --repos <内部仓库URL>,mavenlocal \
 | `--rpc`                 | 否   | `none`、`dubbo`                    | `none`           | `dubbo` 在 app.facade 生成 `@DubboService` 发布能力并引入 Dubbo starter |
 | `--registry`            | 否   | `none`、`nacos`                    | `none`           | `nacos` 作为 Dubbo 注册中心；必须同时设置 `--rpc dubbo`     |
 | `--sort-fields`         | 否   | 逗号分隔的数据库字段名            | `id,status`      | 查询分页允许排序的字段白名单，生成到 infra 查询实现             |
-| `--wuli3-version`       | 否   | 已发布的 Wuli3 版本                | `1.0.1-SNAPSHOT` | Wuli3 BOM 与 starter 版本                                    |
-| `--build-logic-version` | 否   | 已发布的约定插件版本               | `1.0.1-SNAPSHOT` | Gradle 约定插件版本                                          |
+| `--wuli3-version`       | 否   | 已发布的 Wuli3 版本                | `1.1.0-SNAPSHOT` | Wuli3 BOM 与 starter 版本                                    |
+| `--build-logic-version` | 否   | 已发布的约定插件版本               | `1.1.0-SNAPSHOT` | Gradle 约定插件版本                                          |
 | `--output`              | 否   | 目录路径                           | `.`              | 服务的父目录                                                 |
 
 `--output` 是父目录不是工程目录：上例 `--output .` 生成的是 `./demo-web/`。目标目录必须不存在或为空，生成器不会覆盖已有业务文件。
@@ -59,7 +59,7 @@ jbang --repos <内部仓库URL>,mavenlocal \
 无外部基础设施的最小工程：
 
 ```bash
-jbang com.kjs.wuli3:wuli3-ddd-generator:1.0.1-SNAPSHOT generate \
+jbang com.wulicode.wuli3:wuli3-ddd-generator:1.1.0-SNAPSHOT generate \
   --service demo-web --package com.demo.web --domain order \
   --persistence none --messaging none --output .
 ```
@@ -67,7 +67,7 @@ jbang com.kjs.wuli3:wuli3-ddd-generator:1.0.1-SNAPSHOT generate \
 MySQL 持久化 + RocketMQ，生成到指定父目录：
 
 ```bash
-jbang com.kjs.wuli3:wuli3-ddd-generator:1.0.1-SNAPSHOT generate \
+jbang com.wulicode.wuli3:wuli3-ddd-generator:1.1.0-SNAPSHOT generate \
   --service order-service --package com.example.order --domain order \
   --persistence mysql --messaging rocketmq --output ~/projects/order
 ```
@@ -75,10 +75,10 @@ jbang com.kjs.wuli3:wuli3-ddd-generator:1.0.1-SNAPSHOT generate \
 RabbitMQ、固定 Wuli3 版本：
 
 ```bash
-jbang com.kjs.wuli3:wuli3-ddd-generator:1.0.1-SNAPSHOT generate \
+jbang com.wulicode.wuli3:wuli3-ddd-generator:1.1.0-SNAPSHOT generate \
   --service pay-service --package com.example.pay --domain payment \
   --persistence mysql --messaging rabbitmq \
-  --wuli3-version 1.0.1-SNAPSHOT --output .
+  --wuli3-version 1.1.0-SNAPSHOT --output .
 ```
 
 生成完成后进入工程目录验证：
@@ -150,8 +150,8 @@ HTTP Api 和 FacadeImpl 复用 Service 中的完整业务用例及事务边界�
 [RocketMQ 指南](wuli3-rocketmq-spring-boot-starter.md)或 [RabbitMQ 指南](wuli3-rabbitmq-spring-boot-starter.md)。
 生成项目选择 `messaging=none` 时仍保留空的 `adapter.mq` 约定包，但不会引入消息依赖。
 
-根工程统一应用 Java 约定插件：`domain`、`api` 使用 `com.kjs.wuli3.java-conventions`，
-Spring 模块使用 `com.kjs.wuli3.java-spring-conventions`，各模块先应用 `com.kjs.wuli3.ddd-conventions`。
+根工程统一应用 Java 约定插件：`domain`、`api` 使用 `com.wulicode.wuli3.java-conventions`，
+Spring 模块使用 `com.wulicode.wuli3.java-spring-conventions`，各模块先应用 `com.wulicode.wuli3.ddd-conventions`。
 各模块共享 Java 21、BOM、测试和质量门禁；`bootstrap` 额外应用 Spring Boot 插件。
 构建脚本继续使用 Gradle DSL 的 `.gradle.kts`，不向业务模块应用 Kotlin 编译插件。
 

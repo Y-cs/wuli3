@@ -2,7 +2,7 @@ plugins {
     base
 }
 
-group = "com.kjs.wuli3"
+group = "com.wulicode.wuli3"
 version = providers.gradleProperty("wuli3.version").get()
 
 subprojects {

@@ -3,9 +3,11 @@ build/
 **/build/
 **/target/
 out/
-!integration-tests/order-service/order-it-app/src/main/java/com/kjs/wuli3/it/order/app/port/out/
+**/bin/
+!integration-tests/order-service/order-it-app/src/main/java/com/wulicode/wuli3/it/order/app/port/out/
 
 *.iml
+.openidea/
 .idea/
 .idea/modules/
 .kotlin

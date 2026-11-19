@@ -6,7 +6,7 @@
 
 ```kotlin
 dependencies {
-    implementation("com.kjs.wuli3:wuli3-mysql-spring-boot-starter")
+    implementation("com.wulicode.wuli3:wuli3-mysql-spring-boot-starter")
     runtimeOnly("com.mysql:mysql-connector-j")
 }
 ```

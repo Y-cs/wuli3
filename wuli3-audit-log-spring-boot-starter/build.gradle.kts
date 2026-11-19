@@ -1,5 +1,5 @@
 plugins {
-    id("com.kjs.wuli3.java-spring-conventions")
+    id("com.wulicode.wuli3.java-spring-conventions")
 }
 
 description = "Spring Boot audit log protocol, context enrichment, and event-based transport."

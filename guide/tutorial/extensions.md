@@ -42,10 +42,10 @@
 ```java
 package com.example.order;
 
-import com.kjs.wuli3.spring.shutdown.RegisterShutdownHook;
-import com.kjs.wuli3.spring.shutdown.ShutdownContext;
-import com.kjs.wuli3.spring.shutdown.ShutdownHook;
-import com.kjs.wuli3.spring.shutdown.ShutdownPhase;
+import com.wulicode.wuli3.spring.shutdown.RegisterShutdownHook;
+import com.wulicode.wuli3.spring.shutdown.ShutdownContext;
+import com.wulicode.wuli3.spring.shutdown.ShutdownHook;
+import com.wulicode.wuli3.spring.shutdown.ShutdownPhase;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import org.springframework.beans.factory.annotation.Qualifier;

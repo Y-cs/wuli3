@@ -28,12 +28,12 @@ flowchart LR
 
 ## 2. 普通 JSON 与泛型
 
-依赖 `com.kjs.wuli3:wuli3-json`。以下导入加方法内片段展示基本调用：
+依赖 `com.wulicode.wuli3:wuli3-json`。以下导入加方法内片段展示基本调用：
 
 ```java
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.kjs.wuli3.core.assertion.Asserts;
-import com.kjs.wuli3.json.core.Jsons;
+import com.wulicode.wuli3.core.assertion.Asserts;
+import com.wulicode.wuli3.json.core.Jsons;
 import java.util.List;
 
 final String json = Jsons.toJson(List.of("order-1", "order-2"));
@@ -53,7 +53,7 @@ Asserts.whenNull(ids).throwIllegalArgumentException("订单列表不能是 JSON 
 ```java
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.kjs.wuli3.json.core.JsonTrees;
+import com.wulicode.wuli3.json.core.JsonTrees;
 
 final ObjectNode payload = JsonTrees.createObjectNode();
 payload.put("orderId", "order-1");
@@ -72,7 +72,7 @@ final String orderId = parsed.path("orderId").asText();
 
 ```kotlin
 dependencies {
-    implementation("com.kjs.wuli3:wuli3-web-spring-boot-starter")
+    implementation("com.wulicode.wuli3:wuli3-web-spring-boot-starter")
 }
 ```
 
@@ -97,9 +97,9 @@ wuli3:
 ```java
 package com.example.order.adapter.api.order;
 
-import com.kjs.wuli3.json.datatype.desensitization.DesensitizationTypes;
-import com.kjs.wuli3.json.datatype.desensitization.Desensitized;
-import com.kjs.wuli3.json.datatype.resource.ResourcePath;
+import com.wulicode.wuli3.json.datatype.desensitization.DesensitizationTypes;
+import com.wulicode.wuli3.json.datatype.desensitization.Desensitized;
+import com.wulicode.wuli3.json.datatype.resource.ResourcePath;
 
 /**
  * 声明订单联系人与附件的 HTTP 展示规则。
@@ -149,8 +149,8 @@ Controller 方法中返回 `new OrderContactView("order-1", "13812345678", "2026
 ```java
 package com.example.order.infra.config;
 
-import com.kjs.wuli3.core.assertion.Asserts;
-import com.kjs.wuli3.json.datatype.resource.ResourcePathResolver;
+import com.wulicode.wuli3.core.assertion.Asserts;
+import com.wulicode.wuli3.json.datatype.resource.ResourcePathResolver;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -261,12 +261,12 @@ DesensitizationVisibilityPolicy contactVisibilityPolicy(final PermissionChecker 
 
 ```java
 import com.fasterxml.jackson.databind.json.JsonMapper;
-import com.kjs.wuli3.json.datatype.desensitization.DesensitizationStrategyRegistry;
-import com.kjs.wuli3.json.datatype.desensitization.DesensitizationVisibilityPolicy;
-import com.kjs.wuli3.json.datatype.resource.ResourcePathResolver;
-import com.kjs.wuli3.json.provider.JsonMapperDesensitizationAssembly;
-import com.kjs.wuli3.json.provider.JsonMapperFactory;
-import com.kjs.wuli3.json.provider.JsonMapperResourcePathAssembly;
+import com.wulicode.wuli3.json.datatype.desensitization.DesensitizationStrategyRegistry;
+import com.wulicode.wuli3.json.datatype.desensitization.DesensitizationVisibilityPolicy;
+import com.wulicode.wuli3.json.datatype.resource.ResourcePathResolver;
+import com.wulicode.wuli3.json.provider.JsonMapperDesensitizationAssembly;
+import com.wulicode.wuli3.json.provider.JsonMapperFactory;
+import com.wulicode.wuli3.json.provider.JsonMapperResourcePathAssembly;
 
 final JsonMapper mapper = JsonMapperFactory.standardJsonMapperFactory()
         .addAssemblyChain(new JsonMapperResourcePathAssembly(resolver))
@@ -292,7 +292,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.example.order.adapter.api.order.OrderContactView;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.kjs.wuli3.json.datatype.resource.ResourcePath;
+import com.wulicode.wuli3.json.datatype.resource.ResourcePath;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -333,4 +333,4 @@ class JsonContractTest {
 
 执行 `./gradlew :bootstrap:test --tests '*JsonContractTest'`。引入原值权限 Policy 后，还应分别建立有权限和无权限的上下文测试；引入自定义 resolver 后，按它的存储键和拒绝规则修改断言。反序列化不会把已被掩码替换的手机号恢复成原手机号，编辑接口应避免把展示用掩码重新保存为真实业务值。
 
-详细契约见 [JSON 模块](../wuli3-json.md)，实现入口见 [WebJsonAutoConfiguration](../../wuli3-web-spring-boot-starter/src/main/java/com/kjs/wuli3/web/autoconfigure/WebJsonAutoConfiguration.java)。
+详细契约见 [JSON 模块](../wuli3-json.md)，实现入口见 [WebJsonAutoConfiguration](../../wuli3-web-spring-boot-starter/src/main/java/com/wulicode/wuli3/web/autoconfigure/WebJsonAutoConfiguration.java)。

@@ -1,0 +1,159 @@
+package com.wulicode.wuli3.generator;
+
+import java.nio.file.Path;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import javax.lang.model.SourceVersion;
+
+/**
+ * DDD 服务生成参数及其合法性约束。
+ *
+ * @author GuoYang create on 2026/9/7 15:30
+ */
+record GeneratorOptions(
+        String service,
+        String modulePrefix,
+        String basePackage,
+        String domain,
+        String persistence,
+        String messaging,
+        String rpc,
+        String registry,
+        List<String> sortFields,
+        String wuli3Version,
+        String buildLogicVersion,
+        Path output,
+        String domainType) {
+    static final String DEFAULT_PERSISTENCE = "none";
+    static final String DEFAULT_MESSAGING = "none";
+    static final String DEFAULT_SORT_FIELDS = "id,status";
+    static final String DEFAULT_WULI3_VERSION = "1.1.0-SNAPSHOT";
+    static final String DEFAULT_BUILD_LOGIC_VERSION = "1.1.0-SNAPSHOT";
+    private static final List<String> KEYS = List.of(
+            "service",
+            "module-prefix",
+            "package",
+            "domain",
+            "persistence",
+            "messaging",
+            "rpc",
+            "registry",
+            "sort-fields",
+            "wuli3-version",
+            "build-logic-version",
+            "output");
+
+    /** 解析严格的 {@code --name value} 参数。 */
+    static GeneratorOptions parse(final String[] args) {
+        final Map<String, String> values = new LinkedHashMap<>();
+        for (int index = 0; index < args.length; index++) {
+            final String argument = args[index];
+            if (!argument.startsWith("--") || index + 1 >= args.length || args[index + 1].startsWith("--")) {
+                throw new IllegalArgumentException("参数必须以 --name value 形式提供: " + argument);
+            }
+            final String key = argument.substring(2);
+            if (!GeneratorOptions.KEYS.contains(key)) {
+                throw new IllegalArgumentException("不支持的参数: --" + key);
+            }
+            if (values.put(key, args[++index]) != null) {
+                throw new IllegalArgumentException("参数重复: --" + key);
+            }
+        }
+
+        final String service = GeneratorOptions.required(values, "service");
+        final String basePackage = GeneratorOptions.required(values, "package");
+        final String domain = GeneratorOptions.required(values, "domain");
+        if (!service.matches("[a-z][a-z0-9]*(?:-[a-z0-9]+)*")) {
+            throw new IllegalArgumentException("service 必须是小写字母、数字和单个连字符组成的名称");
+        }
+        final String modulePrefix = values.getOrDefault("module-prefix", GeneratorOptions.defaultModulePrefix(service));
+        if (!modulePrefix.matches("[a-z][a-z0-9]*(?:-[a-z0-9]+)*")) {
+            throw new IllegalArgumentException("module-prefix 必须是小写字母、数字和单个连字符组成的名称");
+        }
+        if (!domain.matches("[a-z][a-z0-9]*(?:-[a-z0-9]+)*")
+                || !SourceVersion.isName(GeneratorOptions.toDomainPackage(domain), SourceVersion.RELEASE_21)) {
+            throw new IllegalArgumentException("domain 必须是小写字母、数字和单个连字符组成的名称，且转换后必须是合法 Java 包名");
+        }
+        if (!basePackage.matches("[a-z]+(\\.[a-z][a-z0-9]*)*")
+                || !SourceVersion.isName(basePackage, SourceVersion.RELEASE_21)) {
+            throw new IllegalArgumentException("package 必须符合 Checkstyle 包名规则，首段仅含小写字母，后续各段以小写字母开头且仅含小写字母和数字");
+        }
+
+        final String persistence = values.getOrDefault("persistence", GeneratorOptions.DEFAULT_PERSISTENCE);
+        final String messaging = values.getOrDefault("messaging", GeneratorOptions.DEFAULT_MESSAGING);
+        final String rpc = values.getOrDefault("rpc", "none");
+        final String registry = values.getOrDefault("registry", "none");
+        final List<String> sortFields = GeneratorOptions.parseSortFields(
+                values.getOrDefault("sort-fields", GeneratorOptions.DEFAULT_SORT_FIELDS));
+        if (!List.of("none", "mysql").contains(persistence)) {
+            throw new IllegalArgumentException("不支持的 persistence: " + persistence);
+        }
+        if (!List.of("none", "rocketmq", "rabbitmq").contains(messaging)) {
+            throw new IllegalArgumentException("不支持的 messaging: " + messaging);
+        }
+        if (!List.of("none", "dubbo").contains(rpc)) {
+            throw new IllegalArgumentException("不支持的 rpc: " + rpc);
+        }
+        if (!List.of("none", "nacos").contains(registry)) {
+            throw new IllegalArgumentException("不支持的 registry: " + registry);
+        }
+        if ("nacos".equals(registry) && !"dubbo".equals(rpc)) {
+            throw new IllegalArgumentException("registry=nacos 必须同时启用 rpc=dubbo");
+        }
+        final Path output =
+                Path.of(values.getOrDefault("output", ".")).toAbsolutePath().normalize();
+        return new GeneratorOptions(
+                service,
+                modulePrefix,
+                basePackage,
+                domain,
+                persistence,
+                messaging,
+                rpc,
+                registry,
+                sortFields,
+                values.getOrDefault("wuli3-version", GeneratorOptions.DEFAULT_WULI3_VERSION),
+                values.getOrDefault("build-logic-version", GeneratorOptions.DEFAULT_BUILD_LOGIC_VERSION),
+                output,
+                GeneratorOptions.toTypeName(domain));
+    }
+
+    private static String required(final Map<String, String> values, final String key) {
+        final String value = values.get(key);
+        if (value == null || value.isBlank()) {
+            throw new IllegalArgumentException("缺少 --" + key);
+        }
+        return value;
+    }
+
+    private static List<String> parseSortFields(final String value) {
+        final List<String> fields = List.of(value.split(","));
+        if (fields.stream().anyMatch(field -> !field.matches("[a-z][a-zA-Z0-9_]*"))) {
+            throw new IllegalArgumentException("sort-fields 必须是逗号分隔的数据库字段名");
+        }
+        return fields;
+    }
+
+    /** 领域包名沿用 Checkstyle 规则，移除服务命名中的连字符。 */
+    String domainPackage() {
+        return GeneratorOptions.toDomainPackage(this.domain);
+    }
+
+    private static String toDomainPackage(final String domain) {
+        return domain.replace("-", "");
+    }
+
+    static String toTypeName(final String value) {
+        final StringBuilder result = new StringBuilder();
+        for (final String part : value.split("-", -1)) {
+            result.append(Character.toUpperCase(part.charAt(0))).append(part.substring(1));
+        }
+        return result.toString();
+    }
+
+    /** 为模块目录生成简洁前缀；服务身份仍保留完整服务名。 */
+    static String defaultModulePrefix(final String service) {
+        return service.endsWith("-service") ? service.substring(0, service.length() - "-service".length()) : service;
+    }
+}

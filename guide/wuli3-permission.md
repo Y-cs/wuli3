@@ -98,7 +98,7 @@ PrincipalPermissionLoader principalPermissionLoader(final UserPermissionClient c
 }
 ```
 
-默认 Spring 目录使用 `application.service.service-code` 作为服务标识，未配置或为空白时回退到 `spring.application.name`；两者均为空时启动失败。该标识由 `wuli3-core-spring-boot-starter` 的 `com.kjs.wuli3.spring.autoconfigure.ApplicationServiceProperties` 统一绑定，也供 Web 错误码及 Redis 前缀使用。
+默认 Spring 目录使用 `application.service.service-code` 作为服务标识，未配置或为空白时回退到 `spring.application.name`；两者均为空时启动失败。该标识由 `wuli3-core-spring-boot-starter` 的 `com.wulicode.wuli3.spring.autoconfigure.ApplicationServiceProperties` 统一绑定，也供 Web 错误码及 Redis 前缀使用。
 
 例如服务标识为 `order-service` 时，`resources()`、`requirement()` 和最终 `PermissionKey.resourceCode()` 都使用 `order-service:ORDER`。`@PermissionResource("ORDER")`、`@Permission("ORDER:APPROVE")` 和枚举调用仍使用本地声明，不手动拼服务码。用户服务返回的授权 Map 必须使用相同的完整资源码；`ORDER` 或其他服务的同名资源不会匹配。直接构造 `PermissionKey` 时须提供完整资源码，推荐用 `PermissionResolver.resolve(store, enumConstant)` 从目录取得。
 

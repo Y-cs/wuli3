@@ -7,7 +7,7 @@ starter 只使用 OpenTelemetry API 读取当前 Trace，并提供业务手工�
 
 ```kotlin
 dependencies {
-    implementation("com.kjs.wuli3:wuli3-opentelemetry-spring-boot-starter")
+    implementation("com.wulicode.wuli3:wuli3-opentelemetry-spring-boot-starter")
 }
 ```
 
@@ -26,7 +26,7 @@ java -javaagent:/opt/opentelemetry-javaagent.jar -jar orders.jar
 注入 `MetricRecorder` 后可以记录 Counter、Histogram 和同步 Gauge：
 
 ```java
-import com.kjs.wuli3.opentelemetry.metrics.MetricRecorder;
+import com.wulicode.wuli3.opentelemetry.metrics.MetricRecorder;
 import io.opentelemetry.api.common.Attributes;
 
 final Attributes attributes = Attributes.builder()

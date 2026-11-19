@@ -4,8 +4,8 @@
 
 开发者与 AI/Agent 的构建、编码、测试、提交、Git 和注释规范见根目录 [AGENTS.md](AGENTS.md)。
 
-根工程统一应用 Java 约定插件：普通模块使用 `com.kjs.wuli3.java-conventions`，Spring 模块使用
-`com.kjs.wuli3.java-spring-conventions`，各模块先应用 `com.kjs.wuli3.ddd-conventions`。
+根工程统一应用 Java 约定插件：普通模块使用 `com.wulicode.wuli3.java-conventions`，Spring 模块使用
+`com.wulicode.wuli3.java-spring-conventions`，各模块先应用 `com.wulicode.wuli3.ddd-conventions`。
 `bootstrap` 额外应用 Spring Boot 插件。Java 源码放在 `src/main/java`，测试放在 `src/test/java`。
 
 ## 模块边界

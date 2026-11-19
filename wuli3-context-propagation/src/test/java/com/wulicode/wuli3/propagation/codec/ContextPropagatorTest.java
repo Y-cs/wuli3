@@ -1,0 +1,136 @@
+package com.wulicode.wuli3.propagation.codec;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+import com.wulicode.wuli3.core.error.ErrorCodeException;
+import com.wulicode.wuli3.propagation.context.ContextKey;
+import com.wulicode.wuli3.propagation.context.ContextSnapshot;
+import com.wulicode.wuli3.propagation.internal.AuthContext;
+import com.wulicode.wuli3.propagation.internal.InvocationContext;
+import com.wulicode.wuli3.propagation.internal.PrincipalType;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import org.junit.jupiter.api.Test;
+
+class ContextPropagatorTest {
+
+    @Test
+    void standardEncoderWritesInvocationAndAuthenticationContexts() {
+        final ContextPropagator encoder = new ContextPropagator(ContextPropagator.standardContextEncoder());
+        final ContextSnapshot snapshot = ContextSnapshot.of(
+                new InvocationContext("10.0.0.8", "request-42"), new AuthContext(PrincipalType.CUSTOMER, "7"));
+        final Map<String, String> fields = new LinkedHashMap<>();
+
+        encoder.inject(snapshot, fields::put);
+
+        assertThat(fields)
+                .containsExactlyInAnyOrderEntriesOf(Map.of(
+                        InvocationContext.REQUEST_ID, "request-42",
+                        InvocationContext.ORIGIN_IP, "10.0.0.8",
+                        AuthContext.PRINCIPAL_TYPE, "CUSTOMER",
+                        AuthContext.PRINCIPAL_ID, "7"));
+        assertThat(encoder.reservedFieldNames())
+                .containsExactlyInAnyOrder(
+                        InvocationContext.REQUEST_ID,
+                        InvocationContext.ORIGIN_IP,
+                        AuthContext.PRINCIPAL_TYPE,
+                        AuthContext.PRINCIPAL_ID,
+                        AuthContext.PRINCIPAL_PERMISSION_TOKEN);
+    }
+
+    @Test
+    @SuppressWarnings("NullAway")
+    void standardEncoderRoundTripsInvocationAndAuthenticationContexts() {
+        final ContextPropagator encoder = new ContextPropagator(ContextPropagator.standardContextEncoder());
+        final ContextSnapshot source = ContextSnapshot.of(
+                new InvocationContext("10.0.0.8", "request-42"), new AuthContext(PrincipalType.CUSTOMER, "7"));
+        final Map<String, String> fields = new LinkedHashMap<>();
+
+        encoder.inject(source, fields::put);
+        final ContextSnapshot decoded = encoder.extract(fields::get);
+
+        assertThat(decoded.get(ContextKey.of(InvocationContext.class)))
+                .contains(new InvocationContext("10.0.0.8", "request-42"));
+        assertThat(decoded.get(ContextKey.of(AuthContext.class)))
+                .contains(new AuthContext(PrincipalType.CUSTOMER, "7"));
+    }
+
+    @Test
+    @SuppressWarnings("NullAway")
+    void decoderRejectsUnknownPrincipalType() {
+        final ContextPropagator encoder = new ContextPropagator(ContextPropagator.standardContextEncoder());
+        final Map<String, String> fields = Map.of(
+                InvocationContext.REQUEST_ID, "request-42",
+                AuthContext.PRINCIPAL_TYPE, "UNKNOWN",
+                AuthContext.PRINCIPAL_ID, "7");
+
+        assertThatThrownBy(() -> encoder.extract(fields::get)).isInstanceOf(ErrorCodeException.class);
+    }
+
+    @Test
+    void customEncoderWritesConfiguredFieldsButReservesAllStandardFields() {
+        final ContextPropagator encoder = new ContextPropagator(List.of(new InvocationContext.Codec()));
+        final ContextSnapshot source = ContextSnapshot.of(
+                new InvocationContext("10.0.0.8", "request-42"), new AuthContext(PrincipalType.CUSTOMER, "7"));
+        final Map<String, String> fields = new LinkedHashMap<>();
+
+        encoder.inject(source, fields::put);
+
+        assertThat(fields)
+                .containsExactlyInAnyOrderEntriesOf(Map.of(
+                        InvocationContext.REQUEST_ID, "request-42",
+                        InvocationContext.ORIGIN_IP, "10.0.0.8"));
+        assertThat(encoder.reservedFieldNames())
+                .containsExactlyInAnyOrder(
+                        InvocationContext.REQUEST_ID,
+                        InvocationContext.ORIGIN_IP,
+                        AuthContext.PRINCIPAL_TYPE,
+                        AuthContext.PRINCIPAL_ID,
+                        AuthContext.PRINCIPAL_PERMISSION_TOKEN);
+    }
+
+    @Test
+    @SuppressWarnings("NullAway")
+    void roundTripsRotatedPermissionCode() {
+        final ContextPropagator propagator = new ContextPropagator(ContextPropagator.standardContextEncoder());
+        final Map<String, String> fields = new LinkedHashMap<>();
+        for (final String code : List.of("version-1", "version-2")) {
+            final AuthContext auth = new AuthContext(PrincipalType.CUSTOMER, "7", code);
+            propagator.inject(ContextSnapshot.of(auth), fields::put);
+            assertThat(fields).containsEntry("X-Wuli3-Principal-Permission-Token", code);
+            assertThat(propagator.extract(fields::get).get(ContextKey.of(AuthContext.class)))
+                    .contains(auth);
+        }
+    }
+
+    @Test
+    @SuppressWarnings("NullAway")
+    void ignoresLegacyHeadersAndRejectsBlankPermissionCode() {
+        final ContextPropagator propagator = new ContextPropagator(ContextPropagator.standardContextEncoder());
+        final Map<String, String> legacy = Map.of(
+                "X-Principal-Type", "CUSTOMER",
+                "X-Principal-Id", "7",
+                "X-Request-Id", "request-42",
+                "X-Origin-Ip", "10.0.0.8");
+        final ContextSnapshot decoded = propagator.extract(legacy::get);
+        assertThat(decoded.get(ContextKey.of(AuthContext.class))).isEmpty();
+        assertThat(decoded.get(ContextKey.of(InvocationContext.class))).isEmpty();
+        final Map<String, String> current = Map.of(
+                AuthContext.PRINCIPAL_TYPE, "CUSTOMER",
+                AuthContext.PRINCIPAL_ID, "7",
+                AuthContext.PRINCIPAL_PERMISSION_TOKEN, " ");
+        assertThatThrownBy(() -> propagator.extract(current::get)).isInstanceOf(ErrorCodeException.class);
+    }
+
+    @Test
+    void reservesTrustedPrefixEvenWithoutEnabledCodecs() {
+        final ContextPropagator propagator = new ContextPropagator(List.of());
+        assertThat(propagator.isReservedFieldName("x-wULi3-future-field")).isTrue();
+        assertThat(propagator.isReservedFieldName("X-Wuli3-Principal-Permission-Token"))
+                .isTrue();
+        assertThat(propagator.isReservedFieldName("X-Business-Field")).isFalse();
+        assertThat(propagator.reservedFieldNames()).hasSize(5);
+    }
+}

@@ -2,8 +2,8 @@ package {{basePackage}}.api.facade;
 
 import {{basePackage}}.api.dto.{{domainPackage}}.{{domainType}}StatusDto;
 import {{basePackage}}.sharedkernel.EntityId;
-import com.kjs.wuli3.pagination.PageQuery;
-import com.kjs.wuli3.pagination.PageResult;
+import com.wulicode.wuli3.pagination.PageQuery;
+import com.wulicode.wuli3.pagination.PageResult;
 
 /**
  * {{domainType}} 业务能力的内部 RPC 契约。

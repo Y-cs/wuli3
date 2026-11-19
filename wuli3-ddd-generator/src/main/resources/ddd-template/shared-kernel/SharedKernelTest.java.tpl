@@ -17,7 +17,7 @@ final class SharedKernelTest {
         assertThat(new EntityId("sample-1").value()).isEqualTo("sample-1");
 
         assertThatThrownBy(() -> new EntityId(" "))
-                .isInstanceOf(com.kjs.wuli3.core.error.ErrorCodeException.class)
+                .isInstanceOf(com.wulicode.wuli3.core.error.ErrorCodeException.class)
                 .hasMessage("标识不能为空");
     }
 }

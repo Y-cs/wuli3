@@ -1,8 +1,8 @@
 plugins {
     base
-    id("com.kjs.wuli3.java-conventions") version "1.0.1-SNAPSHOT" apply false
-    id("com.kjs.wuli3.java-spring-conventions") version "1.0.1-SNAPSHOT" apply false
-    id("com.kjs.wuli3.ddd-conventions") version "1.0.1-SNAPSHOT" apply false
+    id("com.wulicode.wuli3.java-conventions") version "1.1.0-SNAPSHOT" apply false
+    id("com.wulicode.wuli3.java-spring-conventions") version "1.1.0-SNAPSHOT" apply false
+    id("com.wulicode.wuli3.ddd-conventions") version "1.1.0-SNAPSHOT" apply false
     id("org.springframework.boot") version "3.5.15" apply false
 }
 
@@ -13,13 +13,13 @@ allprojects {
 
 subprojects {
     // DDD 检查先于语言约定应用，以保持共享内核纯净。
-    pluginManager.apply("com.kjs.wuli3.ddd-conventions")
+    pluginManager.apply("com.wulicode.wuli3.ddd-conventions")
     val springModules = setOf("app", "infra", "adapter", "bootstrap")
     pluginManager.apply(
         if (name in springModules) {
-            "com.kjs.wuli3.java-spring-conventions"
+            "com.wulicode.wuli3.java-spring-conventions"
         } else {
-            "com.kjs.wuli3.java-conventions"
+            "com.wulicode.wuli3.java-conventions"
         })
 }
 

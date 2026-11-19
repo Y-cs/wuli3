@@ -7,7 +7,7 @@
 
 ```kotlin
 dependencies {
-    implementation("com.kjs.wuli3:wuli3-json")
+    implementation("com.wulicode.wuli3:wuli3-json")
 }
 ```
 

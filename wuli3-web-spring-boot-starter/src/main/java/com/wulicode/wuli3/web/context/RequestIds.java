@@ -1,0 +1,16 @@
+package com.wulicode.wuli3.web.context;
+
+import com.wulicode.wuli3.propagation.internal.InvocationContext;
+import com.wulicode.wuli3.spring.logging.LogMdcKeys;
+
+/**
+ * Web 上下文传播使用的请求 ID 名称。
+ *
+ * @author GuoYang create on 2026/8/17 11:53
+ */
+public final class RequestIds {
+    public static final String HEADER_NAME = InvocationContext.REQUEST_ID;
+    public static final String MDC_KEY = LogMdcKeys.REQUEST_ID;
+
+    private RequestIds() {}
+}

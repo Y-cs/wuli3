@@ -6,7 +6,7 @@
 
 | 包 | 类型 | 职责 |
 |---|---|---|
-| `com.kjs.wuli3.propagation` | `ContextManager` | 读取当前状态、捕获传播快照、创建代理 |
+| `com.wulicode.wuli3.propagation` | `ContextManager` | 读取当前状态、捕获传播快照、创建代理 |
 | 同上 | `ContextProxy` | 持有确定的 State，通过 run/call/wrap 执行任务 |
 | `.context` | `Context`、`ContextKey` | 不可变上下文值及类型安全的键 |
 | `.context` | `ContextState` | 完整不可变集合；只管理数据 |

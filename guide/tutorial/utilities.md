@@ -8,7 +8,7 @@
 
 ```kotlin
 dependencies {
-    implementation("com.kjs.wuli3:wuli3-core")
+    implementation("com.wulicode.wuli3:wuli3-core")
 }
 ```
 
@@ -19,7 +19,7 @@ dependencies {
 `whenXxx(...)` 表达“何时失败”，末尾的 `throw...(...)` 才执行抛错：
 
 ```java
-import com.kjs.wuli3.core.assertion.Asserts;
+import com.wulicode.wuli3.core.assertion.Asserts;
 
 final String name = "新订单";
 final int quantity = 2;
@@ -48,12 +48,12 @@ Asserts.whenFalse(quantity > 0).throwIllegalArgumentException("数量必须大�
 ```java
 package com.example.order;
 
-import com.kjs.wuli3.core.error.model.ErrorCode;
-import com.kjs.wuli3.core.error.model.ErrorMetadata;
-import com.kjs.wuli3.core.error.model.ErrorModule;
-import com.kjs.wuli3.core.error.model.ErrorOrigin;
-import com.kjs.wuli3.core.error.model.ErrorSeverity;
-import com.kjs.wuli3.core.error.model.ErrorVisibility;
+import com.wulicode.wuli3.core.error.model.ErrorCode;
+import com.wulicode.wuli3.core.error.model.ErrorMetadata;
+import com.wulicode.wuli3.core.error.model.ErrorModule;
+import com.wulicode.wuli3.core.error.model.ErrorOrigin;
+import com.wulicode.wuli3.core.error.model.ErrorSeverity;
+import com.wulicode.wuli3.core.error.model.ErrorVisibility;
 
 /**
  * 声明订单业务失败及其边界输出策略。
@@ -92,8 +92,8 @@ public enum OrderErrors implements ErrorCode {
 在同包业务代码中使用：
 
 ```java
-import com.kjs.wuli3.core.assertion.Asserts;
-import com.kjs.wuli3.core.error.ErrorCodeException;
+import com.wulicode.wuli3.core.assertion.Asserts;
+import com.wulicode.wuli3.core.error.ErrorCodeException;
 
 final boolean exists = false;
 Asserts.whenFalse(exists).throwException(OrderErrors.ORDER_NOT_FOUND);
@@ -108,8 +108,8 @@ Asserts.whenFalse(exists).throwException(OrderErrors.ORDER_NOT_FOUND);
 ### 4.1 UUID 和 ID 扩展点
 
 ```java
-import com.kjs.wuli3.core.id.IdGenerator;
-import com.kjs.wuli3.core.id.UuidStringIdGenerator;
+import com.wulicode.wuli3.core.id.IdGenerator;
+import com.wulicode.wuli3.core.id.UuidStringIdGenerator;
 
 final IdGenerator<String> generator = UuidStringIdGenerator.INSTANCE;
 final String orderId = generator.nextId();
@@ -120,8 +120,8 @@ final String orderId = generator.nextId();
 ### 4.2 用可替换时钟编写可测试逻辑
 
 ```java
-import com.kjs.wuli3.core.time.ClockProvider;
-import com.kjs.wuli3.core.time.DateTimeFormats;
+import com.wulicode.wuli3.core.time.ClockProvider;
+import com.wulicode.wuli3.core.time.DateTimeFormats;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -136,7 +136,7 @@ final String formatted = LocalDateTime.now(testClock.clock()).format(DateTimeFor
 实际服务注入 `ClockProvider`，生产提供系统时钟，测试提供固定时钟。只在测试里创建固定时钟，却在服务内部继续调用 `Instant.now()`，不能实现可测试性。
 
 ```java
-import com.kjs.wuli3.core.time.DateRange;
+import com.wulicode.wuli3.core.time.DateRange;
 import java.time.LocalDate;
 
 final DateRange range = DateRange.closed(
@@ -150,11 +150,11 @@ final LocalDate endExclusive = range.endExclusive(); // 2026-10-04
 ## 5. 金额聚合与集合转换
 
 ```java
-import com.kjs.wuli3.core.stream.BigDecimalCollectors;
-import com.kjs.wuli3.core.stream.BigDecimalSummary;
-import com.kjs.wuli3.core.stream.MapMerger;
-import com.kjs.wuli3.core.stream.MoreCollectors;
-import com.kjs.wuli3.core.stream.StreamUtils;
+import com.wulicode.wuli3.core.stream.BigDecimalCollectors;
+import com.wulicode.wuli3.core.stream.BigDecimalSummary;
+import com.wulicode.wuli3.core.stream.MapMerger;
+import com.wulicode.wuli3.core.stream.MoreCollectors;
+import com.wulicode.wuli3.core.stream.StreamUtils;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.List;

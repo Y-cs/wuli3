@@ -4,8 +4,8 @@ import {{basePackage}}.api.dto.{{domainPackage}}.{{domainType}}StatusDto;
 import {{basePackage}}.api.facade.{{domainType}}Facade;
 import {{basePackage}}.app.service.{{domainPackage}}.{{domainType}}Service;
 import {{basePackage}}.sharedkernel.EntityId;
-import com.kjs.wuli3.pagination.PageQuery;
-import com.kjs.wuli3.pagination.PageResult;
+import com.wulicode.wuli3.pagination.PageQuery;
+import com.wulicode.wuli3.pagination.PageResult;
 import lombok.RequiredArgsConstructor;
 {{facadeRpcImport}}import org.springframework.stereotype.Service;
 

@@ -30,9 +30,9 @@ BOM 已接入时，按需增加以下依赖。纯 Java 模块只要第一项；W
 
 ```kotlin
 dependencies {
-    implementation("com.kjs.wuli3:wuli3-context-propagation")
-    implementation("com.kjs.wuli3:wuli3-web-spring-boot-starter")
-    implementation("com.kjs.wuli3:wuli3-event-spring-boot-starter")
+    implementation("com.wulicode.wuli3:wuli3-context-propagation")
+    implementation("com.wulicode.wuli3:wuli3-web-spring-boot-starter")
+    implementation("com.wulicode.wuli3:wuli3-event-spring-boot-starter")
 }
 ```
 
@@ -43,8 +43,8 @@ dependencies {
 Web starter 自动提供 `ContextManager`、`ContextReader`、`ContextBinder` 和两个 Accessor，不会自动向 HTTP 客户端注入上下文传播器。业务服务优先注入只读 Accessor，只有需要建立边界的代码才注入 Manager；跨协议传播由对应适配器显式装配。
 
 ```java
-import com.kjs.wuli3.propagation.accessor.AuthContextAccessor;
-import com.kjs.wuli3.propagation.accessor.InvocationContextAccessor;
+import com.wulicode.wuli3.propagation.accessor.AuthContextAccessor;
+import com.wulicode.wuli3.propagation.accessor.InvocationContextAccessor;
 
 // 在构造器中注入这两个 Bean。
 final String requestId = this.invocationContextAccessor.requestId().orElse("no-request");
@@ -56,10 +56,10 @@ final String operator = this.authContextAccessor.principalId().orElse("anonymous
 下面是无需 Spring、可直接运行的最小示例。它验证嵌套恢复和异步传播，执行完不需要手动 `clear()`。
 
 ```java
-import com.kjs.wuli3.propagation.ContextManager;
-import com.kjs.wuli3.propagation.context.ContextKey;
-import com.kjs.wuli3.propagation.internal.InvocationContext;
-import com.kjs.wuli3.propagation.store.ThreadLocalContextBackend;
+import com.wulicode.wuli3.propagation.ContextManager;
+import com.wulicode.wuli3.propagation.context.ContextKey;
+import com.wulicode.wuli3.propagation.internal.InvocationContext;
+import com.wulicode.wuli3.propagation.store.ThreadLocalContextBackend;
 import java.util.concurrent.Executors;
 
 /** 演示作用域绑定、异步捕获与恢复。 */
@@ -99,8 +99,8 @@ public final class ContextExample {
 MQ starter 提供协议编码器，但不会凭空创建完整上下文后端。没有其他模块提供这些 Bean 时，在启动模块增加：
 
 ```java
-import com.kjs.wuli3.propagation.ContextManager;
-import com.kjs.wuli3.propagation.store.ThreadLocalContextBackend;
+import com.wulicode.wuli3.propagation.ContextManager;
+import com.wulicode.wuli3.propagation.store.ThreadLocalContextBackend;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -127,10 +127,10 @@ class ConsumerContextConfiguration {
 以下文件放在被生产者和消费者共同依赖的独立传播契约库，或先放各自的接入模块。生成工程的 `shared-kernel` 仅允许有限依赖，不能直接把依赖传播库的类型放进去绕过门禁。使用独立字段并限制字符范围，避免把任意对象和敏感数据塞进 Header。
 
 ```java
-import com.kjs.wuli3.core.assertion.Asserts;
-import com.kjs.wuli3.propagation.codec.ContextCodec;
-import com.kjs.wuli3.propagation.context.ContextKey;
-import com.kjs.wuli3.propagation.context.PropagationContext;
+import com.wulicode.wuli3.core.assertion.Asserts;
+import com.wulicode.wuli3.propagation.codec.ContextCodec;
+import com.wulicode.wuli3.propagation.context.ContextKey;
+import com.wulicode.wuli3.propagation.context.PropagationContext;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.BiConsumer;
@@ -189,7 +189,7 @@ public record TenantContext(String tenantId) implements PropagationContext {
 **实现 `contentCodec()` 或仅把 codec 声明为 Bean，都不会自动注册到协议白名单。** 在生产者和消费者的启动配置中显式替换 `ContextPropagator`，保留标准项：
 
 ```java
-import com.kjs.wuli3.propagation.codec.ContextPropagator;
+import com.wulicode.wuli3.propagation.codec.ContextPropagator;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -282,9 +282,9 @@ Spring 的 `@TransactionalEventListener` 默认在无事务时不执行；需要
 ### 5.2 需要统一信封/发布选项，用 Wuli EventPublisher
 
 ```java
-import com.kjs.wuli3.event.EventPublisher;
-import com.kjs.wuli3.event.envelope.EventEnvelopeTemplate;
-import com.kjs.wuli3.event.options.SpringLocalPublishOptions;
+import com.wulicode.wuli3.event.EventPublisher;
+import com.wulicode.wuli3.event.envelope.EventEnvelopeTemplate;
+import com.wulicode.wuli3.event.options.SpringLocalPublishOptions;
 
 // EventPublisher 通过构造器注入。
 final var template = EventEnvelopeTemplate.of("order-events", "order.placed.v1");
@@ -308,7 +308,7 @@ this.eventPublisher.publish(new SpringLocalPublishOptions(false, true), envelope
 Wuli 本地发送的是 `EventEnvelope`，因此监听 `OrderPlaced` 不会收到它。可以显式检查载荷，避免依赖运行时泛型推断：
 
 ```java
-import com.kjs.wuli3.event.envelope.EventEnvelope;
+import com.wulicode.wuli3.event.envelope.EventEnvelope;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
@@ -351,7 +351,7 @@ sequenceDiagram
 默认 `applicationTaskExecutor` 是未包装的 `VirtualThreadTaskExecutor`，**本地异步事件不会自动恢复 Wuli 上下文**。需要时提供同名 Bean，覆盖默认执行器：
 
 ```java
-import com.kjs.wuli3.propagation.ContextManager;
+import com.wulicode.wuli3.propagation.ContextManager;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.task.TaskExecutor;
@@ -378,7 +378,7 @@ class EventExecutorConfiguration {
 
 ### 6.1 RabbitMQ
 
-增加 `com.kjs.wuli3:wuli3-rabbitmq-spring-boot-starter`；它包含 AMQP 与事件 starter。配置连接后由 Spring 提供 `RabbitTemplate`，Wuli 才注册 Rabbit transport。
+增加 `com.wulicode.wuli3:wuli3-rabbitmq-spring-boot-starter`；它包含 AMQP 与事件 starter。配置连接后由 Spring 提供 `RabbitTemplate`，Wuli 才注册 Rabbit transport。
 
 ```yaml
 spring:
@@ -410,8 +410,8 @@ Declarables orderTopology() {
 发送方法片段：
 
 ```java
-import com.kjs.wuli3.event.envelope.EventEnvelopeTemplate;
-import com.kjs.wuli3.rabbit.internal.RabbitPublishOptions;
+import com.wulicode.wuli3.event.envelope.EventEnvelopeTemplate;
+import com.wulicode.wuli3.rabbit.internal.RabbitPublishOptions;
 
 final var envelope = EventEnvelopeTemplate.of("order-events", "order.placed.v1")
         .wrap(new OrderPlaced(orderId));
@@ -422,10 +422,10 @@ this.eventPublisher.publish(new RabbitPublishOptions().withAfterCommit(), envelo
 
 ```java
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.kjs.wuli3.core.assertion.Asserts;
-import com.kjs.wuli3.event.envelope.EventEnvelope;
-import com.kjs.wuli3.json.core.Jsons;
-import com.kjs.wuli3.rabbit.internal.RabbitContextSupport;
+import com.wulicode.wuli3.core.assertion.Asserts;
+import com.wulicode.wuli3.event.envelope.EventEnvelope;
+import com.wulicode.wuli3.json.core.Jsons;
+import com.wulicode.wuli3.rabbit.internal.RabbitContextSupport;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Component;
@@ -453,11 +453,11 @@ class OrderRabbitListener {
 }
 ```
 
-消费者使用 `Jsons` 时应显式依赖 `com.kjs.wuli3:wuli3-json`，不要依赖 starter 的实现依赖偶然可见。示例省略了幂等存储实现，不能把 `println` 当成完整投影服务。真实代码应在业务事务内原子完成“记录 eventId + 更新投影”，异常交给容器重试/死信策略；不要捕获失败后正常返回。
+消费者使用 `Jsons` 时应显式依赖 `com.wulicode.wuli3:wuli3-json`，不要依赖 starter 的实现依赖偶然可见。示例省略了幂等存储实现，不能把 `println` 当成完整投影服务。真实代码应在业务事务内原子完成“记录 eventId + 更新投影”，异常交给容器重试/死信策略；不要捕获失败后正常返回。
 
 ### 6.2 RocketMQ
 
-增加 `com.kjs.wuli3:wuli3-rocketmq-spring-boot-starter`。v4 使用 `RocketMQTemplate`：
+增加 `com.wulicode.wuli3:wuli3-rocketmq-spring-boot-starter`。v4 使用 `RocketMQTemplate`：
 
 ```yaml
 rocketmq:
@@ -467,7 +467,7 @@ rocketmq:
 ```
 
 ```java
-import com.kjs.wuli3.rocket.v4.RocketV4PublishOptions;
+import com.wulicode.wuli3.rocket.v4.RocketV4PublishOptions;
 
 this.eventPublisher.publish(
         RocketV4PublishOptions.builder().afterCommit(true).build(), envelope);
@@ -486,7 +486,7 @@ wuli3:
 ```
 
 ```java
-import com.kjs.wuli3.rocket.v5.RocketV5PublishOptions;
+import com.wulicode.wuli3.rocket.v5.RocketV5PublishOptions;
 
 this.eventPublisher.publish(
         RocketV5PublishOptions.builder().afterCommit(true).async(true).build(), envelope);
@@ -497,7 +497,7 @@ this.eventPublisher.publish(
 v4 消费适配器可接收 `MessageExt` 保留原始属性：
 
 ```java
-import com.kjs.wuli3.rocket.RocketContextSupport;
+import com.wulicode.wuli3.rocket.RocketContextSupport;
 import org.apache.rocketmq.common.message.MessageExt;
 import org.apache.rocketmq.spring.annotation.RocketMQMessageListener;
 import org.apache.rocketmq.spring.core.RocketMQListener;
@@ -563,6 +563,6 @@ v5 消费者由业务按原生 SDK 配置，使用 `MessageView.getProperties()`
 
 本篇验证（2026-10-16）：以上五个模块的 `check` 通过（87 个任务，42 个执行、6 个缓存、39 个已最新）。9 个完整类示例与 `OrderPlaced` 使用仓库编译产物和缓存依赖通过 `javac -proc:none` 编译，纯 Java 上下文示例已运行并确认内外层恢复和线程清理。此编译不替代消费工程的 NullAway/Checkstyle 门禁；尚未连接真实 Broker 验证消息收发。
 
-源码入口：[上下文核心](../../wuli3-context-propagation/src/main/java/com/kjs/wuli3/propagation/ContextManager.java)、[Web 自动配置](../../wuli3-web-spring-boot-starter/src/main/java/com/kjs/wuli3/web/autoconfigure/WebContextAutoConfiguration.java)、[事件自动配置](../../wuli3-event-spring-boot-starter/src/main/java/com/kjs/wuli3/event/autoconfigure/EventAutoConfiguration.java)。
+源码入口：[上下文核心](../../wuli3-context-propagation/src/main/java/com/wulicode/wuli3/propagation/ContextManager.java)、[Web 自动配置](../../wuli3-web-spring-boot-starter/src/main/java/com/wulicode/wuli3/web/autoconfigure/WebContextAutoConfiguration.java)、[事件自动配置](../../wuli3-event-spring-boot-starter/src/main/java/com/wulicode/wuli3/event/autoconfigure/EventAutoConfiguration.java)。
 
 [返回教程首页](README.md)

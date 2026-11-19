@@ -110,4 +110,4 @@ Dubbo 需要验证上下文恢复、异步传播、业务错误多跳传播和�
 ## 源码与详细指南
 
 - [Dubbo starter 指南](https://github.com/weiran-tech/wuli3/blob/main/guide/wuli3-dubbo-spring-boot-starter.md)
-- [OSS profile 配置模型](https://github.com/weiran-tech/wuli3/blob/main/wuli3-aliyun-spring-boot-starter/src/main/java/com/kjs/wuli3/aliyun/autoconfigure/AliYunProperties.java)
+- [OSS profile 配置模型](https://github.com/weiran-tech/wuli3/blob/main/wuli3-aliyun-spring-boot-starter/src/main/java/com/wulicode/wuli3/aliyun/autoconfigure/AliYunProperties.java)
