@@ -4,6 +4,14 @@ on:
   push:
     tags: ['v*']
   workflow_dispatch:
+    inputs:
+      repository:
+        description: 发布目标仓库
+        type: choice
+        default: central
+        options:
+          - central
+          - github-packages
 
 permissions:
   contents: read
@@ -14,6 +22,7 @@ concurrency:
 
 jobs:
   publish:
+    if: github.event_name != 'workflow_dispatch' || inputs.repository == 'central'
     name: Build and publish to central Maven
     runs-on: ubuntu-latest
     steps:
@@ -76,5 +85,51 @@ jobs:
           CENTRAL_MAVEN_PASSWORD: ${{ secrets.CENTRAL_MAVEN_PASSWORD }}
         run: |
           ./gradlew --no-daemon check :wuli3-build-logic:test \
+            :wuli3-build-logic:publishAllPublicationsToCentralRepository \
+            publishAllPublicationsToCentralRepository
+
+  publish-github-packages:
+    if: github.event_name == 'workflow_dispatch' && inputs.repository == 'github-packages'
+    name: Build and publish to GitHub Packages
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      # 两个构建都读取 gradle.properties，避免插件、BOM 与模块版本不一致。
+      - name: Verify publication versions
+        run: |
+          main_version=$(./gradlew -q :properties | sed -n 's/^version: //p' | head -1)
+          build_logic_version=$(./gradlew -q :wuli3-build-logic:properties | sed -n 's/^version: //p' | head -1)
+          test -n "$main_version"
+          test "$main_version" = "$build_logic_version"
+          echo "Publishing version: $main_version"
+
+      - name: Run quality gates
+        run: ./gradlew --no-daemon check :wuli3-build-logic:test
+
+      # 复用可配置的 Maven 发布端点；仅上传步骤拥有 Packages 临时凭据。
+      - name: Publish to GitHub Packages
+        env:
+          CENTRAL_MAVEN_RELEASES_URL: https://maven.pkg.github.com/${{ github.repository }}
+          CENTRAL_MAVEN_SNAPSHOTS_URL: https://maven.pkg.github.com/${{ github.repository }}
+          CENTRAL_MAVEN_USERNAME: ${{ github.actor }}
+          CENTRAL_MAVEN_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ./gradlew --no-daemon \
             :wuli3-build-logic:publishAllPublicationsToCentralRepository \
             publishAllPublicationsToCentralRepository
