@@ -20,13 +20,13 @@ flowchart LR
 
 ```kotlin
 dependencies {
-    implementation("com.kjs.wuli3:wuli3-redis-spring-boot-starter")
-    implementation("com.kjs.wuli3:wuli3-mysql-spring-boot-starter")
-    implementation("com.kjs.wuli3:wuli3-elasticsearch-spring-boot-starter")
-    implementation("com.kjs.wuli3:wuli3-mongodb-spring-boot-starter")
+    implementation("com.wulicode.wuli3:wuli3-redis-spring-boot-starter")
+    implementation("com.wulicode.wuli3:wuli3-mysql-spring-boot-starter")
+    implementation("com.wulicode.wuli3:wuli3-elasticsearch-spring-boot-starter")
+    implementation("com.wulicode.wuli3:wuli3-mongodb-spring-boot-starter")
     runtimeOnly("com.mysql:mysql-connector-j")
     // ES/Mongo 单独使用统一分页契约时显式加入；MySQL starter 已传递此模块。
-    implementation("com.kjs.wuli3:wuli3-pagination")
+    implementation("com.wulicode.wuli3:wuli3-pagination")
 }
 ```
 
@@ -63,8 +63,8 @@ spring:
 
 ```java
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.kjs.wuli3.redis.RedisKey;
-import com.kjs.wuli3.redis.RedisSupport;
+import com.wulicode.wuli3.redis.RedisKey;
+import com.wulicode.wuli3.redis.RedisSupport;
 import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
@@ -121,9 +121,9 @@ Hash/Set 不指定 TTL 不会清掉已有过期时间。它们的“写成员 + 
 ```java
 package com.example.data.redis;
 
-import com.kjs.wuli3.core.assertion.Asserts;
-import com.kjs.wuli3.redis.RedisKey;
-import com.kjs.wuli3.redis.RedisSupport;
+import com.wulicode.wuli3.core.assertion.Asserts;
+import com.wulicode.wuli3.redis.RedisKey;
+import com.wulicode.wuli3.redis.RedisSupport;
 import java.time.Duration;
 import java.util.Optional;
 import java.util.function.Supplier;
@@ -195,8 +195,8 @@ sequenceDiagram
 ### 2.3 分布式锁
 
 ```java
-import com.kjs.wuli3.redis.lock.RedisLock;
-import com.kjs.wuli3.redis.lock.RedisLockExecutor;
+import com.wulicode.wuli3.redis.lock.RedisLock;
+import com.wulicode.wuli3.redis.lock.RedisLockExecutor;
 import java.time.Duration;
 
 final RedisLock lock = RedisLock.watchdog(
@@ -221,9 +221,9 @@ this.redisLockExecutor.execute(lock, () -> {
 `PageQuery` 页码从 1 开始，`page` 和 `pageSize` 缺省时取 1 和 10，最大页大小为 200，`sorts` 顺序表示优先级；`PageResult.items` 是不可变列表。
 
 ```java
-import com.kjs.wuli3.pagination.PageQuery;
-import com.kjs.wuli3.pagination.Sort;
-import com.kjs.wuli3.pagination.SortDirection;
+import com.wulicode.wuli3.pagination.PageQuery;
+import com.wulicode.wuli3.pagination.Sort;
+import com.wulicode.wuli3.pagination.SortDirection;
 import java.util.List;
 
 final PageQuery query = new PageQuery(1, 20,
@@ -235,8 +235,8 @@ final PageQuery query = new PageQuery(1, 20,
 ```java
 package com.example.order.app.repository.order;
 
-import com.kjs.wuli3.pagination.PageQuery;
-import com.kjs.wuli3.pagination.PageResult;
+import com.wulicode.wuli3.pagination.PageQuery;
+import com.wulicode.wuli3.pagination.PageResult;
 
 /**
  * 提供订单列表用例需要的分页读取能力。
@@ -365,12 +365,12 @@ import com.baomidou.mybatisplus.core.metadata.OrderItem;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.example.order.app.repository.order.OrderQueryRepository;
 import com.example.order.app.repository.order.OrderSummaryDTO;
-import com.kjs.wuli3.core.assertion.Asserts;
-import com.kjs.wuli3.core.error.ErrorCodeException;
-import com.kjs.wuli3.core.error.builtin.CommonErrors;
-import com.kjs.wuli3.mysql.pagination.PaginationHelper;
-import com.kjs.wuli3.pagination.PageQuery;
-import com.kjs.wuli3.pagination.PageResult;
+import com.wulicode.wuli3.core.assertion.Asserts;
+import com.wulicode.wuli3.core.error.ErrorCodeException;
+import com.wulicode.wuli3.core.error.builtin.CommonErrors;
+import com.wulicode.wuli3.mysql.pagination.PaginationHelper;
+import com.wulicode.wuli3.pagination.PageQuery;
+import com.wulicode.wuli3.pagination.PageResult;
 import org.springframework.stereotype.Repository;
 
 /**
@@ -423,9 +423,9 @@ package com.example.order.app.service.order;
 
 import com.example.order.app.repository.order.OrderQueryRepository;
 import com.example.order.app.repository.order.OrderSummaryDTO;
-import com.kjs.wuli3.core.assertion.Asserts;
-import com.kjs.wuli3.pagination.PageQuery;
-import com.kjs.wuli3.pagination.PageResult;
+import com.wulicode.wuli3.core.assertion.Asserts;
+import com.wulicode.wuli3.pagination.PageQuery;
+import com.wulicode.wuli3.pagination.PageResult;
 import org.springframework.stereotype.Service;
 
 /**
@@ -456,8 +456,8 @@ package com.example.order.adapter.api.order;
 
 import com.example.order.app.repository.order.OrderSummaryDTO;
 import com.example.order.app.service.order.OrderPageService;
-import com.kjs.wuli3.pagination.PageQuery;
-import com.kjs.wuli3.pagination.PageResult;
+import com.wulicode.wuli3.pagination.PageQuery;
+import com.wulicode.wuli3.pagination.PageResult;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -571,9 +571,9 @@ this.operations.delete(saved.id(), OrderDocument.class);
 ```java
 package com.example.data.es;
 
-import com.kjs.wuli3.core.assertion.Asserts;
-import com.kjs.wuli3.pagination.PageQuery;
-import com.kjs.wuli3.pagination.PageResult;
+import com.wulicode.wuli3.core.assertion.Asserts;
+import com.wulicode.wuli3.pagination.PageQuery;
+import com.wulicode.wuli3.pagination.PageResult;
 import java.util.List;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -677,9 +677,9 @@ this.mongoTemplate.remove(Query.query(Criteria.where("id").is(created.id())), Or
 ```java
 package com.example.data.mongo;
 
-import com.kjs.wuli3.core.assertion.Asserts;
-import com.kjs.wuli3.pagination.PageQuery;
-import com.kjs.wuli3.pagination.PageResult;
+import com.wulicode.wuli3.core.assertion.Asserts;
+import com.wulicode.wuli3.pagination.PageQuery;
+import com.wulicode.wuli3.pagination.PageResult;
 import java.util.List;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;

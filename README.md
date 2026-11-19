@@ -111,9 +111,9 @@ Maven 项目引入：
 <dependencyManagement>
   <dependencies>
     <dependency>
-      <groupId>com.kjs.wuli3</groupId>
+      <groupId>com.wulicode.wuli3</groupId>
       <artifactId>wuli3-dependencies</artifactId>
-      <version>1.0.1-SNAPSHOT</version>
+      <version>1.1.0-SNAPSHOT</version>
       <type>pom</type>
       <scope>import</scope>
     </dependency>
@@ -123,7 +123,7 @@ Maven 项目引入：
 
 ## 约定
 
-- 根包名：`com.kjs.wuli3`。
+- 根包名：`com.wulicode.wuli3`。
 - Java 版本：21。
 - Spring Boot 基线：3.5.x。
 - 核心模块不依赖 Spring。

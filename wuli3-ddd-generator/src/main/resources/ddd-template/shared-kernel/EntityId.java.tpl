@@ -1,6 +1,6 @@
 package {{basePackage}}.sharedkernel;
 
-import com.kjs.wuli3.core.assertion.Asserts;
+import com.wulicode.wuli3.core.assertion.Asserts;
 import java.io.Serializable;
 
 /**

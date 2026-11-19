@@ -14,17 +14,17 @@ included build 名称只用于本仓库识别；业务模块不需要直接引�
 
 提供约定插件：
 
-- `com.kjs.wuli3.java-conventions`：JDK 21、测试、基础依赖，以及 Spotless、Palantir Java Format、Checkstyle、SpotBugs、Forbidden APIs、Error Prone、NullAway 质量门禁。
-- `com.kjs.wuli3.kotlin-conventions`：Kotlin/JVM 2.4.20、JDK 21、Java/Kotlin 混编与 Lombok 约定。
-- `com.kjs.wuli3.kotlin-spring-conventions`：在 Kotlin 约定上启用 Spring `all-open` 与 `kotlin-reflect`。
-- `com.kjs.wuli3.java-spring-conventions`：Spring Boot starter 模块约定。
-- `com.kjs.wuli3.publishing-conventions`：统一 Maven Publication 和临时发布仓库约定。
+- `com.wulicode.wuli3.java-conventions`：JDK 21、测试、基础依赖，以及 Spotless、Palantir Java Format、Checkstyle、SpotBugs、Forbidden APIs、Error Prone、NullAway 质量门禁。
+- `com.wulicode.wuli3.kotlin-conventions`：Kotlin/JVM 2.4.20、JDK 21、Java/Kotlin 混编与 Lombok 约定。
+- `com.wulicode.wuli3.kotlin-spring-conventions`：在 Kotlin 约定上启用 Spring `all-open` 与 `kotlin-reflect`。
+- `com.wulicode.wuli3.java-spring-conventions`：Spring Boot starter 模块约定。
+- `com.wulicode.wuli3.publishing-conventions`：统一 Maven Publication 和临时发布仓库约定。
 
 普通 Java 模块使用：
 
 ```kotlin
 plugins {
-    id("com.kjs.wuli3.java-conventions")
+    id("com.wulicode.wuli3.java-conventions")
 }
 ```
 
@@ -32,7 +32,7 @@ Spring Boot starter 模块使用：
 
 ```kotlin
 plugins {
-    id("com.kjs.wuli3.java-spring-conventions")
+    id("com.wulicode.wuli3.java-spring-conventions")
 }
 ```
 
@@ -40,11 +40,11 @@ Kotlin 模块使用：
 
 ```kotlin
 plugins {
-    id("com.kjs.wuli3.kotlin-conventions")
+    id("com.wulicode.wuli3.kotlin-conventions")
 }
 ```
 
-需要 Spring 注解开放能力的 Kotlin 模块使用 `com.kjs.wuli3.kotlin-spring-conventions`。同一模块内的 Kotlin 编译任务先于 Java 编译任务，模块之间仍由 Gradle 项目依赖决定顺序。Kotlin 源码放在 `src/main/kotlin` 和 `src/test/kotlin`，格式化使用 Spotless + ktfmt，执行 `spotlessKotlinCheck` 或 `spotlessKotlinApply`。
+需要 Spring 注解开放能力的 Kotlin 模块使用 `com.wulicode.wuli3.kotlin-spring-conventions`。同一模块内的 Kotlin 编译任务先于 Java 编译任务，模块之间仍由 Gradle 项目依赖决定顺序。Kotlin 源码放在 `src/main/kotlin` 和 `src/test/kotlin`，格式化使用 Spotless + ktfmt，执行 `spotlessKotlinCheck` 或 `spotlessKotlinApply`。
 
 业务模块只应用约定插件，不重复配置质量规则。
 
@@ -64,17 +64,17 @@ pluginManagement {
 
 ```kotlin
 plugins {
-    id("com.kjs.wuli3.java-conventions") version "1.0.1-SNAPSHOT"
+    id("com.wulicode.wuli3.java-conventions") version "1.1.0-SNAPSHOT"
 }
 ```
 
-默认会导入 `com.kjs.wuli3:wuli3-dependencies:1.0.1-SNAPSHOT` 作为 BOM，并启用 Spotless、Palantir Java Format、ktfmt、Checkstyle、SpotBugs、Forbidden APIs、Error Prone、NullAway 和 JaCoCo 覆盖率门禁。
+默认会导入 `com.wulicode.wuli3:wuli3-dependencies:1.1.0-SNAPSHOT` 作为 BOM，并启用 Spotless、Palantir Java Format、ktfmt、Checkstyle、SpotBugs、Forbidden APIs、Error Prone、NullAway 和 JaCoCo 覆盖率门禁。
 Error Prone、NullAway、Lombok 和 JSpecify 的依赖版本统一由该 BOM 管理，质量配置不再重复指定版本。
 自定义 BOM 需要导入 Wuli3 BOM 或提供这些版本约束；生产与测试的注解处理器使用同一 BOM。
 业务项目可在 `gradle.properties` 覆盖默认值：
 
 ```properties
-wuli3.conventions.bom-coordinates=com.kjs.wuli3:wuli3-dependencies:1.0.1-SNAPSHOT
+wuli3.conventions.bom-coordinates=com.wulicode.wuli3:wuli3-dependencies:1.1.0-SNAPSHOT
 wuli3.conventions.java-version=21
 wuli3.conventions.spotless.enabled=true
 wuli3.conventions.palantir-java-format.version=2.97.0
@@ -114,13 +114,13 @@ wuli3.conventions.project-bom-path=:wuli3-dependencies
 本模块可以作为 Gradle 插件发布。默认坐标：
 
 ```text
-com.kjs.wuli3:wuli3-build-logic:1.0.1-SNAPSHOT
+com.wulicode.wuli3:wuli3-build-logic:1.1.0-SNAPSHOT
 ```
 
 默认版本与主构建共用同一个定义，配置在仓库根目录 `gradle.properties`：
 
 ```properties
-wuli3.version=1.0.1-SNAPSHOT
+wuli3.version=1.1.0-SNAPSHOT
 ```
 
 构建约定插件时，Kotlin 插件依赖版本也从根目录 `gradle.properties` 读取：

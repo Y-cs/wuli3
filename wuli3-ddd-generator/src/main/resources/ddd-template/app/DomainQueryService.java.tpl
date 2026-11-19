@@ -5,9 +5,9 @@ import {{basePackage}}.app.repository.{{domainPackage}}.{{domainType}}QueryRepos
 import {{basePackage}}.domain.{{domainPackage}}.{{domainType}};
 import {{basePackage}}.domain.{{domainPackage}}.{{domainType}}Repository;
 import {{basePackage}}.sharedkernel.EntityId;
-import com.kjs.wuli3.core.assertion.Asserts;
-import com.kjs.wuli3.pagination.PageQuery;
-import com.kjs.wuli3.pagination.PageResult;
+import com.wulicode.wuli3.core.assertion.Asserts;
+import com.wulicode.wuli3.pagination.PageQuery;
+import com.wulicode.wuli3.pagination.PageResult;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

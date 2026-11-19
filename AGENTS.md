@@ -26,9 +26,9 @@
 
 ## 编码风格与命名约定
 
-Java 包名使用 `com.kjs.wuli3` 前缀。模块名使用 `wuli3-*`，Spring starter 模块使用 `wuli3-*-spring-boot-starter`。生产代码避免使用 `java.util.Date`、`Calendar`、`java.sql.Date/Time/Timestamp`，优先使用 `java.time`。使用 JSpecify 表达空安全语义，NullAway 会对 `com.kjs.wuli3` 包执行静态检查。
+Java 包名使用 `com.wulicode.wuli3` 前缀。模块名使用 `wuli3-*`，Spring starter 模块使用 `wuli3-*-spring-boot-starter`。生产代码避免使用 `java.util.Date`、`Calendar`、`java.sql.Date/Time/Timestamp`，优先使用 `java.time`。使用 JSpecify 表达空安全语义，NullAway 会对 `com.wulicode.wuli3` 包执行静态检查。
 
-普通 Java 模块使用 `com.kjs.wuli3.java-conventions`，Spring starter 模块使用 `com.kjs.wuli3.java-spring-conventions`，不要在模块中重复配置公共质量规则。
+普通 Java 模块使用 `com.wulicode.wuli3.java-conventions`，Spring starter 模块使用 `com.wulicode.wuli3.java-spring-conventions`，不要在模块中重复配置公共质量规则。
 
 ## 基石项目编码规范
 
@@ -45,7 +45,7 @@ Java 包名使用 `com.kjs.wuli3` 前缀。模块名使用 `wuli3-*`，Spring st
 ## 错误边界与参数校验
 
 请求、协议、消息、业务调用等外部输入进入公共 API 时，必须使用
-`com.kjs.wuli3.core.assertion.Asserts` 转换为 `ErrorCodeException`，使异常进入统一错误码处理链；禁止使用
+`com.wulicode.wuli3.core.assertion.Asserts` 转换为 `ErrorCodeException`，使异常进入统一错误码处理链；禁止使用
 `Objects.requireNonNull`、直接抛出 `IllegalArgumentException` 或直接抛出 `NullPointerException` 代替边界错误。
 非空参数使用 `whenNull(...)`，其他约束使用 `whenBlank`、`whenFalse` 等断言。
 使用 `CommonErrors.ILLEGAL_ARGUMENT` 时调用 `throwIllegalArgumentException(message)`；需要表达其他明确错误语义时调用

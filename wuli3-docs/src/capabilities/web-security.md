@@ -118,4 +118,4 @@ Web starter 不会为 Boot 管理的 HTTP 客户端 Builder 自动安装上下�
 ## 源码与详细指南
 
 - [Web starter 指南](https://github.com/weiran-tech/wuli3/blob/main/guide/wuli3-web-spring-boot-starter.md)
-- [权限自动配置](https://github.com/weiran-tech/wuli3/blob/main/wuli3-permission-spring-boot-starter/src/main/java/com/kjs/wuli3/permission/autoconfigure/PermissionAutoConfiguration.java)
+- [权限自动配置](https://github.com/weiran-tech/wuli3/blob/main/wuli3-permission-spring-boot-starter/src/main/java/com/wulicode/wuli3/permission/autoconfigure/PermissionAutoConfiguration.java)

@@ -1,5 +1,5 @@
-com.kjs.wuli3.spring.autoconfigure.CoreSpringBootAutoConfiguration
-com.kjs.wuli3.spring.autoconfigure.GracefulShutdownAutoConfiguration
-com.kjs.wuli3.spring.logging.LoggingAutoConfiguration
-com.kjs.wuli3.spring.startup.StartupLogAutoConfiguration
-com.kjs.wuli3.spring.autoconfigure.ContextAutoConfiguration
+com.wulicode.wuli3.spring.autoconfigure.CoreSpringBootAutoConfiguration
+com.wulicode.wuli3.spring.autoconfigure.GracefulShutdownAutoConfiguration
+com.wulicode.wuli3.spring.logging.LoggingAutoConfiguration
+com.wulicode.wuli3.spring.startup.StartupLogAutoConfiguration
+com.wulicode.wuli3.spring.autoconfigure.ContextAutoConfiguration

@@ -1,0 +1,42 @@
+package com.wulicode.wuli3.web.internal.auth;
+
+import com.wulicode.wuli3.core.assertion.Asserts;
+import com.wulicode.wuli3.propagation.internal.AuthContext;
+import com.wulicode.wuli3.web.auth.AuthContextResolver;
+import jakarta.servlet.http.HttpServletRequest;
+import java.util.Enumeration;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+
+/**
+ * 从可信内部 HTTP 请求头恢复认证上下文。
+ *
+ * <p>该实现假定上游网关已经完成身份认证，并按照 wuli3 上下文传播协议写入认证字段。直接接收外部请求或使用其他认证协议的应用，
+ * 应提供自己的 {@link AuthContextResolver} Bean 替换本实现。
+ *
+ * @author GuoYang create on 2026/8/17 11:53
+ */
+public final class TrustedHttpAuthContextResolver implements AuthContextResolver {
+
+    private final AuthContext.Codec authContextCodec = new AuthContext.Codec();
+
+    @SuppressWarnings("NullAway")
+    @Override
+    public Optional<AuthContext> resolve(final HttpServletRequest request) {
+        final HttpServletRequest actualRequest = Objects.requireNonNull(request, "request");
+        final Map<String, String> fields = new HashMap<>();
+        // 认证字段不支持多值；先验证所有字段，避免缺失身份字段掩盖重复权限主体码。
+        for (final String field : this.authContextCodec.fieldNames()) {
+            final Enumeration<String> values = actualRequest.getHeaders(field);
+            if (values != null && values.hasMoreElements()) {
+                final String value = values.nextElement();
+                Asserts.whenTrue(values.hasMoreElements())
+                        .throwIllegalArgumentException("duplicate authentication header: " + field);
+                fields.put(field, value);
+            }
+        }
+        return this.authContextCodec.decode(fields::get);
+    }
+}

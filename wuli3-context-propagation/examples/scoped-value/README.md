@@ -7,9 +7,9 @@
 ## 装配与使用
 
 ```java
-import com.kjs.wuli3.propagation.ContextManager;
-import com.kjs.wuli3.propagation.context.ContextState;
-import com.kjs.wuli3.propagation.example.ScopedValueContextBackend;
+import com.wulicode.wuli3.propagation.ContextManager;
+import com.wulicode.wuli3.propagation.context.ContextState;
+import com.wulicode.wuli3.propagation.example.ScopedValueContextBackend;
 
 final ScopedValueContextBackend backend = new ScopedValueContextBackend();
 final ContextManager contexts = new ContextManager(backend, backend);

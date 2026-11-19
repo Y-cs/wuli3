@@ -1,5 +1,5 @@
 plugins {
-    id("com.kjs.wuli3.java-spring-conventions")
+    id("com.wulicode.wuli3.java-spring-conventions")
 }
 
 description = "显式选择的 OpenFeign 内部调用客户端。"

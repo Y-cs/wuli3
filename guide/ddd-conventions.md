@@ -214,7 +214,7 @@ Api、FacadeImpl、Job、Mapper、infra.config、infra.gateway 不在事务白�
 
 ## 10. 构建门禁及检查边界
 
-插件 ID 为 `com.kjs.wuli3.ddd-conventions`，在标准七模块中先于 Java/Spring 约定应用，不替代语言构建插件。
+插件 ID 为 `com.wulicode.wuli3.ddd-conventions`，在标准七模块中先于 Java/Spring 约定应用，不替代语言构建插件。
 生成项目已配置接线；业务工程不复制架构检查代码。三个校验任务按检查职责命名，统一归入 `verification` 分组，
 由 `check` 调用；插件 ID 与 `wuli3.ddd.*` 配置前缀保持原名。
 

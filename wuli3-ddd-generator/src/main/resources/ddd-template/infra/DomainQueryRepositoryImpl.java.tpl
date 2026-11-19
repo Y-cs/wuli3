@@ -3,8 +3,8 @@ package {{basePackage}}.infra.persistence.{{domainPackage}};
 import {{basePackage}}.api.dto.{{domainPackage}}.{{domainType}}StatusDto;
 import {{basePackage}}.app.repository.{{domainPackage}}.{{domainType}}QueryRepository;
 {{repositoryImports}}import {{basePackage}}.sharedkernel.EntityId;
-{{assertImport}}import com.kjs.wuli3.pagination.PageQuery;
-import com.kjs.wuli3.pagination.PageResult;
+{{assertImport}}import com.wulicode.wuli3.pagination.PageQuery;
+import com.wulicode.wuli3.pagination.PageResult;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 

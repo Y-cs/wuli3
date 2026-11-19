@@ -1,4 +1,4 @@
-plugins { id("com.kjs.wuli3.java-spring-conventions") }
+plugins { id("com.wulicode.wuli3.java-spring-conventions") }
 
 description = "Permission catalog extraction and method authorization for Spring Boot."
 dependencies {

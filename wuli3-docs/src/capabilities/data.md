@@ -107,4 +107,4 @@ Elasticsearch 和 MongoDB 当前以依赖聚合为主，采用 Spring Data 的�
 ## 源码与详细指南
 
 - [MySQL starter 指南](https://github.com/weiran-tech/wuli3/blob/main/guide/wuli3-mysql-spring-boot-starter.md)
-- [Redis 自动配置](https://github.com/weiran-tech/wuli3/blob/main/wuli3-redis-spring-boot-starter/src/main/java/com/kjs/wuli3/redis/autoconfigure/RedisAutoConfiguration.java)
+- [Redis 自动配置](https://github.com/weiran-tech/wuli3/blob/main/wuli3-redis-spring-boot-starter/src/main/java/com/wulicode/wuli3/redis/autoconfigure/RedisAutoConfiguration.java)

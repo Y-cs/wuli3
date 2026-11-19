@@ -1,5 +1,5 @@
 plugins {
-    id("com.kjs.wuli3.java-spring-conventions")
+    id("com.wulicode.wuli3.java-spring-conventions")
 }
 
 description = "为 OpenFeign 提供独立于公开 Web 出口的内部同步 HTTP 服务。"

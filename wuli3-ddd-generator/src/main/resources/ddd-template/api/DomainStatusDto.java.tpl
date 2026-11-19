@@ -2,7 +2,7 @@ package {{basePackage}}.api.dto.{{domainPackage}};
 
 import {{basePackage}}.sharedkernel.EntityId;
 import {{basePackage}}.sharedkernel.Status;
-import com.kjs.wuli3.core.assertion.Asserts;
+import com.wulicode.wuli3.core.assertion.Asserts;
 import java.io.Serializable;
 
 /**

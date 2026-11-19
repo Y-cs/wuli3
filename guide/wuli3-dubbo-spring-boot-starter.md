@@ -15,7 +15,7 @@ starter 不引入 Spring Cloud `DiscoveryClient`，也不决定注册中心。Du
 
 ```kotlin
 dependencies {
-    implementation("com.kjs.wuli3:wuli3-dubbo-spring-boot-starter")
+    implementation("com.wulicode.wuli3:wuli3-dubbo-spring-boot-starter")
     runtimeOnly("org.apache.dubbo:dubbo-registry-nacos")
 }
 ```

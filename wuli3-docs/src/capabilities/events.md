@@ -93,4 +93,4 @@ Rabbit 的 publisher confirm、Outbox、重试和死信不由 starter 自动提�
 ## 源码与详细指南
 
 - [事件 Spring starter 指南](https://github.com/weiran-tech/wuli3/blob/main/guide/wuli3-event-spring-boot-starter.md)
-- [事件自动配置与路由装配](https://github.com/weiran-tech/wuli3/blob/main/wuli3-event-spring-boot-starter/src/main/java/com/kjs/wuli3/event/autoconfigure/EventAutoConfiguration.java)
+- [事件自动配置与路由装配](https://github.com/weiran-tech/wuli3/blob/main/wuli3-event-spring-boot-starter/src/main/java/com/wulicode/wuli3/event/autoconfigure/EventAutoConfiguration.java)

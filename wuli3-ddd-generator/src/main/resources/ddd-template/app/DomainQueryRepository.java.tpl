@@ -2,8 +2,8 @@ package {{basePackage}}.app.repository.{{domainPackage}};
 
 import {{basePackage}}.api.dto.{{domainPackage}}.{{domainType}}StatusDto;
 import {{basePackage}}.sharedkernel.EntityId;
-import com.kjs.wuli3.pagination.PageQuery;
-import com.kjs.wuli3.pagination.PageResult;
+import com.wulicode.wuli3.pagination.PageQuery;
+import com.wulicode.wuli3.pagination.PageResult;
 
 /**
  * 只读查询投影仓储，不承担聚合写入。

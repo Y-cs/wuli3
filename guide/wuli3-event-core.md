@@ -6,7 +6,7 @@
 
 ```kotlin
 dependencies {
-    implementation("com.kjs.wuli3:wuli3-event-core")
+    implementation("com.wulicode.wuli3:wuli3-event-core")
 }
 ```
 

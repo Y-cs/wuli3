@@ -28,7 +28,7 @@ flowchart LR
 内部 MVC 有自己的映射器、适配器、参数校验器、JSON converter 和异常解析器，不发现公开 Web 的 advice。
 成功结果直接返回业务 JSON，不执行公开响应包装、展示脱敏或资源路径转换。
 
-service starter 的包按职责组织，基包为 `com.kjs.wuli3.openfeign.service`：
+service starter 的包按职责组织，基包为 `com.wulicode.wuli3.openfeign.service`：
 
 | 包 | 内容与边界 |
 | --- | --- |
@@ -43,7 +43,7 @@ service starter 的包按职责组织，基包为 `com.kjs.wuli3.openfeign.servi
 这些实现包中的公开类型用于模块内部跨包装配，不作为应用侧扩展接口。
 错误输出先完成编码及大小检查再写响应，不经中间内存流；超限时使用有界安全错误，真实编码和输出故障保留原始异常日志。
 
-client starter 同样按职责组织，基包为 `com.kjs.wuli3.openfeign.client`：
+client starter 同样按职责组织，基包为 `com.wulicode.wuli3.openfeign.client`：
 
 | 包 | 内容与边界 |
 | --- | --- |
@@ -63,7 +63,7 @@ client starter 同样按职责组织，基包为 `com.kjs.wuli3.openfeign.client
 
 ```kotlin
 dependencies {
-    implementation("com.kjs.wuli3:wuli3-openfeign-service-spring-boot-starter")
+    implementation("com.wulicode.wuli3:wuli3-openfeign-service-spring-boot-starter")
 }
 ```
 
@@ -91,7 +91,7 @@ wuli3:
 服务出口使用 `@HttpRpcService`，将调用委托给现有应用服务：
 
 ```java
-import com.kjs.wuli3.openfeign.service.HttpRpcService;
+import com.wulicode.wuli3.openfeign.service.HttpRpcService;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 
@@ -120,14 +120,14 @@ public class OrderRpcEndpoint {
 
 ```kotlin
 dependencies {
-    implementation("com.kjs.wuli3:wuli3-openfeign-client-spring-boot-starter")
+    implementation("com.wulicode.wuli3:wuli3-openfeign-client-spring-boot-starter")
 }
 ```
 
 显式指定内部配置及提供端 Servlet 前缀：
 
 ```java
-import com.kjs.wuli3.openfeign.client.Wuli3FeignConfiguration;
+import com.wulicode.wuli3.openfeign.client.Wuli3FeignConfiguration;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;

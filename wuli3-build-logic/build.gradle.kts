@@ -8,7 +8,7 @@ plugins {
     `maven-publish`
 }
 
-group = "com.kjs.wuli3"
+group = "com.wulicode.wuli3"
 // included build 不继承根工程属性，显式读取仓库统一配置。
 val repositoryProperties = providers.fileContents(layout.projectDirectory.file("../gradle.properties"))
     .asText
@@ -49,28 +49,28 @@ repositories {
 gradlePlugin {
     plugins {
         register("javaConventions") {
-            id = "com.kjs.wuli3.java-conventions"
-            implementationClass = "com.kjs.wuli3.java.JavaConventionsPlugin"
+            id = "com.wulicode.wuli3.java-conventions"
+            implementationClass = "com.wulicode.wuli3.java.JavaConventionsPlugin"
         }
         register("dddConventions") {
-            id = "com.kjs.wuli3.ddd-conventions"
-            implementationClass = "com.kjs.wuli3.ddd.DddConventionsPlugin"
+            id = "com.wulicode.wuli3.ddd-conventions"
+            implementationClass = "com.wulicode.wuli3.ddd.DddConventionsPlugin"
         }
         register("javaSpringConventions") {
-            id = "com.kjs.wuli3.java-spring-conventions"
-            implementationClass = "com.kjs.wuli3.java.JavaSpringConventionsPlugin"
+            id = "com.wulicode.wuli3.java-spring-conventions"
+            implementationClass = "com.wulicode.wuli3.java.JavaSpringConventionsPlugin"
         }
         register("kotlinConventions") {
-            id = "com.kjs.wuli3.kotlin-conventions"
-            implementationClass = "com.kjs.wuli3.kotlin.KotlinConventionsPlugin"
+            id = "com.wulicode.wuli3.kotlin-conventions"
+            implementationClass = "com.wulicode.wuli3.kotlin.KotlinConventionsPlugin"
         }
         register("kotlinSpringConventions") {
-            id = "com.kjs.wuli3.kotlin-spring-conventions"
-            implementationClass = "com.kjs.wuli3.kotlin.KotlinSpringConventionsPlugin"
+            id = "com.wulicode.wuli3.kotlin-spring-conventions"
+            implementationClass = "com.wulicode.wuli3.kotlin.KotlinSpringConventionsPlugin"
         }
         register("publishingConventions") {
-            id = "com.kjs.wuli3.publishing-conventions"
-            implementationClass = "com.kjs.wuli3.publishing.PublishingConventionsPlugin"
+            id = "com.wulicode.wuli3.publishing-conventions"
+            implementationClass = "com.wulicode.wuli3.publishing.PublishingConventionsPlugin"
         }
     }
 }

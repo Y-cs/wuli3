@@ -1,0 +1,30 @@
+package com.wulicode.wuli3.propagation.propagation;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+import com.wulicode.wuli3.propagation.context.ContextKey;
+import com.wulicode.wuli3.propagation.context.ContextSnapshot;
+import com.wulicode.wuli3.propagation.internal.AuthContext;
+import com.wulicode.wuli3.propagation.internal.InvocationContext;
+import com.wulicode.wuli3.propagation.internal.PrincipalType;
+import org.junit.jupiter.api.Test;
+
+class ContextSnapshotTest {
+
+    @Test
+    void getReturnsEmptyWhenTypeIsAbsent() {
+        final ContextSnapshot snapshot = ContextSnapshot.of(new AuthContext(PrincipalType.CUSTOMER, "7"));
+
+        assertThat(snapshot.get(ContextKey.of(InvocationContext.class))).isEmpty();
+    }
+
+    @Test
+    void sameContextTypeUsesLastValueAndValuesCannotBeMutated() {
+        final ContextSnapshot snapshot = ContextSnapshot.of(
+                new AuthContext(PrincipalType.CUSTOMER, "7"), new AuthContext(PrincipalType.ADMIN, "8"));
+
+        assertThat(snapshot.get(ContextKey.of(AuthContext.class))).contains(new AuthContext(PrincipalType.ADMIN, "8"));
+        assertThatThrownBy(snapshot.values()::clear).isInstanceOf(UnsupportedOperationException.class);
+    }
+}

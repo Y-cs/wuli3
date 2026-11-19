@@ -76,4 +76,4 @@ Web、Dubbo、RocketMQ 和 RabbitMQ 适配器在各自入口恢复上下文并�
 ## 源码与详细指南
 
 - [上下文传播指南](https://github.com/weiran-tech/wuli3/blob/main/guide/wuli3-context-propagation.md)
-- [上下文管理入口](https://github.com/weiran-tech/wuli3/blob/main/wuli3-context-propagation/src/main/java/com/kjs/wuli3/propagation/ContextManager.java)
+- [上下文管理入口](https://github.com/weiran-tech/wuli3/blob/main/wuli3-context-propagation/src/main/java/com/wulicode/wuli3/propagation/ContextManager.java)

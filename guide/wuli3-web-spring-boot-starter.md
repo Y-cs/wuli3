@@ -6,7 +6,7 @@
 
 ```kotlin
 dependencies {
-    implementation("com.kjs.wuli3:wuli3-web-spring-boot-starter")
+    implementation("com.wulicode.wuli3:wuli3-web-spring-boot-starter")
 }
 ```
 
@@ -258,7 +258,7 @@ UserDetail getUser(@PathVariable final Long id) {
 使用 `@NativeResponse` 可以跳过成功响应包装：
 
 ```java
-import com.kjs.wuli3.web.response.NativeResponse;
+import com.wulicode.wuli3.web.response.NativeResponse;
 
 @NativeResponse
 @GetMapping("/download")
@@ -292,7 +292,7 @@ Resource download() {
 业务代码推荐抛出 `ErrorCodeException`：
 
 ```java
-import com.kjs.wuli3.core.error.ErrorCodeException;
+import com.wulicode.wuli3.core.error.ErrorCodeException;
 
 throw new ErrorCodeException(UserErrors.USER_NOT_FOUND);
 ```
