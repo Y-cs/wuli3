@@ -3,9 +3,11 @@ package com.wulicode.wuli3.web.internal.advice;
 import com.wulicode.wuli3.web.error.WebErrors;
 import com.wulicode.wuli3.web.response.ValidationErrorDetails;
 import com.wulicode.wuli3.web.response.WebResponseProperties;
+import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import jakarta.validation.Path;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import org.jspecify.annotations.Nullable;
 import org.springframework.validation.FieldError;
@@ -74,8 +76,11 @@ public final class ValidationErrorDetailsFactory {
         return new ValidationErrorDetails(errors);
     }
 
+    /** 违规集合无序，按属性路径排序后输出，保证字段详情和顶层消息稳定。 */
     private static ValidationErrorDetails constraintViolationDetail(final ConstraintViolationException ex) {
         final List<ValidationErrorDetails.Item> errors = ex.getConstraintViolations().stream()
+                .sorted(Comparator.comparing((ConstraintViolation<?> violation) ->
+                        violation.getPropertyPath().toString()))
                 .map(violation -> new ValidationErrorDetails.Item(
                         ValidationErrorDetailsFactory.lastPathNode(violation.getPropertyPath()),
                         violation

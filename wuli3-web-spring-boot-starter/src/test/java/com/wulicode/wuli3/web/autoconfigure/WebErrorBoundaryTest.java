@@ -34,13 +34,17 @@ import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.springframework.core.MethodParameter;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ProblemDetail;
 import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.validation.BeanPropertyBindingResult;
+import org.springframework.validation.FieldError;
 import org.springframework.web.ErrorResponseException;
 import org.springframework.web.HttpMediaTypeNotAcceptableException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.method.HandlerMethod;
@@ -104,8 +108,63 @@ class WebErrorBoundaryTest {
                     .handleException(new ConstraintViolationException(violations), new MockHttpServletRequest());
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.TOO_MANY_REQUESTS);
             final ApiResponse<?> body = (ApiResponse<?>) Objects.requireNonNull(response.getBody());
+            assertThat(body.message()).isEqualTo("required input");
             assertThat(body.data()).isNotNull();
             assertThat(Objects.requireNonNull(body.data()).toString()).contains("required input");
+        }
+    }
+
+    /** 请求体字段校验失败时，顶层消息取第一条校验提示，与 data.errors 一致。 */
+    @Test
+    void requestBodyValidationMessageIsExposedAsTopLevelMessage() throws Exception {
+        final var response = WebErrorBoundaryTest.handler(List.of())
+                .handleException(WebErrorBoundaryTest.fieldErrorFailure(), new MockHttpServletRequest());
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        final ApiResponse<?> body = (ApiResponse<?>) Objects.requireNonNull(response.getBody());
+        assertThat(body.message()).isEqualTo("昵称长度必须在 3 到 12 之间");
+        assertThat(Objects.requireNonNull(body.data()).toString()).contains("nickname");
+    }
+
+    /** 原生 ProblemDetail 模式使用同一份校验消息作为 detail。 */
+    @Test
+    void nativeProblemDetailUsesValidationMessage() throws Exception {
+        final MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setAttribute(
+                HandlerMapping.BEST_MATCHING_HANDLER_ATTRIBUTE,
+                new HandlerMethod(new NativeController(), NativeController.class.getDeclaredMethod("endpoint")));
+        final var response = WebErrorBoundaryTest.handler(List.of())
+                .handleException(WebErrorBoundaryTest.fieldErrorFailure(), request);
+        final ProblemDetail body = (ProblemDetail) Objects.requireNonNull(response.getBody());
+        assertThat(body.getDetail()).isEqualTo("昵称长度必须在 3 到 12 之间");
+    }
+
+    /** 关闭校验详情时保持统一消息，不暴露字段提示。 */
+    @Test
+    void disabledValidationDetailKeepsUniformMessage() throws Exception {
+        final WebResponseProperties properties = new WebResponseProperties();
+        properties.setValidationDetailEnabled(false);
+        final var response = WebErrorBoundaryTest.handler(List.of(), properties)
+                .handleException(WebErrorBoundaryTest.fieldErrorFailure(), new MockHttpServletRequest());
+        final ApiResponse<?> body = (ApiResponse<?>) Objects.requireNonNull(response.getBody());
+        assertThat(body.message()).isEqualTo(WebErrors.BAD_REQUEST.getMessage());
+        assertThat(body.data()).isNull();
+    }
+
+    /** 多条约束违规按属性路径排序，顶层消息稳定取同一字段。 */
+    @Test
+    void constraintViolationMessageUsesDeterministicOrder() throws Exception {
+        try (final var factory = Validation.buildDefaultValidatorFactory()) {
+            final var violations = factory.getValidator()
+                    .forExecutables()
+                    .validateParameters(
+                            new ValidatedService(),
+                            ValidatedService.class.getDeclaredMethod("acceptTwo", String.class, String.class),
+                            new Object[] {null, null});
+            final var response = WebErrorBoundaryTest.handler(List.of())
+                    .handleException(new ConstraintViolationException(violations), new MockHttpServletRequest());
+            final ApiResponse<?> body = (ApiResponse<?>) Objects.requireNonNull(response.getBody());
+            assertThat(body.message()).isEqualTo("first parameter");
+            assertThat(Objects.requireNonNull(body.data()).toString()).contains("second parameter");
         }
     }
 
@@ -543,6 +602,15 @@ class WebErrorBoundaryTest {
                 .isEqualTo("请求未被接受");
     }
 
+    /** 构造携带单条字段错误的请求体校验异常。 */
+    private static MethodArgumentNotValidException fieldErrorFailure() throws NoSuchMethodException {
+        final BeanPropertyBindingResult bindingResult = new BeanPropertyBindingResult(new Object(), "request");
+        bindingResult.addError(new FieldError("request", "nickname", "ab", false, null, null, "昵称长度必须在 3 到 12 之间"));
+        return new MethodArgumentNotValidException(
+                new MethodParameter(ValidatedService.class.getDeclaredMethod("accept", String.class), 0),
+                bindingResult);
+    }
+
     /** 创建使用真实 core 投影和 HTTP 分类的处理器。 */
     private static WebExceptionHandler handler(final List<WebErrorMapper> mappers) {
         return WebErrorBoundaryTest.handler(mappers, null, List.of());
@@ -624,6 +692,11 @@ class WebErrorBoundaryTest {
 
         /** 提供请求参数约束元数据。 */
         public void accept(@NotNull(message = "required input") final String value) {}
+
+        /** 提供两个按顺序排列的请求参数约束。 */
+        public void acceptTwo(
+                @NotNull(message = "first parameter") final String first,
+                @NotNull(message = "second parameter") final String second) {}
     }
 
     /** 提供带内部原因文本的状态注解。 */

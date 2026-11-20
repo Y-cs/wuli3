@@ -210,7 +210,7 @@ Logstash 输出示例片段如下，省略时间、Logger 和 MDC 等标准字�
 | 字段 | 说明 |
 | --- | --- |
 | `code` | 外部错误码。成功固定为 `0`；失败由 `ErrorResolver` 解析。 |
-| `message` | 成功时使用 `wuli3.web.response.success-message`；失败时使用错误消息或框架映射消息。 |
+| `message` | 成功时使用 `wuli3.web.response.success-message`；失败时使用错误消息或框架映射消息；参数校验失败且返回字段详情时，取第一条校验提示。 |
 | `timestamp` | 响应生成时间，Unix 毫秒时间戳。 |
 | `requestId` | 当前请求 ID，来自 `X-Wuli3-Request-Id` 或 starter 自动生成的 ID；上下文缺失时可能为 `null`。 |
 | `data` | 成功数据；失败时一般为 `null`，参数校验失败时可为 `ValidationErrorDetails`。 |
@@ -461,7 +461,7 @@ starter 在 Spring Boot 的 `ErrorMvcAutoConfiguration` 之前注册应用级 `W
 ```json
 {
   "code": "WEB.BAD_REQUEST",
-  "message": "请求参数错误",
+  "message": "must not be blank",
   "timestamp": 1780000000000,
   "requestId": "request-id",
   "data": {
@@ -475,6 +475,8 @@ starter 在 Spring Boot 的 `ErrorMvcAutoConfiguration` 之前注册应用级 `W
   }
 }
 ```
+
+顶层 `message` 与 `data.errors` 使用同一来源，取排序后的第一条校验提示；`ConstraintViolationException` 的违规集合按属性路径排序后输出，多次请求结果一致。
 
 关闭字段级详情：
 

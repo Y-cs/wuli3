@@ -1,8 +1,8 @@
 plugins {
     base
-    id("com.wulicode.wuli3.java-conventions") version "1.1.0-SNAPSHOT" apply false
-    id("com.wulicode.wuli3.java-spring-conventions") version "1.1.0-SNAPSHOT" apply false
-    id("com.wulicode.wuli3.ddd-conventions") version "1.1.0-SNAPSHOT" apply false
+    id("com.wulicode.wuli3.java-conventions") version "1.1.1-SNAPSHOT" apply false
+    id("com.wulicode.wuli3.java-spring-conventions") version "1.1.1-SNAPSHOT" apply false
+    id("com.wulicode.wuli3.ddd-conventions") version "1.1.1-SNAPSHOT" apply false
     id("org.springframework.boot") version "3.5.15" apply false
 }
 

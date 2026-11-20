@@ -38,7 +38,7 @@ class ConventionPropertiesTest {
                     assert java.toolchain.languageVersion.get().asInt() == ${if (overridden) 17 else 21}
                     def bom = configurations.implementation.dependencies.find { it.name == '${if (overridden) "custom-bom" else "wuli3-dependencies"}' }
                     assert bom.group == '${if (overridden) "example" else "com.wulicode.wuli3"}'
-                    assert bom.version == '${if (overridden) "2.0" else "1.1.0-SNAPSHOT"}'
+                    assert bom.version == '${if (overridden) "2.0" else "1.1.1-SNAPSHOT"}'
                     assert configurations.compileOnly.dependencies.any { it.name == 'lombok' } == ${!overridden}
                     def coverage = tasks.jacocoTestCoverageVerification
                     assert coverage.enabled == ${!overridden}
