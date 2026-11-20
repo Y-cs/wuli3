@@ -16,6 +16,7 @@ import com.wulicode.wuli3.web.internal.advice.ValidationErrorDetailsFactory;
 import com.wulicode.wuli3.web.internal.error.ErrorAlertNotifiers;
 import com.wulicode.wuli3.web.internal.error.WebErrorResponseMapper;
 import com.wulicode.wuli3.web.response.ApiResponse;
+import com.wulicode.wuli3.web.response.ValidationErrorDetails;
 import com.wulicode.wuli3.web.response.WebResponseProperties;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
@@ -66,15 +67,16 @@ public class WebExceptionHandler {
     public ResponseEntity<?> handleException(final Exception ex, final HttpServletRequest request) {
         final ErrorCodeException mapped = this.map(ex);
         final WebErrorResolution resolution = this.resolve(mapped == null ? ex : mapped);
-        final ErrorCodeCarrier visible = resolution.source() instanceof ErrorCodeException business
+        final ErrorCodeCarrier base = resolution.source() instanceof ErrorCodeException business
                 ? this.responseFactory.resolve(business)
                 : this.responseFactory.resolve(
                         resolution.code(), resolution.code().getMessage());
         final Object detail = resolution.validationDetailsAllowed()
-                        && visible.visibility() == ErrorVisibility.PUBLIC
+                        && base.visibility() == ErrorVisibility.PUBLIC
                         && resolution.status().is4xxClientError()
                 ? this.validationErrorDetailsFactory.detail(resolution.source())
                 : null;
+        final ErrorCodeCarrier visible = this.withDetailMessage(resolution, base, detail);
         final String requestId = this.requestId();
         final ApiResponse<?> response = ApiResponse.failure(visible, requestId, detail);
         this.alert(ex, request, resolution.status(), visible, requestId);
@@ -88,6 +90,17 @@ public class WebExceptionHandler {
         return ResponseEntity.status(resolution.status())
                 .headers(resolution.headers())
                 .body(response);
+    }
+
+    /** 存在校验详情时，顶层消息取第一条校验提示，与 data.errors 使用同一来源。 */
+    private ErrorCodeCarrier withDetailMessage(
+            final WebErrorResolution resolution, final ErrorCodeCarrier base, final @Nullable Object detail) {
+        if (detail instanceof ValidationErrorDetails details
+                && !details.errors().isEmpty()) {
+            return this.responseFactory.resolve(
+                    resolution.code(), details.errors().getFirst().message());
+        }
+        return base;
     }
 
     /** 一次识别完整错误结果，再按需定制状态；定制器无需重新识别异常。 */
