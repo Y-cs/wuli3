@@ -17,7 +17,7 @@ repositories {
 }
 
 dependencies {
-    implementation(platform("com.wulicode.wuli3:wuli3-dependencies:1.1.0-SNAPSHOT"))
+    implementation(platform("com.wulicode.wuli3:wuli3-dependencies:1.1.1-SNAPSHOT"))
     implementation("com.wulicode.wuli3:wuli3-core")
 }
 ```
@@ -30,7 +30,7 @@ Maven：
     <dependency>
       <groupId>com.wulicode.wuli3</groupId>
       <artifactId>wuli3-dependencies</artifactId>
-      <version>1.1.0-SNAPSHOT</version>
+      <version>1.1.1-SNAPSHOT</version>
       <type>pom</type>
       <scope>import</scope>
     </dependency>
